@@ -419,9 +419,11 @@ rows:
       Chrome package, Firefox package and VS Code package.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R25
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      int:
+      - speed-read-fr:tests/package.test.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
 amendments:
   - row: vscode-cursor-follows
     op: reword
