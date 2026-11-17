@@ -235,9 +235,11 @@ rows:
       with its own Manifest V3 manifest.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R18
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/browser-extension/src/manifest.test.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
   - id: firefox-extension-runs
     capability: browser-extension
     acceptance: The Firefox package installs in Firefox and its entry points, hover
