@@ -82,9 +82,15 @@ rows:
       pane that reveals non-prose blocks as playback reaches them.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R10
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/ui/outline.test.ts
+      - speed-read-fr:packages/core/src/ui/exhibits.test.ts
+      - speed-read-fr:packages/core/src/ui/stage.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
     visual:
       states:
       - playing prose chunk with pivot highlight
