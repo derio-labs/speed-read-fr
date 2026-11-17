@@ -33,14 +33,25 @@ export function readSettings(): Settings {
   return normalizeSettings(nested as Partial<Settings>);
 }
 
-/** Write `settings` to the user configuration, only the keys whose value changed. */
+/** The scope a key's effective value comes from, so a write there takes effect. */
+function targetOf(config: vscode.WorkspaceConfiguration, key: string): vscode.ConfigurationTarget {
+  const inspected = config.inspect(key);
+  if (inspected?.workspaceFolderValue !== undefined) return vscode.ConfigurationTarget.WorkspaceFolder;
+  if (inspected?.workspaceValue !== undefined) return vscode.ConfigurationTarget.Workspace;
+  return vscode.ConfigurationTarget.Global;
+}
+
+/**
+ * Write `settings` to the configuration, only the keys whose value changed, each to the scope its
+ * effective value comes from (a user-level write under a workspace value would have no effect).
+ */
 export async function writeSettings(settings: Settings): Promise<void> {
   const config = vscode.workspace.getConfiguration(SECTION);
   const current = flattenSettings(readSettings());
   const next = flattenSettings(normalizeSettings(settings));
   for (const key of KEYS) {
     if (JSON.stringify(current[key]) === JSON.stringify(next[key])) continue;
-    await config.update(key, next[key], vscode.ConfigurationTarget.Global);
+    await config.update(key, next[key], targetOf(config, key));
   }
 }
 

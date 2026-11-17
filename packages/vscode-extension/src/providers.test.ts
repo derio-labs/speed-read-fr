@@ -234,6 +234,47 @@ describe('settings', () => {
     ]);
   });
 
+  const pushes = () => panel().webview.posted.filter((m) => m.type === 'settings');
+  const settle = async () => {
+    for (let i = 0; i < 20; i++) await tick();
+  };
+
+  it('serialises the writes and pushes no intermediate settings back while they run', async () => {
+    panel().webview.receive({ type: 'settings', settings: { ...DEFAULT_SETTINGS, wpm: 400, chunkWords: 2 } });
+    panel().webview.receive({ type: 'settings', settings: { ...DEFAULT_SETTINGS, wpm: 500, chunkWords: 2 } });
+    await settle();
+    expect(__stub.state.configWrites.map((w) => [w.key, w.value])).toEqual([
+      ['speedRead.wpm', 400],
+      ['speedRead.chunkWords', 2],
+      ['speedRead.wpm', 500],
+    ]);
+    expect(__stub.state.config['speedRead.wpm']).toBe(500);
+    expect(pushes()).toEqual([]);
+  });
+
+  it('pushes once after the writes when the configuration ended up different from what the webview sent', async () => {
+    __stub.state.onUpdate = () => {
+      __stub.state.onUpdate = undefined;
+      __stub.setConfig({ 'speedRead.imageDwellSeconds': 9 });
+    };
+    panel().webview.receive({ type: 'settings', settings: { ...DEFAULT_SETTINGS, wpm: 520, chunkWords: 4 } });
+    await settle();
+    expect(pushes()).toEqual([{ type: 'settings', settings: { ...DEFAULT_SETTINGS, wpm: 520, chunkWords: 4, imageDwellSeconds: 9 } }]);
+  });
+
+  it('writes each key to the scope its effective value comes from', async () => {
+    __stub.state.configScopes['speedRead.wpm'] = 'workspace';
+    __stub.state.configScopes['speedRead.chunkWords'] = 'workspaceFolder';
+    __stub.setConfig({ 'speedRead.wpm': 300, 'speedRead.chunkWords': 3 }, false);
+    panel().webview.receive({ type: 'settings', settings: { ...DEFAULT_SETTINGS, wpm: 333, chunkWords: 4, chunkChars: 30 } });
+    await settle();
+    expect(__stub.state.configWrites.map((w) => [w.key, w.target])).toEqual([
+      ['speedRead.wpm', vscode.ConfigurationTarget.Workspace],
+      ['speedRead.chunkWords', vscode.ConfigurationTarget.WorkspaceFolder],
+      ['speedRead.chunkChars', vscode.ConfigurationTarget.Global],
+    ]);
+  });
+
   it('ignores a malformed settings message', async () => {
     panel().webview.receive({ type: 'settings', settings: 'nope' });
     await tick();

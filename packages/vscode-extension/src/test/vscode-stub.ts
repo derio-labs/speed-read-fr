@@ -167,6 +167,10 @@ function createState() {
     panels: [] as StubPanel[],
     config: {} as Record<string, unknown>,
     configWrites: [] as { key: string; value: unknown; target: unknown }[],
+    /** Keys whose effective value comes from a workspace or workspace-folder setting. */
+    configScopes: {} as Record<string, 'workspace' | 'workspaceFolder'>,
+    /** Test hook, called after each configuration write. */
+    onUpdate: undefined as undefined | ((key: string, value: unknown) => void),
     configChanged: new EventEmitter<{ affectsConfiguration(section: string): boolean }>(),
     visibleTextEditors: [] as StubEditor[],
     activeTextEditor: undefined as StubEditor | undefined,
@@ -181,6 +185,11 @@ function createState() {
 }
 
 let state = createState();
+
+function fireConfigChange(values: Record<string, unknown>) {
+  Object.assign(state.config, values);
+  state.configChanged.fire({ affectsConfiguration: (s: string) => Object.keys(values).some((k) => k === s || k.startsWith(`${s}.`)) });
+}
 
 export const window = {
   get activeTextEditor() {
@@ -261,9 +270,18 @@ export const workspace = {
     const prefix = section ? `${section}.` : '';
     return {
       get: (key: string, fallback?: unknown) => (prefix + key in state.config ? state.config[prefix + key] : fallback),
+      /** The effective value lives in the scope `configScopes` names (global by default). */
+      inspect(key: string) {
+        const value = state.config[prefix + key];
+        const scope = state.configScopes[prefix + key] ?? 'global';
+        return { key: prefix + key, [`${scope}Value`]: value };
+      },
       async update(key: string, value: unknown, target?: unknown) {
         state.configWrites.push({ key: prefix + key, value, target });
-        state.config[prefix + key] = value;
+        await Promise.resolve();
+        // Like VS Code: each write fires a configuration change event.
+        fireConfigChange({ [prefix + key]: value });
+        state.onUpdate?.(prefix + key, value);
       },
     };
   },
@@ -331,7 +349,7 @@ export const __stub = {
     return editor;
   },
   setConfig(values: Record<string, unknown>, fire = true) {
-    Object.assign(state.config, values);
-    if (fire) state.configChanged.fire({ affectsConfiguration: (s: string) => Object.keys(values).some((k) => k === s || k.startsWith(`${s}.`)) });
+    if (fire) fireConfigChange(values);
+    else Object.assign(state.config, values);
   },
 };

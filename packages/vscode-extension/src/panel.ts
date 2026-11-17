@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import type { Settings } from '@speed-read/core';
-import { writeSettings } from './config';
+import { normalizeSettings, type Settings } from '@speed-read/core';
+import { readSettings, writeSettings } from './config';
 import { createNonce, webviewHtml } from './html';
 import type { FromWebview, ReadMessage, ToWebview } from './messages';
 import type { LineRange } from './ranges';
@@ -24,6 +24,10 @@ export class ReaderPanel implements vscode.Disposable {
   private pending: ToWebview | null = null;
   private source: vscode.Uri | null = null;
   private lastLine: number | null = null;
+  /** Settings writes from the webview, run one after another. */
+  private writes: Promise<void> = Promise.resolve();
+  private pendingWrites = 0;
+  private sentSettings: Settings | null = null;
 
   constructor(private readonly extensionUri: vscode.Uri) {}
 
@@ -53,9 +57,26 @@ export class ReaderPanel implements vscode.Disposable {
     this.post(message);
   }
 
-  /** Push new settings to the open panel. */
+  /**
+   * Push new settings to the open panel. Ignored while the webview's own settings are being written:
+   * each key's write fires a change, and pushing those intermediate states would roll the reader back.
+   */
   pushSettings(settings: Settings): void {
-    if (this.panel) this.post({ type: 'settings', settings });
+    if (this.panel && this.pendingWrites === 0) this.post({ type: 'settings', settings });
+  }
+
+  /** Queue a write of settings the webview sent; once the queue drains, push only what differs. */
+  private queueWrite(settings: Settings) {
+    this.pendingWrites++;
+    this.sentSettings = normalizeSettings(settings);
+    this.writes = this.writes
+      .then(() => writeSettings(settings))
+      .catch(() => {})
+      .then(() => {
+        if (--this.pendingWrites > 0) return;
+        const now = readSettings();
+        if (JSON.stringify(now) !== JSON.stringify(this.sentSettings)) this.pushSettings(now);
+      });
   }
 
   dispose(): void {
@@ -127,7 +148,7 @@ export class ReaderPanel implements vscode.Disposable {
         }
         break;
       case 'settings':
-        if (message.settings && typeof message.settings === 'object' && !Array.isArray(message.settings)) void writeSettings(message.settings);
+        if (message.settings && typeof message.settings === 'object' && !Array.isArray(message.settings)) this.queueWrite(message.settings);
         break;
       case 'position':
         this.follow(message.line);
