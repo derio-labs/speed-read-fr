@@ -244,11 +244,18 @@ test("on a hostile page the reader's layout and fonts are unchanged", async () =
         card: style(root.querySelector('.sr-display')!),
       };
     });
-  const plain = await openPage(ARTICLE);
+  // The reference is the same page, same text, with its hostile rules removed: the floating stage card
+  // is centred and sized by what it shows (the title on the ready card), so a page with other text
+  // would move the toolbar by font metrics alone and the comparison would not measure isolation.
+  const plain = await openPage(HOSTILE);
+  await plain.evaluate(() => document.querySelectorAll('style').forEach((s) => s.remove()));
   await openReader(plain, 'auto');
   const expected = await measure(plain);
+  const title = await plain.locator('[data-speed-read-host] .sr-card-title').textContent();
+  expect(title).toBeTruthy();
   const page = await openPage(HOSTILE);
   await openReader(page, 'auto');
+  await expect(page.locator('[data-speed-read-host] .sr-card-title')).toHaveText(title!);
   expect(await measure(page)).toEqual(expected);
 });
 
