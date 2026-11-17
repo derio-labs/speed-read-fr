@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A styled page</title>
+    <!-- Our own test page: a dark page theme, ancestor-dependent rules and syntax-highlight classes. -->
+    <style>
+      body.theme-dark { margin: 0; background: #0f172a; color: #e2e8f0; font: 18px/1.6 Georgia, "DejaVu Serif", serif; }
+      .site { display: grid; grid-template-columns: 220px 1fr; gap: 32px; padding: 32px; }
+      .site nav { color: #94a3b8; }
+      .site nav a { color: #7dd3fc; }
+      .theme-dark .post { max-width: 720px; }
+      .theme-dark .post h3 { color: #f8fafc; font-family: system-ui, sans-serif; }
+      .theme-dark .post .highlight pre { margin: 0; padding: 14px 16px; border-radius: 8px; background: #1e293b; color: #cbd5e1; font: 15px/1.5 "DejaVu Sans Mono", monospace; overflow: auto; }
+      .theme-dark .post .highlight .kw { color: rgb(244, 114, 182); font-weight: 700; }
+      .post .highlight .fn { color: rgb(96, 165, 250); }
+      .post .highlight .str { color: rgb(134, 239, 172); }
+      .post .highlight .num { color: rgb(251, 191, 36); }
+      .post .highlight .com { color: rgb(100, 116, 139); font-style: italic; }
+    </style>
+  </head>
+  <body class="theme-dark">
+    <div class="site">
+      <nav>
+        <p><a href="article.html">Article</a></p>
+        <p><a href="hostile.html">Hostile page</a></p>
+      </nav>
+      <main class="post">
+        <h3>Totals in one pass</h3>
+        <p>The page draws its code with its own highlighter. When the reader shows the code, it should look exactly as it does here.</p>
+        <div class="highlight">
+          <pre><code class="language-js"><span class="com">// Sum the amounts once.</span>
+<span class="kw">const</span> <span class="fn">total</span> = (items) =&gt;
+  items.<span class="fn">reduce</span>((sum, item) =&gt; sum + item.amount, <span class="num">0</span>);
+<span class="kw">export</span> <span class="kw">default</span> <span class="str">'totals'</span>;</code></pre>
+        </div>
+        <p>After the code the prose carries on, in the page's light text on its dark background.</p>
+      </main>
+    </div>
+  </body>
+</html>

@@ -5,11 +5,17 @@
     <title>Reading structured answers quickly</title>
   </head>
   <body>
-    <!-- Our own test document for the demo page and the browser-level tests. -->
+    <!-- Our own test document for the demo page and the browser-level tests. The demo reads only
+         #content; the extension's tests also need the page furniture around it. -->
+    <nav class="site-nav">
+      <h2>Site navigation</h2>
+      <p><a href="/">Home</a> · <a href="styled.html">Styled page</a> · <a href="hostile.html">Hostile page</a></p>
+      <button id="bump" type="button" onclick="this.dataset.count = String((+this.dataset.count || 0) + 1)">Menu</button>
+    </nav>
     <article id="content">
       <h1>Reading structured answers quickly</h1>
       <p>So you can read it all in one go: the reader shows a few words at a time, each chunk centred on the letter your eye lands on. Long answers from a model are rarely just prose, though. They carry lists, code, tables and pictures, and each of those wants a different pace.</p>
-      <p>This page is the demo the tests drive. Press <code>Space</code> to start, and the reader stops at every chapter so you can see what is coming.</p>
+      <p>This page is <a id="demo-link" href="styled.html">the demo</a> the tests drive. Press <code>Space</code> to start, and the reader stops at every chapter so you can see what is coming.</p>
 
       <h2>How prose is paced</h2>
       <p>Prose is streamed in short chunks. A chunk ends at the word limit, at the character limit, or at the end of a sentence, whichever comes first. Chunks that end a clause, end a sentence, or hold long words stay on screen a little longer.</p>
@@ -98,5 +104,12 @@
       </figure>
       <p>That is the whole tour. Press Escape to close the reader.</p>
     </article>
+    <aside class="sidebar">
+      <h2>Related reading</h2>
+      <p>Sidebar entries that the reader leaves out: <a href="/">one</a>, <a href="/">two</a>.</p>
+    </aside>
+    <footer>
+      <p>Footer text the reader leaves out. Copyright nobody.</p>
+    </footer>
   </body>
 </html>
