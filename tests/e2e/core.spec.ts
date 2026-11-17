@@ -190,3 +190,46 @@ test('words per chunk 1 and 8 change the chunk, and a reload keeps the saved set
   await page.keyboard.press(',');
   await expect(page.locator('.sr-settings [name="chunkWords"]')).toHaveValue('8');
 });
+
+/** The element's box lies inside the stage's box (1 px tolerance). */
+async function insideStage(page: Page, selector: string) {
+  const stage = (await page.locator('.sr-stage').boundingBox())!;
+  const box = (await page.locator(selector).boundingBox())!;
+  return box.x >= stage.x - 1 && box.x + box.width <= stage.x + stage.width + 1;
+}
+
+test.describe('at 360 px', () => {
+  test.use({ viewport: { width: 360, height: 800 } });
+
+  test('a very long word and its sentence stay inside the stage', async ({ page }) => {
+    await openDemo(page);
+    await page.keyboard.press('n');
+    await expect(page.locator('.sr-card-chapter .sr-card-title')).toHaveText('How prose is paced');
+    for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowRight');
+    await expect(chunk(page)).toContainText('Pneumonoultramicroscopic');
+    expect(await insideStage(page, '.sr-chunk')).toBe(true);
+    expect(await insideStage(page, '.sr-sentence')).toBe(true);
+  });
+
+  test('a nested list item stays inside the stage', async ({ page }) => {
+    await openDemo(page);
+    await page.keyboard.press('n');
+    await page.keyboard.press('n');
+    await expect(page.locator('.sr-card-chapter .sr-card-title')).toHaveText('Lists are read item by item');
+    for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
+    await expect(page.locator('.sr-item-counter')).toHaveText('item 1/2');
+    await expect(page.locator('.sr-display')).toHaveAttribute('style', /--sr-depth: 1/);
+    expect(await insideStage(page, '.sr-chunk')).toBe(true);
+  });
+});
+
+test('a paused chunk stays inside the stage after resizing from wide to 360 px', async ({ page }) => {
+  await openDemo(page);
+  await page.keyboard.press('n');
+  for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowRight');
+  await expect(chunk(page)).toContainText('Pneumonoultramicroscopic');
+  expect(await insideStage(page, '.sr-chunk')).toBe(true);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await expect.poll(() => insideStage(page, '.sr-chunk')).toBe(true);
+  expect(await insideStage(page, '.sr-sentence')).toBe(true);
+});

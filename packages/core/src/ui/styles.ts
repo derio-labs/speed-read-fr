@@ -191,6 +191,9 @@ export const READER_CSS = `
   position: absolute; top: 0; left: var(--sr-axis); margin-left: calc(var(--sr-depth, 0) * 28px - var(--sr-shift, 0px));
   white-space: pre; font-size: calc(46px * var(--sr-scale, 1)); line-height: 150px; font-weight: 500; letter-spacing: -0.01em;
 }
+.sr-display[data-wrap] { height: auto; min-height: 150px; display: flex; align-items: center; }
+.sr-display[data-wrap] .sr-axis { display: none; }
+.sr-display[data-wrap] .sr-chunk { position: static; margin: 0; width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; line-height: 1.25; }
 .sr-pivot { color: var(--sr-accent); font-weight: 700; }
 .sr-atom { font-family: var(--sr-mono); font-size: .86em; padding: 0 .14em; border-radius: 4px; background: var(--sr-surface-2); }
 .sr-pivot.sr-atom, .sr-pivot .sr-atom { background: transparent; }
@@ -201,7 +204,7 @@ export const READER_CSS = `
 }
 .sr-depth-mark { display: inline-block; width: calc(var(--sr-depth, 0) * 10px); height: 2px; background: var(--sr-border); }
 .sr-sentence {
-  min-height: 3.2em; max-width: 46em; margin: 18px auto 0; text-align: center; font-size: 17px; line-height: 1.6; color: var(--sr-text);
+  min-height: 3.2em; max-width: min(46em, 100%); overflow-wrap: anywhere; margin: 18px auto 0; text-align: center; font-size: 17px; line-height: 1.6; color: var(--sr-text);
 }
 .sr-sentence > span { opacity: .38; }
 .sr-sentence > .sr-current { opacity: 1; font-weight: 600; }

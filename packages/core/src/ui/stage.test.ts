@@ -1,12 +1,23 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { orp } from '../text/orp';
 import { ARTICLE, mountHarness } from '../testing/reader';
 import { formatDuration } from './format';
 
 afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   document.body.innerHTML = '';
 });
+
+/** Fake layout: widths by class name. */
+function stubWidths(widths: Record<string, number>) {
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    const cls = Object.keys(widths).find((c) => this.classList.contains(c));
+    const width = cls ? widths[cls] : 0;
+    return { width, height: 0, top: 0, left: 0, right: width, bottom: 0, x: 0, y: 0, toJSON() {} } as DOMRect;
+  });
+}
 
 const text = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 
@@ -44,6 +55,62 @@ describe('chunk steps', () => {
     // jsdom has no layout: the shift falls back to 0 and is still set.
     t.handle.player.toggle();
     expect(t.q('.sr-chunk')!.style.getPropertyValue('--sr-shift')).toBe('0px');
+  });
+});
+
+describe('fitting the chunk to the stage', () => {
+  it('scales no smaller than 0.5 and wraps past that', () => {
+    stubWidths({ 'sr-display': 360, 'sr-chunk': 1400, 'sr-before': 600, 'sr-pivot': 20 });
+    const t = mountHarness('<p>Supercalifragilisticexpialidocious_and_more_and_more_and_more_characters_here.</p>');
+    t.handle.player.toggle();
+    const display = t.q('.sr-display')!;
+    expect(t.q('.sr-chunk')!.style.getPropertyValue('--sr-scale')).toBe('0.500');
+    expect(display.dataset.wrap).toBe('true');
+  });
+
+  it('does not wrap a chunk that fits once scaled', () => {
+    stubWidths({ 'sr-display': 400, 'sr-chunk': 300, 'sr-before': 250, 'sr-pivot': 20 });
+    const t = mountHarness('<p>Some words here.</p>');
+    t.handle.player.toggle();
+    expect(t.q('.sr-display')!.dataset.wrap).toBeUndefined();
+    expect(Number(t.q('.sr-chunk')!.style.getPropertyValue('--sr-scale'))).toBeGreaterThan(0.5);
+  });
+
+  it('counts the list depth offset in the fit', () => {
+    // axis = 400 * 0.45 = 180, +28 for depth 1; right room 400 - 208 - 12 = 180 < 200 to the right of the pivot.
+    stubWidths({ 'sr-display': 400, 'sr-chunk': 300, 'sr-before': 90, 'sr-pivot': 20 });
+    const t = mountHarness(
+      '<ul><li>first list item that is rather long indeed</li><li>second list item that is also long<ul><li>nested item in the list here</li></ul></li></ul>',
+    );
+    const list = t.doc.sections[0].blocks[0];
+    if (list.kind !== 'list') throw new Error('list expected');
+    t.handle.player.jumpToBlock(list.items[2].source);
+    expect(t.q('.sr-chunk')!.style.getPropertyValue('--sr-scale')).toBe('0.900');
+  });
+
+  it('aligns again when the stage is resized, and stops observing on destroy', () => {
+    const observers: { cb: () => void; disconnect: ReturnType<typeof vi.fn> }[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        disconnect = vi.fn();
+        constructor(public cb: () => void) {
+          observers.push(this);
+        }
+        observe() {}
+      },
+    );
+    stubWidths({ 'sr-display': 1000, 'sr-chunk': 300, 'sr-before': 100, 'sr-pivot': 20 });
+    const t = mountHarness('<p>Some words here and more.</p>');
+    t.handle.player.toggle();
+    t.handle.player.toggle();
+    const chunk = t.q('.sr-chunk')!;
+    expect(chunk.style.getPropertyValue('--sr-scale')).toBe('');
+    stubWidths({ 'sr-display': 300, 'sr-chunk': 300, 'sr-before': 100, 'sr-pivot': 20 });
+    for (const o of observers) o.cb();
+    expect(chunk.style.getPropertyValue('--sr-scale')).not.toBe('');
+    t.handle.destroy();
+    expect(observers.some((o) => o.disconnect.mock.calls.length > 0)).toBe(true);
   });
 });
 

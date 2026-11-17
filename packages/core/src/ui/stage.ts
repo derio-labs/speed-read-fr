@@ -22,6 +22,10 @@ const STATE_LABELS: Record<PlayerState, string> = {
 /** Fraction of the stage width where the pivot axis sits (matches `--sr-axis`). */
 const AXIS = 0.45;
 const EDGE_PX = 12;
+/** Indent per list depth (matches the 28px in the stylesheet). */
+const DEPTH_PX = 28;
+/** Below this scale a chunk wraps inside the stage instead of shrinking further. */
+const MIN_SCALE = 0.5;
 
 const isChunk = (step: Step): step is ChunkStep => step.kind === 'chunk' || step.kind === 'item-chunk';
 const sameSentence = (a: ChunkStep, b: Step) =>
@@ -68,6 +72,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
 
   function setDisplay(kind: string, ...children: Child[]) {
     display.dataset.kind = kind;
+    delete display.dataset.wrap;
     display.style.removeProperty('--sr-depth');
     replaceChildren(display, ...children);
   }
@@ -92,13 +97,23 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
         : null;
     setDisplay(step.kind, h('div', { class: 'sr-axis' }), counter, chunk);
     if (step.kind === 'item-chunk') display.style.setProperty('--sr-depth', String(step.depth));
-    align(chunk, before, pivot);
+    aligned = { chunk, before, pivot, depth: step.kind === 'item-chunk' ? step.depth : 0 };
+    align();
     showSentence(step, index);
   }
 
-  /** Put the pivot on the axis; shrink the chunk when it would overflow the stage. Widths are 0 without layout. */
-  function align(chunk: HTMLElement, before: HTMLElement, pivot: HTMLElement) {
+  /** The chunk on show, kept so a resize can align it again. */
+  let aligned: { chunk: HTMLElement; before: HTMLElement; pivot: HTMLElement; depth: number } | null = null;
+
+  /**
+   * Put the pivot on the axis; shrink the chunk (not below MIN_SCALE) when it would overflow the stage,
+   * and wrap it when even that is too wide. Widths are 0 without layout.
+   */
+  function align() {
+    if (!aligned || !aligned.chunk.isConnected) return;
+    const { chunk, before, pivot, depth } = aligned;
     chunk.style.removeProperty('--sr-scale');
+    delete display.dataset.wrap;
     const width = (el: Element) => (typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect().width : 0);
     const left = width(before);
     const pivotHalf = width(pivot) / 2;
@@ -106,11 +121,15 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
     const room = width(display);
     let shift = left + pivotHalf;
     if (room > 0 && total > 0) {
-      const axisX = room * AXIS;
-      const scale = Math.min(1, (axisX - EDGE_PX) / Math.max(shift, 1), (room - axisX - EDGE_PX) / Math.max(total - shift, 1));
+      const axisX = room * AXIS + depth * DEPTH_PX;
+      let scale = Math.min(1, (axisX - EDGE_PX) / Math.max(shift, 1), (room - axisX - EDGE_PX) / Math.max(total - shift, 1));
       if (scale < 1) {
+        if (scale < MIN_SCALE) {
+          scale = MIN_SCALE;
+          display.dataset.wrap = 'true';
+        }
         chunk.style.setProperty('--sr-scale', scale.toFixed(3));
-        shift *= scale;
+        shift = display.dataset.wrap ? 0 : shift * scale;
       }
     }
     chunk.style.setProperty('--sr-shift', `${Math.round(shift * 10) / 10}px`);
@@ -252,6 +271,9 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
   ];
   showReady();
   renderStatus();
+  const Observer = (ctx.document.defaultView as (Window & { ResizeObserver?: typeof ResizeObserver }) | null)?.ResizeObserver ?? globalThis.ResizeObserver;
+  const resize = Observer ? new Observer(() => align()) : null;
+  resize?.observe(stage);
 
   return {
     refresh() {
@@ -260,6 +282,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
     },
     destroy() {
       for (const o of off) o();
+      resize?.disconnect();
     },
   };
 }
