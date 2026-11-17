@@ -6,3 +6,4 @@ export { orp, pivotIndex, type OrpSplit } from './text/orp';
 export * from './timeline';
 export * from './pacing';
 export * from './player';
+export { extract, extractRange, type ExtractOptions } from './extract/extract';

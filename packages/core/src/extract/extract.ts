@@ -170,9 +170,46 @@ function gatherNode(node: Node, out: InlineText, onBlock?: BlockFilter) {
   if (block) out.addBreak();
 }
 
-/** Adds an inline atom for `el` when it is one; returns whether it did. */
-function atomOf(_el: Element, _out: InlineText): boolean {
+const INLINE_MATH = '.katex, mjx-container, math';
+const TEX = 'annotation[encoding="application/x-tex"]';
+
+/** The text of an inline math node: its TeX source, else aria-label or alttext, else its MathML text only. */
+function mathText(el: Element): string {
+  const tex = el.querySelector(TEX)?.textContent;
+  if (tex?.trim()) return tex;
+  const label = el.getAttribute('aria-label') ?? el.getAttribute('alttext') ?? el.querySelector('math')?.getAttribute('alttext');
+  if (label?.trim()) return label;
+  const mathml = tag(el) === 'math' ? el : el.querySelector('math');
+  if (!mathml) return '';
+  const parts: string[] = [];
+  const walk = (n: Node) => {
+    if (n.nodeType === 3) parts.push(n.nodeValue ?? '');
+    else if (n.nodeType === 1 && tag(n as Element) !== 'annotation' && tag(n as Element) !== 'annotation-xml')
+      n.childNodes.forEach(walk);
+  };
+  walk(mathml);
+  return parts.join('');
+}
+
+/** Adds an inline atom for `el` when it is one (inline code or inline math); returns whether it did. */
+function atomOf(el: Element, out: InlineText): boolean {
+  if (tag(el) === 'code') {
+    out.addAtom('code', el.textContent ?? '');
+    return true;
+  }
+  if (el.matches(INLINE_MATH)) {
+    out.addAtom('math', mathText(el));
+    return true;
+  }
   return false;
+}
+
+/** A heading's text, read like inline content so math shows its source once. */
+function headingText(el: Element): string {
+  const text = new InlineText();
+  gatherInline(el, text);
+  text.flush();
+  return text.tokens.map((t) => t.text).join(' ');
 }
 
 const hasBlockChild = (el: Element) => Array.from(el.children).some((c) => isBlockElement(c) && !isSkipped(c, true));
@@ -216,8 +253,7 @@ class Extractor {
 
   private push(block: Block) {
     this.current.blocks.push(block);
-    if (block.kind === 'prose') this.current.words += countWords(block.sentences);
-    if (block.kind === 'list') this.current.words += block.items.reduce((n, it) => n + countWords(it.sentences), 0);
+    this.current.words += blockWords(block);
   }
 
   private closeSection() {
@@ -234,12 +270,12 @@ class Extractor {
   }
 
   /** Handle one element at block level. */
-  block(el: Element) {
+  block(el: Element): void {
     if (isSkipped(el, true)) return;
     const level = headingLevel(el);
     if (level !== null) {
       this.closeSection();
-      this.current = this.newSection({ level, text: collapse(el.textContent ?? ''), source: sourceOf(el) });
+      this.current = this.newSection({ level, text: headingText(el), source: sourceOf(el) });
       return;
     }
     const exhibit = exhibitOf(el);
@@ -255,7 +291,7 @@ class Extractor {
   }
 
   /** Walk an element's children: block children are handled in turn, inline runs between them become prose. */
-  walk(el: Element) {
+  walk(el: Element): void {
     if (!hasBlockChild(el)) {
       const text = new InlineText();
       gatherInline(el, text);
@@ -277,7 +313,7 @@ class Extractor {
     flushRun();
   }
 
-  private list(el: Element) {
+  private list(el: Element): void {
     const items: ListItem[] = [];
     const trailing: Element[] = [];
     collectItems(el, 0, items, trailing);
@@ -300,6 +336,13 @@ function exhibitOf(el: Element): Block | null {
 }
 
 const countWords = (sentences: Sentence[]) => sentences.reduce((n, s) => n + s.tokens.length, 0);
+
+const blockWords = (block: Block): number =>
+  block.kind === 'prose'
+    ? countWords(block.sentences)
+    : block.kind === 'list'
+      ? block.items.reduce((n, it) => n + countWords(it.sentences), 0)
+      : 0;
 
 const isList = (el: Element) => tag(el) === 'ul' || tag(el) === 'ol';
 
@@ -336,4 +379,42 @@ export function extract(root: Element | Element[], opts: ExtractOptions = {}): D
     else extractor.walk(r);
   }
   return extractor.finish();
+}
+
+/** The nearest block-level element holding `node`. */
+function enclosingBlock(node: Node): Element | null {
+  for (let n: Node | null = node; n; n = n.parentNode) {
+    if (n.nodeType === 1 && isBlockElement(n as Element)) return n as Element;
+  }
+  return null;
+}
+
+/**
+ * Turn a selection into a document: the blocks the range intersects, or, when the range lies
+ * inside one block, one prose block of the selected text.
+ */
+export function extractRange(range: Range, opts: ExtractOptions = {}): Doc {
+  const id = opts.idPrefix ?? 's';
+  const start = enclosingBlock(range.startContainer);
+  if (start && start === enclosingBlock(range.endContainer) && !hasBlockChild(start)) {
+    const text = new InlineText();
+    gatherInline(range.cloneContents(), text);
+    const sentences = text.sentences();
+    if (sentences.length === 0) return { sections: [] };
+    return { sections: [{ id: `${id}0`, blocks: [{ kind: 'prose', sentences, source: sourceOf(start) }], words: countWords(sentences) }] };
+  }
+  const common = range.commonAncestorContainer;
+  const container = common.nodeType === 1 ? (common as Element) : common.parentElement;
+  if (!container) return { sections: [] };
+  const intersects = (ref: SourceRef) => !!ref.element && range.intersectsNode(ref.element);
+  const sections: Section[] = [];
+  for (const section of extract(container, opts).sections) {
+    const blocks = section.blocks.filter((b) => intersects(b.source));
+    const heading = section.heading && intersects(section.heading.source) ? section.heading : undefined;
+    if (!heading && blocks.length === 0) continue;
+    const kept: Section = { id: section.id, blocks, words: blocks.reduce((n, b) => n + blockWords(b), 0) };
+    if (heading) kept.heading = heading;
+    sections.push(kept);
+  }
+  return { sections };
 }
