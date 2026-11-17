@@ -22,6 +22,27 @@ beforeEach(() => {
 
 const at = (e: StubEditor) => [e.selection.active.line, e.selection.active.character, e.selection.anchor.line, e.selection.anchor.character];
 
+describe('panel reuse', () => {
+  const reads = () => panel.webview.posted.filter((m) => m.type === 'read');
+
+  it('a document in another folder changes the resource roots: the webview reloads and the read waits for its ready', () => {
+    const other = __stub.document('x', { path: '/elsewhere/b.md' });
+    reader.show({ document: other as unknown as vscode.TextDocument, range: { startLine: 0 }, settings: DEFAULT_SETTINGS });
+    expect(panel.webview.reloads).toBe(1);
+    expect(reads()).toHaveLength(1);
+    panel.webview.receive({ type: 'ready' });
+    expect(reads()).toHaveLength(2);
+    expect(reads()[1].markdown).toBe('x');
+  });
+
+  it('a document in the same folder is posted at once, without a reload', () => {
+    const sibling = __stub.document('y', { path: '/work/notes/c.md' });
+    reader.show({ document: sibling as unknown as vscode.TextDocument, range: { startLine: 0 }, settings: DEFAULT_SETTINGS });
+    expect(panel.webview.reloads).toBe(0);
+    expect(reads()).toHaveLength(2);
+  });
+});
+
 describe('cursor follow (R21)', () => {
   it('moves the selection to the start of the line and reveals it, without focusing the editor', () => {
     editor.selection = new Selection(new Position(0, 3), new Position(0, 5));

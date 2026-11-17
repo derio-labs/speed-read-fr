@@ -137,6 +137,8 @@ export interface StubPanel {
   webview: {
     html: string;
     options: any;
+    /** Times VS Code reloaded the webview because its options changed (the page then reports ready again). */
+    reloads: number;
     cspSource: string;
     posted: any[];
     postMessage(message: unknown): Promise<boolean>;
@@ -180,6 +182,7 @@ export const window = {
   createWebviewPanel(viewType: string, title: string, showOptions: unknown, options: any): StubPanel {
     const received = new EventEmitter<any>();
     const disposed = new EventEmitter<void>();
+    let webviewOptions = options;
     const panel: StubPanel = {
       viewType,
       title,
@@ -187,7 +190,15 @@ export const window = {
       options,
       webview: {
         html: '',
-        options,
+        get options() {
+          return webviewOptions;
+        },
+        set options(next) {
+          // Real VS Code reloads the webview when its options change.
+          if (JSON.stringify(next) !== JSON.stringify(webviewOptions)) panel.webview.reloads++;
+          webviewOptions = next;
+        },
+        reloads: 0,
         cspSource: 'https://stub.vscode-cdn.net',
         posted: [],
         async postMessage(message) {

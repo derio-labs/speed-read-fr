@@ -31,7 +31,12 @@ export class ReaderPanel implements vscode.Disposable {
     const roots = this.resourceRoots(document);
     if (!this.panel) this.panel = this.create(roots);
     else {
-      this.panel.webview.options = { ...this.panel.webview.options, localResourceRoots: roots };
+      const current = this.panel.webview.options.localResourceRoots ?? [];
+      if (roots.map(String).join('\n') !== current.map(String).join('\n')) {
+        // New options reload the webview: the read waits for the reloaded page's `ready`.
+        this.ready = false;
+        this.panel.webview.options = { ...this.panel.webview.options, localResourceRoots: roots };
+      }
       this.panel.reveal(undefined, false);
     }
     this.source = document.uri;
