@@ -10,7 +10,7 @@
     "build": "npm run build --workspaces --if-present",
     "test": "vitest run",
     "typecheck": "tsc -b",
-    "test:e2e": "playwright test --pass-with-no-tests",
+    "test:e2e": "playwright test",
     "package": "npm run package --workspaces --if-present"
   },
   "devDependencies": {

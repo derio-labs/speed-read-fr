@@ -174,6 +174,13 @@ describe('CI workflow (R25)', () => {
     expect(ci).toMatch(/push:\s*\n\s+branches:\s*\[\s*main\s*\]/);
   });
 
+  it('fails when Playwright discovers no tests (l-tests-r8)', () => {
+    const scripts = JSON.parse(readFileSync(new URL('package.json', root), 'utf8')).scripts as Record<string, string>;
+    expect(scripts['test:e2e']).toMatch(/^playwright test\b/);
+    expect(scripts['test:e2e']).not.toContain('--pass-with-no-tests');
+    expect(ci).not.toContain('--pass-with-no-tests');
+  });
+
   it('runs the package and bundle checks after the build and package steps (l-tests-r4)', () => {
     const build = ci.indexOf('run: npm run build');
     expect(build).toBeGreaterThan(0);
