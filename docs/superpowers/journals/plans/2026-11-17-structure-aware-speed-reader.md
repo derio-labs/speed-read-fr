@@ -647,3 +647,51 @@ Follows from the spec requiring permissions.request in both browsers; a spec-lev
 ### p3-r18-resolved · finding [out-of-scope] · resolves p3-r18: Expanded exhibit limited to the stage width (phase 3)
 
 Phase 2 core layout, not changed by this phase.
+
+<!-- fr:journal kind=decision scope=plan id=p4-vscode-choices created=2026-11-17T17:50:55+00:00 phase=4 -->
+### p4-vscode-choices · decision · VS Code extension choices where spec section 8 is silent (phase 4) (phase 4)
+
+- Alt+Shift+R is two keybindings (`readSelection` when `editorHasSelection`, `readFile` otherwise), both `editorTextFocus && editorLangId == markdown`. `readSection` and `readFromLine` take a line argument, so they are hidden from the command palette. `readSelection` with an empty selection reads the file.
+- The selection range does not include a last line that the selection only touches at column 0. A blank cursor line belongs to the next block. Hover appears on headings and on paragraph, list-item and blockquote text. It does not appear on fences, blank lines, table rows or thematic breaks.
+- The hover MarkdownString is trusted for exactly one command, `isTrusted: { enabledCommands: ['speedRead.readFromLine'] }`.
+- The read message is `{ type: 'read', markdown, startLine, endLine?, settings, format, baseUri }`. It carries the whole file; the webview renders only the range. `format: 'plain'` marks a non-Markdown file. The webview reads it as one paragraph per blank-line-separated run and never parses it as Markdown, because escaping text into Markdown collides with texmath's `\(` rule.
+- Relative images resolve against `baseUri`: the document folder through `asWebviewUri`, joined with `new URL(src, baseUri)`. Remote images and any other URL scheme are shown as an `<img>` holding a local SVG data-URI placeholder that shows the alt text, so they remain image exhibits.
+- Links render without `href`, with the URL kept as `title`. The reader does not navigate.
+- The webview reports `ready`, and a read requested earlier is held until then. The panel HTML is written once per panel, with one nonce. Esc closing the reader disposes the panel.
+- Cursor follow uses visible editors only (setting `editor.selection` and calling `revealRange` with InCenterIfOutsideViewport, never `showTextDocument`). It ignores closed documents, out-of-range lines and repeated lines. The repeat filter resets on each new read.
+- Settings are written to the Global target, only for keys that changed. A malformed settings message is ignored. The core `ReaderHandle` gains `applySettings(settings)` for settings the host pushes; these are not saved back, so there is no echo loop. `speedRead.display` exists to mirror R12 but means nothing in VS Code.
+- Theme: VS Code `--vscode-*` variables map onto every `--speed-read-*` property. Body class `vscode-dark` sets `color-scheme: dark` and Mermaid's `dark` theme.
+- Core extraction: a block without its own `data-line` takes the line of its nearest `data-line` ancestor. This applies to the pre inside a wrapped fence and to `.katex-display` inside the math wrapper.
+
+<!-- fr:journal kind=discovery scope=plan id=p4-render-pitfalls created=2026-11-17T17:50:55+00:00 phase=4 -->
+### p4-render-pitfalls · discovery · Webview rendering pitfalls found by the browser test (phase 4) (phase 4)
+
+- The core extractor skips `visibility: hidden` elements, and visibility is inherited. Extracting from the hidden render container therefore yields an empty document. The container now sits in an off-screen, aria-hidden frame that is `visibility: hidden` except during the synchronous `extract()` call.
+- `mermaid.render(id, text, container)` empties the container it is given. Each diagram is rendered in a separate scratch element inside the frame, never in the document root.
+- texmath wraps display math in `<section><eqn>`, which the extractor reads as prose. Display math is rendered directly as KaTeX `.katex-display`, and an equation number becomes `\tag`.
+- The bundle builds in about 1 s (esbuild). `dist/webview.js` is about 4.0 MB minified, mostly Mermaid; the .vsix is about 2.0 MB.
+
+<!-- fr:journal kind=discovery scope=plan id=p4-visual-fixes created=2026-11-17T17:50:55+00:00 phase=4 -->
+### p4-visual-fixes · discovery · Visual review fixes before recording the phase 4 shots (phase 4)
+
+Preview shots showed a left-to-right flowchart scaled too small in the 3-column exhibit pane. The fixture diagram is now top-down. A diagram in the pane is capped at 45vh, or 24vh under 900 px where the pane sits below the stage; it scales down inside its box with its aspect ratio kept, and E still expands it to full size.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p4-t1 created=2026-11-17T17:50:55+00:00 phase=4 -->
+### no-refactor-p4-t1 · discovery · no-refactor-because P4.T1 (phase 4)
+
+The task adds a manifest, a build script and config files; no code was duplicated and nothing needed renaming.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p4-t2 created=2026-11-17T17:50:55+00:00 phase=4 -->
+### no-refactor-p4-t2 · discovery · no-refactor-because P4.T2 (phase 4)
+
+The only change after green was replacing Array.findLastIndex (ES2023, outside the ES2022 lib) with a loop. ranges.ts already had one line scanner, cached per text, shared by every query.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p4-t3 created=2026-11-17T17:50:55+00:00 phase=4 -->
+### no-refactor-p4-t3 · discovery · no-refactor-because P4.T3 (phase 4)
+
+The providers, commands and panel were written around one `command(id, range)` helper and one message type module. Nothing was duplicated.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p4-t5 created=2026-11-17T17:50:55+00:00 phase=4 -->
+### no-refactor-p4-t5 · discovery · no-refactor-because P4.T5 (phase 4)
+
+The refactor happened inside the task: core `runSource` and `sourceOf` became one `sourceOf` with the nearest-ancestor line. Display math got one renderer shared by both block rules.
