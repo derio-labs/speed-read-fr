@@ -1,0 +1,226 @@
+schema_version: 12
+run: 2026-11-17-claude-exciting-cori-4x7e21
+step: review-phase
+item: phase/3
+outcome: done
+journal:
+- kind: review
+  id: review-p3
+  phase: 3
+  title: 'Phase 3 code, security and visual review: 15 in-scope findings fixed, 3 out of scope'
+  body: 'Independent reviewer checked the phase 3 diff against spec section 7 and plan 03.yaml, ran typecheck,
+    unit, build and browser suites, probed page-world attacks in Chromium, and took and opened its own
+    screenshots for every declared visual name plus hostile and dark pages, dock widths, normal reading
+    and Alt-hover edge cases. Findings raised: p3-r1 to p3-r18. Fixes verified by the orchestrator: full
+    gate re-run green.'
+- kind: finding
+  id: p3-r1
+  phase: 3
+  title: 'DOM clobbering: page ids disabled the reader, from-here and Alt-hover'
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r2
+  phase: 3
+  title: Open shadow root and untrusted events let page scripts drive the reader and write settings
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r3
+  phase: 3
+  title: Alt+click or from-here on a list item read from the first item of the outer list
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r4
+  phase: 3
+  title: Links in slotted clones stayed live
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r5
+  phase: 3
+  title: Current-block mark's fill made dark page code unreadable
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r6
+  phase: 3
+  title: Alt-hover acted inside the reader
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r7
+  phase: 3
+  title: Page removing the host left html unscrollable or with the dock margin
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r8
+  phase: 3
+  title: Chapter card clipped in the docked panel
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r9
+  phase: 3
+  title: Hostile page rules restyled the wrapper and shells
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r10
+  phase: 3
+  title: Alt+click outside main content opened an empty reader
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r11
+  phase: 3
+  title: Context menu ignored frameId and kept a stale target
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r12
+  phase: 3
+  title: Offline check had no remote subresource
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r13
+  phase: 3
+  title: Clones kept ids and names
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r14
+  phase: 3
+  title: Test hook shipped in the production background bundle
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r15
+  phase: 3
+  title: Clone-map logic duplicated between browser host and core
+  body: 'Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p3-r16
+  phase: 3
+  title: Dock margin does not move position:fixed page elements
+  body: Raised by the phase 3 reviewer and tagged out of scope. The margin technique is the one the spec
+    prescribes; fixed-position page elements slide under the panel. Not caused by this phase's code; to
+    be listed as a known limit and filed.
+  review_scope: out
+- kind: finding
+  id: p3-r17
+  phase: 3
+  title: Chrome prompts on every toolbar press when site access is on-click
+  body: Raised by the phase 3 reviewer and tagged out of scope. Follows from the spec requiring permissions.request
+    in both browsers; a spec-level change (restrict to Firefox), not this phase's defect.
+  review_scope: out
+- kind: finding
+  id: p3-r18
+  phase: 3
+  title: Expanded exhibit limited to the stage width
+  body: Raised by the phase 3 reviewer and tagged out of scope. Phase 2 core layout, not changed by this
+    phase.
+  review_scope: out
+resolves:
+- id: p3-r1
+  state: fixed
+  body: Shared state under Symbol.for keys checked as own properties; bridge functions type-checked; API
+    shim requires a runtime; fixture and e2e added (d590660, 025d097).
+- id: p3-r2
+  state: fixed
+  body: Closed shadow root in the packaged build; trustedEventsOnly ignores untrusted events; e2e on the
+    packaged build (0b9ff6d, a0dded3, 512d3e1).
+- id: p3-r3
+  state: fixed
+  body: List read from the innermost item holding the start, numbering kept (512d3e1).
+- id: p3-r4
+  state: fixed
+  body: Default actions prevented inside clones; handler attributes and javascript URLs stripped (a1d0630).
+- id: p3-r5
+  state: fixed
+  body: Mark is outline only (0b9ff6d).
+- id: p3-r6
+  state: fixed
+  body: Targets inside the reader host ignored (d590660).
+- id: p3-r7
+  state: fixed
+  body: MutationObserver runs the teardown (512d3e1).
+- id: p3-r8
+  state: fixed
+  body: Compact cards below 900 px reader width; e2e box check at 800 px height (0b9ff6d).
+- id: p3-r9
+  state: fixed
+  body: sr-clone wrapper and important neutral layout on shells (a1d0630).
+- id: p3-r10
+  state: fixed
+  body: Falls back to the block alone, then main content (512d3e1).
+- id: p3-r11
+  state: fixed
+  body: Targets handed out once while connected; subframe use reads the top page's main content; frames
+    recorded as a known limit (d590660, 6f641d4).
+- id: p3-r12
+  state: fixed
+  body: Fixture with routed remote image and stylesheet; no further request on reveal, expand or normal
+    reading (025d097).
+- id: p3-r13
+  state: fixed
+  body: Stripped, with dangling references removed (a1d0630).
+- id: p3-r14
+  state: fixed
+  body: Dropped by a build flag; test variant built to dist-test; build test asserts absence (a0dded3).
+- id: p3-r15
+  state: fixed
+  body: One exported helper used by both (0b9ff6d, a1d0630).
+- id: p3-r16
+  state: out-of-scope
+  body: The margin technique is the one the spec prescribes; fixed-position page elements slide under
+    the panel. Not caused by this phase's code; to be listed as a known limit and filed.
+- id: p3-r17
+  state: out-of-scope
+  body: Follows from the spec requiring permissions.request in both browsers; a spec-level change (restrict
+    to Firefox), not this phase's defect.
+- id: p3-r18
+  state: out-of-scope
+  body: Phase 2 core layout, not changed by this phase.
+evidence:
+  review: review-p3
+  reviewer: af539385a50f0fa26
+  model: claude-fable-5-2
+visual:
+- row: browser-alt-hover
+  script: scripts/capture-visual.mjs
+  shots:
+  - path: .visual/review-3/alt-hover-block-outlined.png
+    shows:
+    - alt held block outlined
+- row: browser-exhibits-page-styled
+  script: scripts/capture-visual.mjs
+  shots:
+  - path: .visual/review-3/overlay-styled-code-exhibit.png
+    shows:
+    - overlay on styled page with highlighted code exhibit
+- row: browser-overlay-and-dock
+  script: scripts/capture-visual.mjs
+  shots:
+  - path: .visual/review-3/docked-side-panel.png
+    shows:
+    - docked side panel beside page
