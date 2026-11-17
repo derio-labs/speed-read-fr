@@ -28,7 +28,7 @@ $$
 \]
 
 ```mermaid
-flowchart LR
+flowchart TD
   A[Markdown] --> B[markdown-it]
   B --> C{Math?}
   C -->|yes| D[KaTeX]
