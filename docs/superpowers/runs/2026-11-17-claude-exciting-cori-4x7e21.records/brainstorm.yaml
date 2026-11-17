@@ -1,0 +1,320 @@
+schema_version: 12
+run: 2026-11-17-claude-exciting-cori-4x7e21
+step: brainstorm
+outcome: done
+questions:
+  rounds: 1
+journal:
+- kind: discovery
+  input: true
+  id: operator-brief
+  title: 'Operator brief: /fr-goal implement docs/brief.md'
+  body: "Goal as typed: `/fr-goal implement docs/brief.md`\n\n# speed-read-fr: product brief\n\nInput\
+    \ for `/fr-goal`. Decisions already taken with the operator are marked **decided**;\neverything else\
+    \ is open for the brainstorm round.\n\n## Problem\n\nAI output is long, structured Markdown. Reading\
+    \ it line by line is slow. Plain RSVP speed\nreaders are worse: they flash code, formulas and tables\
+    \ word by word, mangle lists, drop\nimages, and lose all sense of where you are in the document. Nothing\
+    \ found on the market\n(mdr, the Obsidian RSVP plugins, RocketRead, SplashReader, SPDRD, Flow) combines\n\
+    structure awareness with an offline browser extension.\n\n## Deliverables and order (decided)\n\n\
+    1. Shared reader core (structure extraction, pacing engine, UI), host-agnostic.\n2. Chrome extension\
+    \ and Firefox extension (one MV3 codebase, two manifests).\n3. VS Code extension.\n\nAll of it works\
+    \ fully offline: no network calls, all libraries bundled.\nherdr plugin: dropped.\n\nAlso required\
+    \ (decided): installation instructions for every target in the README, and\nautomated tests written\
+    \ test-first.\n\n## Reader UX (shared by every host)\n\n**Layout, three zones**\n- Outline rail: document\
+    \ headings, current one highlighted, per-section progress and\n  estimated time; click to jump.\n\
+    - Stage: the RSVP chunk with optimal-recognition-point highlight; below it, the current\n  sentence\
+    \ faded so you keep your place.\n- Exhibit pane (right, or below when narrow): non-prose blocks of\
+    \ the current section,\n  rendered properly. **Decided: reveal on arrival**; blocks already passed\
+    \ stay visible.\n\n**Block behaviour**\n- Prose: streamed in chunks; extra dwell on commas, sentence\
+    \ ends, long words.\n- Lists: each item is its own unit with an `item 3/7` counter and a short pause\
+    \ between\n  items; nested items indented. Lists of short items are shown whole for a dwell rather\n\
+    \  than streamed.\n- Code, tables, math: never streamed. Playback stops with e.g. \"Code, 24 lines:\
+    \ Space to\n  continue, E to expand\". Per type configurable: stop | skip | dwell N seconds.\n- Images\
+    \ and diagrams: shown in the exhibit pane with a dwell; Mermaid rendered.\n- Headings: hard stop.\
+    \ Chapter card with title, length and contents summary; Space\n  continues. Which levels stop is configurable\
+    \ (default H1, H2). Speed ramps up gently\n  after every stop.\n\n**Settings (decided)**\n- Speed\
+    \ (WPM).\n- Number of words shown simultaneously (chunk size), **default: chunks, not single words**.\n\
+    - Maximum total characters per chunk; a chunk ends at whichever limit is hit first.\n- Heading levels\
+    \ that stop; per-type behaviour for code, tables, math.\n- Bonus: text-to-speech via the browser's\
+    \ Web Speech API, chunk display synced to speech\n  boundaries. Offline only with locally installed\
+    \ voices (OS voices; Chrome's \"Google\"\n  voices need network): the UI should say so.\n\n**Keys**:\
+    \ Space play/pause, ←/→ sentence back/forward, ↑/↓ speed, N/P next/previous\nsection, Tab toggles\
+    \ normal reading at the current position, Esc closes.\n\n## Chrome and Firefox\n\n- Entry points:\
+    \ toolbar button (selection, else main content), context menu\n  (\"Speed read selection\", \"Speed\
+    \ read from here\"), keyboard shortcut (Alt+Shift+R).\n- Hover mode: hold Alt, the block under the\
+    \ pointer is outlined; click reads from that\n  block to the end of its container. No modifier-free\
+    \ hover trigger.\n- AI chat adapters: on claude.ai, ChatGPT and Gemini, \"container\" is one assistant\
+    \ reply.\n  Other sites: generic main-content heuristic.\n- Exhibits are clones of the page's rendered\
+    \ DOM, so already-rendered math and diagrams\n  come through as-is.\n- Display: full-page overlay\
+    \ (page dimmed) by default; optional docked side panel.\n\n## VS Code\n\n- Entry points: commands\
+    \ (file, selection, from cursor); CodeLens \"▶ Read section\" above\n  Markdown headings; hover on\
+    \ headings and paragraphs with a \"▶ Speed read from here\" link.\n- Webview panel beside the editor,\
+    \ markdown-it + KaTeX + Mermaid bundled.\n- The editor cursor follows the reading position, so stopping\
+    \ leaves you at that line.\n- Known limit: extensions cannot read the Copilot or Claude Code chat\
+    \ panels; AI output\n  must be in a file or a selection.\n\n## Prior art worth reading\n\n- mdr (github.com/NiloCK/mdr):\
+    \ TOC-first terminal RSVP with a code split pane.\n- Obsidian \"Speed Reader\" plugins: block pauses\
+    \ for code, LaTeX, tables; following TOC.\n"
+- kind: decision
+  id: d1-scope
+  title: 'Scope: all three deliverables in one PR'
+  body: 'Core, browser extension and VS Code extension in one run, built in that order. decider: operator
+    (question round 1).'
+- kind: decision
+  id: d2-permissions
+  title: 'Browser permissions: always-on content script on all sites'
+  body: 'So Alt-hover works everywhere; accepts the all-sites install warning. decider: operator (question
+    round 1).'
+- kind: decision
+  id: d3-chat-adapters
+  title: Chat adapters ship now, verified live after merge
+  body: 'Selectors for known markup plus generic fallback; rows on the real sites are an operator walk.
+    decider: operator (question round 1).'
+- kind: decision
+  id: d4-tts
+  title: Text-to-speech built in this run, last phase, off by default
+  body: 'Web Speech API, synced to boundaries, local/network voice labels. decider: operator (question
+    round 1).'
+- kind: decision
+  id: d5-defaults
+  title: 'Pacing defaults: 300 WPM, 3 words, 20 characters'
+  body: 'All adjustable in settings. decider: operator (question round 1).'
+- kind: decision
+  id: d6-ci
+  title: 'CI: GitHub Actions tests + build artifacts'
+  body: 'On pull requests and pushes to main; uploads Chrome zip, Firefox zip, VS Code vsix. decider:
+    operator (question round 1).'
+- kind: decision
+  id: d7-license
+  title: 'License: MIT'
+  body: 'Repo and packages. decider: operator (question round 1).'
+- kind: decision
+  id: d8-verification
+  title: 'Verification: suite pre-merge, live walk post-merge, tester gate'
+  body: 'Rows only a real host can show use the live strategy; no candidate install. decider: operator
+    (question round 1).'
+- kind: decision
+  id: d9-model-mechanical
+  title: 'Model binding mechanical tier: sonnet'
+  body: 'old: unbound, new: sonnet, reason: unbound tier, rule: fr-goal step 1 model-per-tier question.
+    Applied with fr models set --harness claude-code. decider: operator (question round 1).'
+- kind: decision
+  id: d9-model-standard
+  title: 'Model binding standard tier: opus'
+  body: 'old: unbound, new: opus, reason: unbound tier, rule: fr-goal step 1 model-per-tier question.
+    Applied with fr models set --harness claude-code. decider: operator (question round 1).'
+- kind: decision
+  id: d9-model-hard
+  title: 'Model binding hard tier: opus'
+  body: 'old: unbound, new: opus, reason: unbound tier, rule: fr-goal step 1 model-per-tier question.
+    Applied with fr models set --harness claude-code. decider: operator (question round 1).'
+- kind: lens
+  lens: security
+  title: An always-on content script on all sites that clones page DOM into an injected reader
+resolves: []
+acceptance:
+- id: structure-extraction
+  capability: reader-core
+  acceptance: 'A rendered document is split into sections at its headings, each holding typed blocks:
+    prose, list, code, table, math, image, diagram.'
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R3
+  status: not-implemented
+- id: prose-chunk-pacing
+  capability: reader-core
+  acceptance: Prose is shown in chunks bounded by a word limit, a character limit and the sentence end;
+    commas, sentence ends and long words are shown longer, and speed ramps back up after every stop.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R4
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R9
+  status: not-implemented
+- id: list-item-reading
+  capability: reader-core
+  acceptance: A list is read item by item with an item i/n counter, a pause between items and nested items
+    indented; a list of short items is shown whole.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R5
+  status: not-implemented
+- id: non-prose-never-streamed
+  capability: reader-core
+  acceptance: 'Code, tables and display math are never streamed: per type the reader stops with a prompt
+    naming type and size, skips, or dwells; images and diagrams are shown for a dwell.'
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R6
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R7
+  status: not-implemented
+- id: heading-chapter-stops
+  capability: reader-core
+  acceptance: A heading at a configured stop level halts playback on a chapter card with title, length,
+    estimated time and contents summary until the reader continues.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R8
+  status: not-implemented
+- id: reader-three-zone-ui
+  capability: reader-ui
+  acceptance: The reader shows an outline rail with current heading, progress and time, a stage with the
+    highlighted chunk above the faded sentence, and an exhibit pane that reveals non-prose blocks as playback
+    reaches them.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R10
+  status: not-implemented
+  visual:
+    states:
+    - playing prose chunk with pivot highlight
+    - chapter card
+    - code stop prompt with exhibit revealed
+    - list item with counter
+    - narrow layout exhibit below stage
+    - dark theme
+    interactions:
+    - click outline heading jumps
+    - expand exhibit with E
+- id: reader-keys
+  capability: reader-ui
+  acceptance: Space, arrow keys, N/P, Tab, E and Esc control play/pause, sentence and section moves, speed,
+    normal reading, exhibit expansion and closing.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R11
+  status: not-implemented
+  visual:
+    states:
+    - normal reading view at current block
+    interactions: []
+- id: reader-settings
+  capability: reader-ui
+  acceptance: Speed, words per chunk, characters per chunk, stop levels, per-type behaviour, image dwell,
+    display mode and speech are adjustable in the reader, apply at once and persist; defaults are 300
+    WPM, 3 words, 20 characters.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R12
+  status: not-implemented
+  visual:
+    states:
+    - settings panel open with defaults
+    interactions:
+    - change words per chunk to 1 and to 8
+- id: browser-entry-points
+  capability: browser-extension
+  acceptance: The toolbar button and Alt+Shift+R read the selection or else the main content, and the
+    context menu offers Speed read selection and Speed read from here.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R13
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R15
+  status: not-implemented
+- id: browser-alt-hover
+  capability: browser-extension
+  acceptance: While Alt is held the block under the pointer is outlined and a click reads from it to the
+    end of its container; without Alt the page behaves normally.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R14
+  status: not-implemented
+  visual:
+    states:
+    - alt held block outlined
+    interactions: []
+- id: chat-site-adapters
+  capability: browser-extension
+  acceptance: On claude.ai, ChatGPT and Gemini reading is confined to one assistant reply.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R15
+  status: not-implemented
+  verify: live
+- id: browser-exhibits-page-styled
+  capability: browser-extension
+  acceptance: Exhibits and the normal-reading view in the browser are the page's own rendered content
+    with the page's styling, while the reader's interface is unaffected by page styles.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R16
+  status: not-implemented
+  visual:
+    states:
+    - overlay on styled page with highlighted code exhibit
+    interactions: []
+- id: browser-overlay-and-dock
+  capability: browser-extension
+  acceptance: The browser reader opens as a full-page overlay over a dimmed page, or docked as a side
+    panel beside a usable page when set so.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R17
+  status: not-implemented
+  visual:
+    states:
+    - docked side panel beside page
+    interactions: []
+- id: chrome-firefox-one-codebase
+  capability: browser-extension
+  acceptance: One source tree builds a Chrome package and a Firefox package, each with its own Manifest
+    V3 manifest.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R18
+  status: not-implemented
+- id: firefox-extension-runs
+  capability: browser-extension
+  acceptance: The Firefox package installs in Firefox and its entry points, hover mode and settings work
+    there.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R18
+  status: not-implemented
+  verify: live
+- id: vscode-entry-points
+  capability: vscode-extension
+  acceptance: VS Code offers commands to read the file, the selection and from the cursor, a Read section
+    CodeLens above Markdown headings, and a Speed read from here hover link on headings and paragraphs.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R19
+  status: not-implemented
+- id: vscode-webview-renders
+  capability: vscode-extension
+  acceptance: The VS Code reader renders Markdown including dollar and bracket math and Mermaid diagrams
+    from bundled libraries, with those blocks as exhibits.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R20
+  status: not-implemented
+  visual:
+    states:
+    - webview reader with rendered math and mermaid exhibits
+    interactions: []
+- id: vscode-cursor-follows
+  capability: vscode-extension
+  acceptance: The editor cursor follows the reading position, so closing the reader leaves it on the line
+    being read.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R21
+  status: not-implemented
+- id: vscode-extension-in-host
+  capability: vscode-extension
+  acceptance: The packaged extension installs in VS Code and its commands, CodeLens, hover, panel and
+    cursor follow work in a real window.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R19
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R20
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R21
+  status: not-implemented
+  verify: live
+- id: tts-voices-offline-labels
+  capability: text-to-speech
+  acceptance: Speech can be turned on; voices are labelled local or network, only local voices are chosen
+    by default, and the reader says offline speech needs a locally installed voice.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R22
+  status: not-implemented
+  visual:
+    states:
+    - speech settings with local and network voices
+    interactions: []
+- id: tts-speaks-in-sync
+  capability: text-to-speech
+  acceptance: With speech on, the displayed chunk follows the spoken words on a machine with an installed
+    voice.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R22
+  status: not-implemented
+  verify: live
+- id: offline-no-network
+  capability: offline
+  acceptance: Using the reader in the browser extension and in the VS Code webview makes no network request.
+  origin:
+  - speed-read-fr:docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md#R2
+  status: not-implemented
+emitted:
+  spec: docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md
+evidence: {}
