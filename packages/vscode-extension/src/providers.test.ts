@@ -123,14 +123,14 @@ describe('commands', () => {
     expect(msg).not.toHaveProperty('endLine');
   });
 
-  it('reuses one panel and reveals it beside the editor', async () => {
+  it('reuses one panel and reveals it in the column it is in', async () => {
     __stub.editor(doc());
     await run('speedRead.readFile');
     await vscode.commands.executeCommand('speedRead.readFromLine', 5);
     await tick();
     expect(__stub.state.panels).toHaveLength(1);
     expect(lastRead().startLine).toBe(5);
-    expect(panel().revealed).toContainEqual({ column: vscode.ViewColumn.Beside, preserveFocus: false });
+    expect(panel().revealed).toEqual([{ column: undefined, preserveFocus: false }]);
   });
 
   it('sends a non-Markdown file as plain prose', async () => {

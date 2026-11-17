@@ -32,7 +32,7 @@ export class ReaderPanel implements vscode.Disposable {
     if (!this.panel) this.panel = this.create(roots);
     else {
       this.panel.webview.options = { ...this.panel.webview.options, localResourceRoots: roots };
-      this.panel.reveal(vscode.ViewColumn.Beside, false);
+      this.panel.reveal(undefined, false);
     }
     this.source = document.uri;
     this.lastLine = null;
