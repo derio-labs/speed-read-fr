@@ -1461,3 +1461,8 @@ Operator decided to fix it in this run. An expanded exhibit now uses the whole r
 ### p4-r11-resolved-2 · finding [deferred → https://github.com/derio-net/speed-read-fr/issues/2] · resolves p4-r11: Headings with inline math show TeX source in outline and section cards (phase 4)
 
 Filed at deliver as https://github.com/derio-net/speed-read-fr/issues/2.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r12-resolved-2 created=2026-11-17T20:41:43+00:00 phase=5 state=open resolves=p5a-r12 tracked_by=https://github.com/derio-net/speed-read-fr/issues/3 -->
+### p5a-r12-resolved-2 · finding [deferred → https://github.com/derio-net/speed-read-fr/issues/3] · resolves p5a-r12: Overlay host blocks pointer input to the faded page (phase 5)
+
+Filed at deliver as https://github.com/derio-net/speed-read-fr/issues/3.
