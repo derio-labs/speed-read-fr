@@ -502,3 +502,9 @@ Post-merge, operator-driven, on an installed build:
 3. Firefox: load `dist/firefox` as a temporary add-on; toolbar button, both context-menu items, Alt+Shift+R and Alt-hover work on an article page; settings persist after reloading the add-on and the tab (a temporary add-on is removed when Firefox restarts).
 4. VS Code: install the `.vsix`; on a Markdown file with math and a Mermaid block run all three commands, the CodeLens and the hover link; the panel renders math and the diagram; the editor cursor follows and stays on the last line read after closing.
 5. Text-to-speech: with a local voice, turn TTS on in Chrome and in VS Code; the displayed chunk follows the voice; with networking disabled a local voice still speaks; a network voice shows the warning.
+
+## Implementation Plans
+
+| Plan | Repo | File | Depends on |
+|------|------|------|------------|
+| 2026-11-17-structure-aware-speed-reader | `derio-net/speed-read-fr` | `2026-11-17-structure-aware-speed-reader` | — |

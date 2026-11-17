@@ -1,0 +1,174 @@
+schema_version: 2
+phase:
+  number: 2
+  title: Structure extraction and the reader UI, with a demo page and browser-level
+    tests (R3, R10-R12)
+  tag: agentic
+  depends_on:
+  - 1
+  tracking_issue: null
+  acceptance:
+  - structure-extraction
+  - reader-three-zone-ui
+  - reader-keys
+  - reader-settings
+  tier: standard
+  files:
+  - packages/core/**
+  - tests/**
+  - playwright.config.ts
+  - package.json
+  - package-lock.json
+  - scripts/**
+  estimate_lines: 3200
+tasks:
+- number: 1
+  title: DOM extraction (spec section 2 rules)
+  steps:
+  - id: P2.T1.S1
+    text: |-
+      RED: `packages/core/src/extract/extract.test.ts` (jsdom) with our own HTML strings: sections split at h1-h6 and `[role=heading][aria-level]`, untitled first section; p and inline-only leaf blocks -> prose; blockquote/div/section/article/details walked into; ul/ol -> one list block with nested items at depth+1 and `index`/`of` per own list; pre -> code with `lines` and `language`; table -> rows and cols; `.katex-display`, `mjx-container[display="true"]`, `math[display="block"]` -> math; `.mermaid` containing svg, block-level svg or canvas -> diagram; img, picture, figure with an image -> image with alt, figure holding a table or pre -> that type; hidden, `aria-hidden="true"` blocks and script, style, nav, aside, button, form, noscript, template, iframe, video, audio, object, embed skipped; an unrendered `pre > code.language-mermaid` is code; `data-line` copied to `source.line`; `Section.words` counted.
+  - id: P2.T1.S2
+    text: |-
+      GREEN: implement `extract(root | roots[], opts)` in `extract/extract.ts`. Visibility uses `getComputedStyle` where available and attributes otherwise.
+  - id: P2.T1.S3
+    text: |-
+      RED then GREEN, inline atoms: inline `code` -> atom with its text; `.katex` -> atom whose text is the `annotation[encoding="application/x-tex"]` content, never the node's raw textContent (assert a KaTeX-shaped fixture for x^2 yields exactly `x^2`); `mjx-container`/`math` -> aria-label, then alttext, then MathML text. Selection extraction: `extractRange(range)` returns the intersected blocks, and a range inside one block yields one prose block of the selected text. Then REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 2
+  title: 'Reader shell: mountReader, styles, host bridge (spec section 6)'
+  steps:
+  - id: P2.T2.S1
+    text: |-
+      RED: `packages/core/src/ui/mount.test.ts` (jsdom): `mountReader(root, doc, { settings, store, host })` returns `{ destroy, player }`; builds outline, stage and exhibit regions with roles/labels; focuses the reader root; applies styles through `adoptedStyleSheets` and, when adopting throws or the sentinel custom property is not readable through `getComputedStyle`, inserts a `<style>` element instead; `destroy()` removes everything and calls `host.release` for every node still shown; no document text is ever assigned through `innerHTML` (assert a heading containing `<img onerror>` text is rendered as text).
+  - id: P2.T2.S2
+    text: |-
+      GREEN: implement `ui/mount.ts`, `ui/styles.ts` (one CSS string: three columns from 900 px, exhibit pane below the stage under that, light and dark via `prefers-color-scheme`, CSS variables for host theming, every inherited property set on the UI root) and the `Host` interface exactly as spec section 6 defines it (`exhibit(block, use)`, `document()` with `locate`/`refAt`, `release(node)`, `onPosition`, `onClose`).
+  - id: P2.T2.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 3
+  title: Stage and cards
+  steps:
+  - id: P2.T3.S1
+    text: |-
+      RED: `ui/stage.test.ts`: on a `chunk` step the stage shows before/pivot/after spans with the pivot marked and the faded sentence line with the current chunk emphasised; atoms render in a monospace span; `item-chunk` shows `item i/n` and indentation by depth; `list-whole` shows every item; `chapter` shows title, words, estimated time, summary and sub-headings; `stop` shows the prompt; the end card shows words and time; the status line shows WPM, state and overall progress.
+  - id: P2.T3.S2
+    text: |-
+      GREEN: implement `ui/stage.ts` driven by the player's `step` and `state` events; the pivot is aligned on a fixed axis by measuring the `before` span width (guarded for jsdom, where widths are 0).
+  - id: P2.T3.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 4
+  title: Outline rail and exhibit pane
+  steps:
+  - id: P2.T4.S1
+    text: |-
+      RED: `ui/outline.test.ts` and `ui/exhibits.test.ts`: one outline row per headed section indented by level, the current row marked `aria-current`, a progress bar and remaining time per row that update on `step`, click calls `jumpToSection`; under 900 px the outline is a bar with the current heading that opens the rail as a drawer. Exhibit pane: a block's node is requested from `host.exhibit(block, 'pane')` only when playback reaches it, stays, the active one is marked and scrolled into view; changing section releases and replaces the pane's contents; revisiting a read section shows all its exhibits; a skipped block is still revealed when passed; `E` requests `host.exhibit(block, 'expanded')` into an overlay over the stage and `E` or Esc releases it.
+  - id: P2.T4.S2
+    text: |-
+      GREEN: implement `ui/outline.ts` and `ui/exhibits.ts`.
+  - id: P2.T4.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 5
+  title: Keys, normal reading, settings panel
+  steps:
+  - id: P2.T5.S1
+    text: |-
+      RED: `ui/keys.test.ts`, `ui/reading.test.ts`, `ui/settings-panel.test.ts`: Space, ArrowLeft/Right, ArrowUp/Down, N, P, Tab, E, Esc map to the player commands of R11 when focus is on the reader root or stage; while the settings panel is open or focus is in a form control none of them is handled, Tab and Shift+Tab cycle and wrap within the panel, Esc closes the panel and refocuses the root. Normal reading: Tab replaces stage and pane with `host.document().node`, marks and scrolls to `locate(ref)`, a click on a block uses `refAt` to move the position, Tab returns paused. Settings panel (gear button or `,`): controls for every R12 setting showing the defaults, each change applies at once (the timeline is rebuilt keeping the position), is saved through `store.save`, and `store.load` values are applied at mount.
+  - id: P2.T5.S2
+    text: |-
+      GREEN: implement `ui/keys.ts`, `ui/reading.ts`, `ui/settings-panel.ts`. The TTS section of the panel is a disabled placeholder row reading "Text-to-speech" until phase 5.
+  - id: P2.T5.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 6
+  title: Demo page, browser-level tests and the visual capture script
+  steps:
+  - id: P2.T6.S1
+    text: |-
+      Add `tests/fixtures/sample.md`-equivalent HTML at `tests/fixtures/article.html` (our own document: H1, H2s and an H3, paragraphs with inline code, a long streamed list with nesting, a short list, a highlighted code block of 24 lines, a table, an inline SVG diagram, an image as a data URI) and `tests/demo/index.html` + `tests/demo/demo.ts` that bundle the core with esbuild (`scripts/build-demo.mjs`), extract `#content` and mount the reader with a host that returns clones. Add `playwright.config.ts` (chromium only, `webServer` serving the repo root on localhost, traces off).
+  - id: P2.T6.S2
+    text: |-
+      RED then GREEN: `tests/e2e/core.spec.ts` drives the demo with real keys and the mouse: Space starts and chunks advance; the chapter card stops and Space continues; the code stop shows its prompt and the code exhibit appears in the pane only then; E expands and closes; arrows move sentences; N/P move sections; clicking an outline row jumps; Tab shows normal reading at the current block and returns; at a 700 px viewport the exhibit pane is below the stage; changing words per chunk to 1 and to 8 in the panel changes the chunk shown; a reload keeps the saved setting (localStorage-backed store in the demo); no request leaves localhost during the run. Run `npm run test:e2e` (Playwright, Chromium).
+  - id: P2.T6.S3
+    text: |-
+      Visual evidence: add `scripts/capture-visual.mjs` (Playwright, `deviceScaleFactor: 2`) writing PNGs to the git-ignored `.visual/phase-2/` for every name these rows declare: `playing prose chunk with pivot highlight`, `chapter card`, `code stop prompt with exhibit revealed`, `list item with counter`, `narrow layout exhibit below stage`, `dark theme`, `click outline heading jumps`, `expand exhibit with E`, `normal reading view at current block`, `settings panel open with defaults`, `change words per chunk to 1 and to 8` (two shots). Run it, open every screenshot, fix what looks wrong, and fill the step record's `visual:` section. Then run the full suite (unit and e2e) after the last code commit into a log outside the repository.
+state:
+  steps:
+    P2.T1.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T1.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T1.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T2.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T2.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T2.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T3.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T3.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T3.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T4.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T4.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T4.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T5.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T5.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T5.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T6.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T6.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T6.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+  completion:
+    at: null
+    note: null
+    observed_prs: []

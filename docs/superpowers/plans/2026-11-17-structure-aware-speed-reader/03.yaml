@@ -1,0 +1,203 @@
+schema_version: 2
+phase:
+  number: 3
+  title: 'Chrome and Firefox extension: entry points, hover mode, containers, slotted
+    clones, overlay and dock (R2, R13-R18)'
+  tag: agentic
+  depends_on:
+  - 2
+  tracking_issue: null
+  acceptance:
+  - browser-entry-points
+  - browser-alt-hover
+  - browser-generic-main-content
+  - browser-exhibits-page-styled
+  - browser-overlay-and-dock
+  - chrome-firefox-one-codebase
+  - offline-no-network
+  tier: hard
+  files:
+  - packages/browser-extension/**
+  - packages/core/**
+  - tests/**
+  - scripts/**
+  - package.json
+  - package-lock.json
+  - playwright.config.ts
+  estimate_lines: 2800
+tasks:
+- number: 1
+  title: Package, two manifests, build (spec section 7 Manifests)
+  steps:
+  - id: P3.T1.S1
+    text: |-
+      RED: `packages/browser-extension/src/manifest.test.ts` reads both manifests: `manifest_version` 3; Chrome has `background.service_worker`, Firefox has `background.scripts` and `browser_specific_settings.gecko` with an `id` and `strict_min_version` "128.0"; both declare `action`, the command `_execute_action`-independent `speed-read` with suggested key Alt+Shift+R, permissions exactly storage, contextMenus, scripting, activeTab, `host_permissions` [`<all_urls>`], one content script on `<all_urls>` at `document_idle`, no `content_security_policy` loosening and no remote URL anywhere. Also assert after build that `dist/chrome` and `dist/firefox` each contain manifest.json, background.js, content.js, reader.js and icons, and that the two builds' JS files are byte-identical.
+  - id: P3.T1.S2
+    text: |-
+      GREEN: create `packages/browser-extension` (package.json, LICENSE, `manifest.chrome.json`, `manifest.firefox.json`, simple generated PNG icons, `build.mjs` using esbuild to bundle `src/background.ts`, `src/content.ts`, `src/reader-entry.ts` as IIFE into `dist/chrome` and `dist/firefox` and to zip them to the repo's `dist/speed-read-chrome.zip` and `dist/speed-read-firefox.zip` on `--package`), wire root `build` and `package`. Add `src/ext.ts`: the single shim `globalThis.browser ?? globalThis.chrome`.
+  - id: P3.T1.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 2
+  title: 'Containers: site adapters and the generic heuristic (R15)'
+  steps:
+  - id: P3.T2.S1
+    text: |-
+      RED: `src/adapters/adapters.test.ts` (jsdom): the adapter table has entries for claude.ai, chatgpt.com, chat.openai.com and gemini.google.com with reply and content selectors; `findContainer(doc, hostname, block?)` returns the reply element containing the block, the last reply when no block is given, and the generic result when no selector matches (markup written for the test, marked synthetic in a comment: real-site behaviour is the live row). Generic heuristic: prefers `main`, `article`, `[role=main]`; otherwise picks the element with the highest direct-paragraph text score penalised by link density, and on a page with nav, sidebar and footer returns the article body and none of those.
+  - id: P3.T2.S2
+    text: |-
+      GREEN: implement `src/adapters/sites.ts` (data table only) and `src/adapters/generic.ts`.
+  - id: P3.T2.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 3
+  title: 'Browser host: slotted clones with page styling (R16, spec section 7 Mount
+    and styling)'
+  steps:
+  - id: P3.T3.S1
+    text: |-
+      RED: `src/host.test.ts` (jsdom for structure) for `createBrowserHost(hostElement, container)`: `exhibit(block, use)` returns a uniquely named `<slot>` and appends to the host element's light DOM a clone with that `slot` name, wrapped in shallow copies of the original's ancestors up to but excluding body carrying tag, class, data-*, dir, lang and no id; the outer wrapper carries inline color, font-family, font-size, line-height, text-align and direction copied from the container's computed style and the first non-transparent ancestor background colour; two calls for one block give two independent clones; `release(slot)` removes its clone; a canvas becomes an img from `toDataURL` and a placeholder when that throws; elements with a shadow root and iframe, video, audio, object, embed inside a clone become a "Shown on the page" placeholder; `document()` returns a slot plus `locate` and `refAt` mapping between clone elements and source refs.
+  - id: P3.T3.S2
+    text: |-
+      GREEN: implement `src/host.ts`.
+  - id: P3.T3.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 4
+  title: 'Reader entry: resolve, mount, overlay and dock, close (R17)'
+  steps:
+  - id: P3.T4.S1
+    text: |-
+      RED: `src/reader-entry.test.ts` (jsdom): the script guards itself with `globalThis.__speedRead` so a second evaluation registers nothing; message `{ mode: 'auto' }` reads the selection when one exists, else the container from its start; `{ mode: 'selection' }`; `{ mode: 'from-here' }` uses the remembered context-menu target and, when there is none, the main content from its start; `{ mode: 'from-block' }` reads from the outlined block to the end of its container. The host element is appended to body with inline `all: initial !important` plus display, position, inset and z-index, holds a shadow root with the reader; overlay mode adds the dimmed backdrop and locks page scroll; docked mode fixes a 420 px panel to the right and sets a matching right margin on the page; closing restores scroll and margin, scrolls the page to the last-read block and outlines it briefly; settings come from and are saved to `storage.local`.
+  - id: P3.T4.S2
+    text: |-
+      GREEN: implement `src/reader-entry.ts` and `src/storage.ts`; add a `display` change handler that re-mounts in the other mode at the same position.
+  - id: P3.T4.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 5
+  title: 'Always-on content script: Alt-hover and context-menu target (R14)'
+  steps:
+  - id: P3.T5.S1
+    text: |-
+      RED: `src/content.test.ts` (jsdom): with Alt up, pointer moves and clicks change nothing and no listener calls preventDefault; with Alt held the block under the pointer gets the outline and moving changes it; releasing Alt removes it; while a block is outlined, capture-phase mousedown, mouseup, click and auxclick on it are prevented and stopped and one `{ type: 'read-from-hover' }` message is sent; the Alt keyup after such a click has its default prevented; the element under the last `contextmenu` event is remembered and returned when the reader asks; window blur clears the outline.
+  - id: P3.T5.S2
+    text: |-
+      GREEN: implement `src/content.ts`, kept small (no import of the core).
+  - id: P3.T5.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 6
+  title: 'Background: toolbar, command, context menus, hover message (R13)'
+  steps:
+  - id: P3.T6.S1
+    text: |-
+      RED: `src/background.test.ts` with a fake extension API: on install two context-menu items are created with the titles "Speed read selection" (contexts selection) and "Speed read from here" (contexts page, link, image); `action.onClicked`, `commands.onCommand('speed-read')`, `contextMenus.onClicked` and `runtime.onMessage('read-from-hover')` listeners are registered at top level and each routes to one `openReader(tabId, mode)`; in the action and command handlers `permissions.request({ origins: ['<all_urls>'] })` is called before anything is awaited; `openReader` calls `scripting.executeScript` with `reader.js` every time and then sends the mode message; no module-level per-tab state exists; expose `openReader` on `globalThis.__speedReadTest` for the browser-level tests.
+  - id: P3.T6.S2
+    text: |-
+      GREEN: implement `src/background.ts`.
+  - id: P3.T6.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 7
+  title: Browser-level tests with the built extension, offline check, visual evidence
+  steps:
+  - id: P3.T7.S1
+    text: |-
+      RED then GREEN: `tests/e2e/extension.spec.ts` launches the full Chromium through `chromium.launchPersistentContext` with `--load-extension` and `--disable-extensions-except` pointing at `packages/browser-extension/dist/chrome` (headless via the `chromium` channel, not the headless shell) and opens local pages served from localhost: `tests/fixtures/article.html` (with nav, sidebar, footer), `tests/fixtures/styled.html` (page CSS with ancestor-dependent rules, a dark page theme, syntax-highlight classes) and `tests/fixtures/hostile.html` (`* { }`, `body`, `div` rules trying to restyle everything). Through the service worker call `__speedReadTest.openReader(tabId, 'auto')`: the reader opens on the main content only; with a selection it reads the selection; 'from-here' after a real right-click reads from that block; real Alt+hover outlines a block and Alt+click on a link inside it opens the reader from there without navigating; without Alt a click navigates normally. On styled.html the code exhibit's computed colours equal the page's while the reader's own text keeps the reader's; on hostile.html the reader's layout and fonts are unchanged. Docked mode leaves the page clickable with the right margin. Settings survive a page reload. Every request during the whole spec is recorded and any that is not to localhost fails the test.
+  - id: P3.T7.S2
+    text: |-
+      Extend `scripts/capture-visual.mjs` to write `.visual/phase-3/` shots for: `alt held block outlined`, `overlay on styled page with highlighted code exhibit`, `docked side panel beside page`. Run it, open every screenshot, fix what looks wrong, fill the step record's `visual:` section.
+  - id: P3.T7.S3
+    text: |-
+      REFACTOR + quality gate: `npm run typecheck`, `npm test` (Vitest, all workspaces), `npm run test:e2e` (Playwright, Chromium), `npm run package` (both zips exist); then run the full suite after the last code commit into a log outside the repository.
+state:
+  steps:
+    P3.T1.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T1.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T1.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T2.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T2.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T2.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T3.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T3.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T3.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T4.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T4.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T4.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T5.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T5.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T5.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T6.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T6.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T6.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T7.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T7.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P3.T7.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+  completion:
+    at: null
+    note: null
+    observed_prs: []

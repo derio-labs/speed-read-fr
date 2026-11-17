@@ -1,0 +1,176 @@
+schema_version: 2
+phase:
+  number: 1
+  title: 'Workspace skeleton and the reader engine: text, timeline, pacing, player
+    (R1, R4-R9, R26)'
+  tag: agentic
+  depends_on: []
+  tracking_issue: null
+  acceptance:
+  - prose-chunk-pacing
+  - list-item-reading
+  - non-prose-never-streamed
+  - heading-chapter-stops
+  skeleton: true
+  tier: standard
+  files:
+  - package.json
+  - package-lock.json
+  - tsconfig.base.json
+  - vitest.config.ts
+  - .gitignore
+  - LICENSE
+  - .github/workflows/ci.yml
+  - packages/core/**
+  estimate_lines: 2600
+tasks:
+- number: 1
+  title: 'Smoke: workspace, toolchain and a trivial green test locally'
+  steps:
+  - id: P1.T1.S1
+    text: |-
+      Create the npm-workspaces root per spec section 1: root `package.json` (private, `workspaces: ["packages/*"]`, `type: module`, scripts `build`, `test` = `vitest run`, `typecheck` = `tsc -b`, `test:e2e`, `package`; devDependencies typescript, vitest, jsdom, esbuild, `@playwright/test` pinned to exactly 1.63.0, the version whose Chromium is preinstalled at /opt/pw-browsers), `tsconfig.base.json` (strict, ES2022, moduleResolution bundler), `vitest.config.ts`, `packages/core/package.json` (`@speed-read/core`, private, license MIT) with `src/index.ts`, `.gitignore` additions (`node_modules`, `dist`, `.visual`, `test-results`, `playwright-report`), and the MIT `LICENSE` at the root and in `packages/core`. Run `npm install`; commit the lockfile.
+  - id: P1.T1.S2
+    text: |-
+      RED then GREEN smoke: add `packages/core/src/settings.test.ts` asserting `DEFAULT_SETTINGS` has wpm 300, chunkWords 3, chunkChars 20; see it fail on the missing module; add `packages/core/src/settings.ts` exporting the `Settings` type and `DEFAULT_SETTINGS` with every default in spec R12 (stopLevels [1,2]; code/table/math `{ mode: 'stop', dwellSeconds: 5 }`; imageDwellSeconds 3; display 'overlay'; tts `{ enabled: false, voiceURI: null }`). Run `npm test` (Vitest, all workspaces) and `npm run typecheck`: both green. `fr services` says `ci none`, so the local suite on this trivial test is the walking-skeleton smoke.
+  - id: P1.T1.S3
+    text: |-
+      Add `.github/workflows/ci.yml` (spec section 12): on `pull_request` and `push` to `main`; Node 22; `npm ci`; `npm run typecheck`; `npm test`; `npx playwright install --with-deps chromium`; `npm run test:e2e`; `npm run build`; `npm run package`; upload `dist/*.zip` and `dist/*.vsix` with `actions/upload-artifact` (`if-no-files-found: warn` until phase 5 makes all three exist). Make `test:e2e`, `build` and `package` succeed as no-ops for now (`--pass-with-no-tests`, scripts that iterate workspaces with `--if-present`). Commit.
+- number: 2
+  title: Settings validation
+  steps:
+  - id: P1.T2.S1
+    text: |-
+      RED: in `settings.test.ts` add cases for `normalizeSettings(partial)`: unknown keys dropped; wpm clamped to 100-1000; chunkWords 1-10; chunkChars 5-80; stopLevels filtered to integers 1-6 and de-duplicated; a mode outside stop|skip|dwell falls back to the default; dwell seconds clamped 1-60; missing keys filled from defaults. Run and see them fail.
+  - id: P1.T2.S2
+    text: |-
+      GREEN: implement `normalizeSettings` in `settings.ts` and the `SettingsStore` interface (`load(): Promise<Partial<Settings>>`, `save(settings): Promise<void>`) plus `memoryStore()` for tests. Tests green.
+  - id: P1.T2.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 3
+  title: 'Document model and text: sentences, chunks, ORP (spec sections 2 and 3)'
+  steps:
+  - id: P1.T3.S1
+    text: |-
+      Add `packages/core/src/model.ts` with the types of spec section 2 verbatim (`Doc`, `Section`, `Block`, `ListItem`, `Sentence`, `Token`, `SourceRef`, `ExhibitMeta`); `SourceRef.element` is typed `unknown`-safe for non-DOM tests (`element: Element | null`). RED: `packages/core/src/text/sentences.test.ts` covering: split on . ! ? and the ellipsis before an upper-case letter, digit, quote or bracket; no split after each abbreviation in the spec's list, inside `3.14`, or after a single capital (`J. Smith`); an atom token is never split; input is a token list and output is `Sentence[]`.
+  - id: P1.T3.S2
+    text: |-
+      GREEN: implement `tokenize(text)` and `splitSentences(tokens)` in `text/sentences.ts`. RED: `text/chunks.test.ts`: word limit; character limit on joined text; a token longer than chunkChars is its own chunk; a chunk never crosses a sentence; a chunk ends after a token ending in , ; : or a dash once it holds two or more tokens; chunkWords 1 gives single words; atoms count as one word and by their `text` length. GREEN: `chunkSentence(sentence, { chunkWords, chunkChars })` returning chunks with `tokens`, `text`, `endsSentence`, `endsClause`.
+  - id: P1.T3.S3
+    text: |-
+      RED: `text/orp.test.ts`: pivot index 0,1,2,3,4 for lengths 1, 2-5, 6-9, 10-13, 14+ counting letters and digits only (leading quote or bracket skipped); for a multi-word chunk the anchor word is the one containing the character midpoint and the result is `{ before, pivot, after }` over the whole chunk text. GREEN: `orp.ts`. Then REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 4
+  title: Timeline (spec section 4 table)
+  steps:
+  - id: P1.T4.S1
+    text: |-
+      RED: `packages/core/src/timeline.test.ts` builds `Doc` literals and asserts `buildTimeline(doc, settings)` step kinds and order for: heading at a stop level -> `chapter`; other heading -> `title`; prose -> `chunk` per chunk with sentence index; a streamed list -> `item-chunk` steps carrying `index`, `of`, `depth` then one `item-gap` after each item; a list with every item <= 6 words and <= 8 items -> one `list-whole`; a nested list where one item is long -> streamed with depths; code/table/math in `stop` -> `stop` with a prompt string exactly like "Code, 24 lines: Space to continue, E to expand" (and "Table, 4 rows by 3 columns: ...", "Formula: ..."); in `dwell` -> `dwell` with the type's seconds; in `skip` -> no step but the block is listed in the section's `exhibits` with the index of the step at which it is passed; image and diagram -> `dwell` with imageDwellSeconds. Every step carries `sectionId`, `blockIndex` and the block's `source`.
+  - id: P1.T4.S2
+    text: |-
+      GREEN: implement `buildTimeline` in `timeline.ts`, including `chapter` card data (title, words, summary string such as "4 paragraphs, 1 list, 2 code blocks, 1 table", direct sub-heading titles) and per-section `exhibits` with their reveal step index.
+  - id: P1.T4.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 5
+  title: Pacing (spec section 4 durations and ramp)
+  steps:
+  - id: P1.T5.S1
+    text: |-
+      RED: `packages/core/src/pacing.test.ts`: `stepDuration(step, settings)` equals base x tokens, +0.5 base for a clause end, +1.2 base for a sentence end, +0.3 base per token longer than 8 characters, with base = 60000/wpm; `title` 1200 ms; `item-gap` 400 ms; `list-whole` max(1500, words x base x 1.5); dwell steps = seconds x 1000; `rampFactor(n)` gives 0.60, 0.68, 0.76, 0.84, 0.92, 1 for n = 0..5 and 1 after; `sectionEstimate(steps, settings)` sums timed durations without ramp and counts each `stop` and `chapter` as 3000 ms.
+  - id: P1.T5.S2
+    text: |-
+      GREEN: implement `pacing.ts`.
+  - id: P1.T5.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 6
+  title: Player state machine on a fake clock (spec section 5)
+  steps:
+  - id: P1.T6.S1
+    text: |-
+      RED: `packages/core/src/player.test.ts` with an injected scheduler (`setTimeout`, `clearTimeout`, `now`) driven manually: play emits `step` events at the computed times; the first six chunk steps after start use the ramp factors and the seventh does not; `item-gap`, `title`, `dwell` and `list-whole` neither restart nor consume the ramp; reaching a `stop` or `chapter` sets state `stopped` and schedules nothing; `continue` resumes with a fresh ramp; `toggle` pauses and resumes with a fresh ramp; `sentence(-1)` inside a sentence goes to its first chunk and from a first chunk to the previous sentence, across blocks and onto stops; `section(+1/-1)` and `jumpToSection(id)` land on the section's first step; `speed(+25/-25)` clamps to 100-1000, applies from the next step and emits `settings`; `toggleReading` enters and leaves `reading` paused at the same position; the end emits an end step with words read and elapsed time and state `idle`; `close` cancels timers and emits `state: closed`; every position change emits `position` with section, block index and source.
+  - id: P1.T6.S2
+    text: |-
+      GREEN: implement `createPlayer(timeline, settings, scheduler)` in `player.ts` with `on(event, fn)`, the commands listed in spec section 5, and `revealedExhibits(sectionId)` returning the exhibits whose reveal index has been reached (all of them for a section already read).
+  - id: P1.T6.S3
+    text: |-
+      REFACTOR + quality gate: export the public API from `packages/core/src/index.ts`; run `npm run typecheck` and `npm test` (Vitest, all workspaces); then, after the last code commit, run the full suite into a log outside the repository and name it in the step record.
+state:
+  steps:
+    P1.T1.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T1.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T1.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T5.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T5.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T5.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T6.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T6.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T6.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+  completion:
+    at: null
+    note: null
+    observed_prs: []
