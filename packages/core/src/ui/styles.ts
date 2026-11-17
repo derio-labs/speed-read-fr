@@ -181,7 +181,7 @@ export const READER_CSS = `
   position: relative; flex: 1; min-height: 220px; display: flex; flex-direction: column; justify-content: safe center;
   padding: 24px clamp(16px, 4cqi, 48px); outline: none; overflow: hidden auto;
 }
-.sr-display { position: relative; min-height: 120px; display: flex; align-items: center; justify-content: center; }
+.sr-display { position: relative; flex-shrink: 0; min-height: 120px; display: flex; align-items: safe center; justify-content: safe center; }
 .sr-display[data-kind="chunk"], .sr-display[data-kind="item-chunk"] { display: block; height: 150px; }
 .sr-axis { position: absolute; left: calc(var(--sr-axis) + var(--sr-depth, 0) * 28px); top: 0; bottom: 0; width: 0; pointer-events: none; }
 .sr-axis::before, .sr-axis::after {
