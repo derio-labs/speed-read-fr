@@ -6,7 +6,7 @@ acceptance: []
 emitted:
   pr: https://github.com/derio-net/speed-read-fr/pull/1
 evidence:
-  tests: /tmp/claude-0/-home-user-speed-read-fr/304c235a-e6b6-566c-a451-2bef9b4242bd/scratchpad/logs/deliver-full-suite-2.log
+  tests: /tmp/claude-0/-home-user-speed-read-fr/304c235a-e6b6-566c-a451-2bef9b4242bd/scratchpad/logs/deliver-full-suite-3.log
   walk: none
 visual:
 - row: reader-three-zone-ui
