@@ -3,7 +3,7 @@ run: 2026-11-17-claude-exciting-cori-4x7e21
 workflow: fr-goal@1
 branch: claude/exciting-cori-4x7e21
 started: '2026-11-17T15:08:54+00:00'
-cursor: journal-check
+cursor: lens-review
 steps:
   brainstorm:
     state: done
@@ -205,7 +205,11 @@ steps:
           visual: browser-overlay-and-dock:1:800ffa8b766c,browser-floating-overlay:3:9b5c29c29064,tts-voices-offline-labels:1:1dfcc31c235c
           findings: p5a-r1,p5a-r2,p5a-r3,p5a-r4,p5a-r5,p5a-r6,p5a-r7,p5a-r8,p5a-r9,p5a-r10,p5a-r11,p5a-r12,p5a-r13,p5b-r1,p5b-r2,p5b-r3,p5b-r4,p5b-r5,p5b-r6,p5b-r7,p5b-r8,p5b-r9,p5b-r10,p5b-r11,p5b-r12,p5b-r13,p5b-r14,p5b-r15
   journal-check:
-    state: pending
+    state: done
+    at: '2026-11-17T19:31:22+00:00'
+    exit: 0
+    stdout: |
+      6 out-of-scope finding(s): p3-r16, p3-r17, p3-r18, p4-r11, p5a-r12, p5a-r13
   lens-review:
     state: pending
   deliver:
