@@ -68,9 +68,13 @@ rows:
       with title, length, estimated time and contents summary until the reader continues.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R8
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/timeline.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
   - id: reader-three-zone-ui
     capability: reader-ui
     acceptance: The reader shows an outline rail with current heading, progress and
