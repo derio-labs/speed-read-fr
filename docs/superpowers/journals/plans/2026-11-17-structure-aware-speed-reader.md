@@ -462,3 +462,188 @@ background.ts routes every entry point through openReader plus two tiny helpers;
 ### p3-frames-known-limit · decision · Frames are a known limit of the browser reader (phase 3 review r11) (phase 3)
 
 The reader is injected into, and reads, the top frame only. A context-menu item used inside an iframe (info.frameId not 0) opens the reader on the top page's main content (mode 'main'), since neither the frame's selection nor the remembered target is visible to the top-frame reader. Alt-hover inside a frame is not handled: the content script runs per frame but the reader opens in the top frame. The remembered context-menu and hover targets are handed out once and only while still in the page. The README lists frames under known limits.
+
+<!-- fr:journal kind=review scope=plan id=review-p3 created=2026-11-17T17:21:14+00:00 phase=3 -->
+### review-p3 · review · Phase 3 code, security and visual review: 15 in-scope findings fixed, 3 out of scope (phase 3)
+
+Independent reviewer checked the phase 3 diff against spec section 7 and plan 03.yaml, ran typecheck, unit, build and browser suites, probed page-world attacks in Chromium, and took and opened its own screenshots for every declared visual name plus hostile and dark pages, dock widths, normal reading and Alt-hover edge cases. Findings raised: p3-r1 to p3-r18. Fixes verified by the orchestrator: full gate re-run green.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r1 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r1 · finding [open] (reviewer: in scope) · DOM clobbering: page ids disabled the reader, from-here and Alt-hover (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r2 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r2 · finding [open] (reviewer: in scope) · Open shadow root and untrusted events let page scripts drive the reader and write settings (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r3 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r3 · finding [open] (reviewer: in scope) · Alt+click or from-here on a list item read from the first item of the outer list (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r4 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r4 · finding [open] (reviewer: in scope) · Links in slotted clones stayed live (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r5 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r5 · finding [open] (reviewer: in scope) · Current-block mark's fill made dark page code unreadable (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r6 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r6 · finding [open] (reviewer: in scope) · Alt-hover acted inside the reader (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r7 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r7 · finding [open] (reviewer: in scope) · Page removing the host left html unscrollable or with the dock margin (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r8 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r8 · finding [open] (reviewer: in scope) · Chapter card clipped in the docked panel (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r9 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r9 · finding [open] (reviewer: in scope) · Hostile page rules restyled the wrapper and shells (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r10 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r10 · finding [open] (reviewer: in scope) · Alt+click outside main content opened an empty reader (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r11 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r11 · finding [open] (reviewer: in scope) · Context menu ignored frameId and kept a stale target (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r12 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r12 · finding [open] (reviewer: in scope) · Offline check had no remote subresource (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r13 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r13 · finding [open] (reviewer: in scope) · Clones kept ids and names (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r14 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r14 · finding [open] (reviewer: in scope) · Test hook shipped in the production background bundle (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r15 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=in -->
+### p3-r15 · finding [open] (reviewer: in scope) · Clone-map logic duplicated between browser host and core (phase 3)
+
+Raised by the phase 3 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r16 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=out -->
+### p3-r16 · finding [open] (reviewer: out of scope) · Dock margin does not move position:fixed page elements (phase 3)
+
+Raised by the phase 3 reviewer and tagged out of scope. The margin technique is the one the spec prescribes; fixed-position page elements slide under the panel. Not caused by this phase's code; to be listed as a known limit and filed.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r17 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=out -->
+### p3-r17 · finding [open] (reviewer: out of scope) · Chrome prompts on every toolbar press when site access is on-click (phase 3)
+
+Raised by the phase 3 reviewer and tagged out of scope. Follows from the spec requiring permissions.request in both browsers; a spec-level change (restrict to Firefox), not this phase's defect.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r18 created=2026-11-17T17:21:14+00:00 phase=3 state=open review_scope=out -->
+### p3-r18 · finding [open] (reviewer: out of scope) · Expanded exhibit limited to the stage width (phase 3)
+
+Raised by the phase 3 reviewer and tagged out of scope. Phase 2 core layout, not changed by this phase.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r1-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r1 -->
+### p3-r1-resolved · finding [fixed] · resolves p3-r1: DOM clobbering: page ids disabled the reader, from-here and Alt-hover (phase 3)
+
+Shared state under Symbol.for keys checked as own properties; bridge functions type-checked; API shim requires a runtime; fixture and e2e added (d590660, 025d097).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r2-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r2 -->
+### p3-r2-resolved · finding [fixed] · resolves p3-r2: Open shadow root and untrusted events let page scripts drive the reader and write settings (phase 3)
+
+Closed shadow root in the packaged build; trustedEventsOnly ignores untrusted events; e2e on the packaged build (0b9ff6d, a0dded3, 512d3e1).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r3-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r3 -->
+### p3-r3-resolved · finding [fixed] · resolves p3-r3: Alt+click or from-here on a list item read from the first item of the outer list (phase 3)
+
+List read from the innermost item holding the start, numbering kept (512d3e1).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r4-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r4 -->
+### p3-r4-resolved · finding [fixed] · resolves p3-r4: Links in slotted clones stayed live (phase 3)
+
+Default actions prevented inside clones; handler attributes and javascript URLs stripped (a1d0630).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r5-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r5 -->
+### p3-r5-resolved · finding [fixed] · resolves p3-r5: Current-block mark's fill made dark page code unreadable (phase 3)
+
+Mark is outline only (0b9ff6d).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r6-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r6 -->
+### p3-r6-resolved · finding [fixed] · resolves p3-r6: Alt-hover acted inside the reader (phase 3)
+
+Targets inside the reader host ignored (d590660).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r7-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r7 -->
+### p3-r7-resolved · finding [fixed] · resolves p3-r7: Page removing the host left html unscrollable or with the dock margin (phase 3)
+
+MutationObserver runs the teardown (512d3e1).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r8-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r8 -->
+### p3-r8-resolved · finding [fixed] · resolves p3-r8: Chapter card clipped in the docked panel (phase 3)
+
+Compact cards below 900 px reader width; e2e box check at 800 px height (0b9ff6d).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r9-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r9 -->
+### p3-r9-resolved · finding [fixed] · resolves p3-r9: Hostile page rules restyled the wrapper and shells (phase 3)
+
+sr-clone wrapper and important neutral layout on shells (a1d0630).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r10-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r10 -->
+### p3-r10-resolved · finding [fixed] · resolves p3-r10: Alt+click outside main content opened an empty reader (phase 3)
+
+Falls back to the block alone, then main content (512d3e1).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r11-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r11 -->
+### p3-r11-resolved · finding [fixed] · resolves p3-r11: Context menu ignored frameId and kept a stale target (phase 3)
+
+Targets handed out once while connected; subframe use reads the top page's main content; frames recorded as a known limit (d590660, 6f641d4).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r12-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r12 -->
+### p3-r12-resolved · finding [fixed] · resolves p3-r12: Offline check had no remote subresource (phase 3)
+
+Fixture with routed remote image and stylesheet; no further request on reveal, expand or normal reading (025d097).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r13-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r13 -->
+### p3-r13-resolved · finding [fixed] · resolves p3-r13: Clones kept ids and names (phase 3)
+
+Stripped, with dangling references removed (a1d0630).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r14-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r14 -->
+### p3-r14-resolved · finding [fixed] · resolves p3-r14: Test hook shipped in the production background bundle (phase 3)
+
+Dropped by a build flag; test variant built to dist-test; build test asserts absence (a0dded3).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r15-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=fixed resolves=p3-r15 -->
+### p3-r15-resolved · finding [fixed] · resolves p3-r15: Clone-map logic duplicated between browser host and core (phase 3)
+
+One exported helper used by both (0b9ff6d, a1d0630).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r16-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=open resolves=p3-r16 out_of_scope=true -->
+### p3-r16-resolved · finding [out-of-scope] · resolves p3-r16: Dock margin does not move position:fixed page elements (phase 3)
+
+The margin technique is the one the spec prescribes; fixed-position page elements slide under the panel. Not caused by this phase's code; to be listed as a known limit and filed.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r17-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=open resolves=p3-r17 out_of_scope=true -->
+### p3-r17-resolved · finding [out-of-scope] · resolves p3-r17: Chrome prompts on every toolbar press when site access is on-click (phase 3)
+
+Follows from the spec requiring permissions.request in both browsers; a spec-level change (restrict to Firefox), not this phase's defect.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r18-resolved created=2026-11-17T17:21:14+00:00 phase=3 state=open resolves=p3-r18 out_of_scope=true -->
+### p3-r18-resolved · finding [out-of-scope] · resolves p3-r18: Expanded exhibit limited to the stage width (phase 3)
+
+Phase 2 core layout, not changed by this phase.
