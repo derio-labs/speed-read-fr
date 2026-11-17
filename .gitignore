@@ -1,2 +1,6 @@
-docs/acceptance/report.html
-docs/acceptance/report.md
+node_modules
+dist
+.visual
+test-results
+playwright-report
+*.tsbuildinfo
