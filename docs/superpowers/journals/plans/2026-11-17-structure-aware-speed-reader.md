@@ -810,3 +810,84 @@ reveal(undefined, false) (fe3fdda).
 ### p4-r11-resolved · finding [out-of-scope] · resolves p4-r11: Headings with inline math show TeX source in outline and section cards (phase 4)
 
 The outline and section cards show a heading's inline math as TeX source. This follows from the core's heading text and the spec's stated limit that inline math is shown as source outside normal reading; not caused by this phase.
+
+<!-- fr:journal kind=decision scope=plan id=p5-dial-choices created=2026-11-17T18:59:27+00:00 phase=5 -->
+### p5-dial-choices · decision · Position dial choices where spec section 13 is silent (phase 5)
+
+- `createDial({ onMove, now, requestFrame, cancelFrame })` is pure; `onMove(steps)` returns the steps actually moved, and a short move (a document end) zeroes the accumulator and the coast.
+- A turn opposite to the banked fraction drops it, so a turn back moves back at once (found by the browser test: a fraction banked forwards swallowed the first notch back).
+- After 400 ms without input the readout returns to x1 and the smoothed speed restarts from 0 (the mockup's reset), checked at the next turn as well as by frames.
+- While the strip is held (pointer down) there is no coast; on release it coasts from the last movement. A held pointer standing still for over 40 ms ends the spin.
+- Wheel deltaMode 1 counts 16 px per line, deltaMode 2 one viewport height; the dominant axis is used.
+- `player.scrub(steps)` moves by whole timeline steps (item gaps included), clamped to the first and last step; from the end card only backwards. It shows each landing paused (or stopped on a stop/chapter, never holding the dial) and schedules the 700 ms resume on the player's scheduler; any other command cancels that resume. "Timed step" means a step with a pacing duration that does not wait for the reader.
+- The tick strip slides 12 px per step moved; `aria-valuenow` is the position in percent of the timeline.
+- `ReaderHandle.wheel(event)` is the hook a host uses to route page wheel events to the dial; it honours trustedEventsOnly.
+
+<!-- fr:journal kind=decision scope=plan id=p5-layout-choices created=2026-11-17T18:59:27+00:00 phase=5 -->
+### p5-layout-choices · decision · Floating layout and narrow push choices where spec section 13 is silent (phase 5)
+
+- The floating root keeps pointer events (its gaps are inert): clicking between the cards does nothing and keeps focus in the reader, and in the browser every wheel event over the gaps reaches the reader's routing.
+- Floating stage widths keep the cards apart: at 1180 px and wider `min(600px, 100% - 668px)` centred; 900-1179 px centred in the room left of the exhibit card; under 900 px `min(600px, 100% - 32px)`.
+- Narrow floating: the stage's resting place is centred at 56 % of the reader height (the wide position), card top 8 px, stage floor 12 px above the reader bottom.
+- Narrow panel (dock, narrow VS Code): the exhibit card overlays the main column 8 px below the toolbar; the stage region moves down by margin-top. With nothing revealed the exhibit card is hidden in both layouts (R28), so the old "appears here as you reach them" message shows only when wide.
+- In the narrow push an exhibit body has no 420 px cap; the card itself scrolls once it reaches its maximum height.
+- `ReaderHandle.relayout()` recomputes the push on demand; ResizeObserver and MutationObserver drive it otherwise.
+- The expanded exhibit is inset 6 % / 4 % of the reader root (88 % x 92 %) as a card with a shadow, in both layouts.
+
+<!-- fr:journal kind=decision scope=plan id=p5-overlay-choices created=2026-11-17T18:59:27+00:00 phase=5 -->
+### p5-overlay-choices · decision · Browser overlay, dock and permission choices where spec section 13 is silent (phase 5)
+
+- The page's effective background is the first opaque computed background from the read container up to the root, else white.
+- The clear window is padded 6 px around the block, clamped to the viewport, painted outside by a 200vmax spread shadow in a veil with overflow hidden; a frame loop keeps it on the block while the page moves.
+- The eased follow scrolls the block's nearest vertically scrolling ancestor (else the page) and runs after each position event until the block is within 1 px of 10 % of the viewport or the scroller cannot move; then it stops, so it never fights the user's scrollbar.
+- Wheel routing inside the overlay excludes the exhibit card, the settings panel, the normal-reading view and the expanded exhibit (it scrolls its own content); the outline card turns the dial as the spec lists only those three.
+- pageFade lives in core Settings (0.10-0.80, default 0.32), shown in the panel only when the host declares `hostSettings: ['pageFade']`; the browser declares it in both display modes. VS Code mirrors it as `speedRead.pageFade`, unused there.
+- Closing scrolls the last block into view only when it is out of view (`block: 'nearest'`), so the overlay leaves the page where it was.
+- Dock shift: an element spanning the viewport is pinned at both sides (left as measured, right moved in by 420 px, width auto), so its width shrinks by 420 px padding included; others get right moved in by 420 px and left auto. All with !important, restored to the exact previous value and priority.
+- Firefox is recognised by `runtime.getURL('')` starting with `moz-extension:`, evaluated once at load; the request stays the handler's first statement.
+
+<!-- fr:journal kind=decision scope=plan id=p5-tts-choices created=2026-11-17T18:59:27+00:00 phase=5 -->
+### p5-tts-choices · decision · Text-to-speech choices where spec section 9 is silent (phase 5)
+
+- `speak(chunks, wpm, handlers)` takes the sentence as its chunks; a title is spoken as one chunk of its words. onChunk fires only when the boundary moves into another chunk. A sentence that is all math ends without an utterance, on the next tick, never from inside speak().
+- A boundary after the 1 s wait no longer changes the display; boundary-less counting is per voice and resets when a sentence gets a boundary in time.
+- An utterance error moves on like an end, so playback never hangs.
+- Player: speech times chunk, item-chunk and title steps when tts is enabled, the API is present and a voice is usable (picked, else the default local voice); otherwise the pacing timer runs as before. Speech starts after the step is shown; resuming mid-sentence speaks from the current chunk. Pause, stops, jumps, scrubs and close cancel through the player's one cancel path.
+- The whole-sentence display is a `whole` player event the stage renders wrapped at 28 px.
+- Panel: "Automatic: <voice>" (or "Choose a voice" when there is no local voice) plus every voice as "<name> (<lang>) · local|network"; a saved voice that is not listed stays as "Saved voice (not found)". Without the API the note reads "Text-to-speech is not available here".
+- The mount creates the driver from the window's speechSynthesis with the document language (else navigator.language); hosts may inject one.
+
+<!-- fr:journal kind=discovery scope=plan id=p5-readme-and-ci created=2026-11-17T18:59:27+00:00 phase=5 -->
+### p5-readme-and-ci · discovery · README test, package test and CI (phase 5)
+
+vitest now also includes tests/*.test.ts (readme.test.ts, package.test.ts). The package test lists zip entries by reading the central directory (no dependency) and skips with a message when dist/ has no packages. CI runs it after `npm run package`, and the upload names the three files with if-no-files-found error. The root `npm run package` already built and packaged every workspace.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p5-t1 created=2026-11-17T18:59:27+00:00 phase=5 -->
+### no-refactor-p5-t1 · discovery · no-refactor-because P5.T1 (phase 5)
+
+tts.ts was written around one speak path; the only cleanup was turning the method-bound cancel into a named function shared by speak, cancel and destroy.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p5-t3 created=2026-11-17T18:59:27+00:00 phase=5 -->
+### no-refactor-p5-t3 · discovery · no-refactor-because P5.T3 (phase 5)
+
+documentation, nothing to restructure
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p5-t5 created=2026-11-17T18:59:27+00:00 phase=5 -->
+### no-refactor-p5-t5 · discovery · no-refactor-because P5.T5 (phase 5)
+
+The dial maths live in one pure module (dial.ts) and the strip in one UI module (dial-strip.ts) with one wheelDelta helper; nothing duplicated.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p5-t6 created=2026-11-17T18:59:27+00:00 phase=5 -->
+### no-refactor-p5-t6 · discovery · no-refactor-because P5.T6 (phase 5)
+
+layout.ts holds one pure stagePush function and one controller shared by both layouts; nothing to clean.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p5-t7 created=2026-11-17T18:59:27+00:00 phase=5 -->
+### no-refactor-p5-t7 · discovery · no-refactor-because P5.T7 (phase 5)
+
+Overlay veil, follow and dock shift were each written once in reader-entry.ts (createVeil, followStep, shiftFixed, makeRoom); no refactor step is owed and none was needed.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p5-t2 created=2026-11-17T18:59:27+00:00 phase=5 -->
+### no-refactor-p5-t2 · discovery · no-refactor-because P5.T2 (phase 5)
+
+The task's third step is the browser-level test and the capture, not a refactor step; no separate cleanup pass was made for this task, and its code is examined in the phase review.
