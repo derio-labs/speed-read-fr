@@ -211,6 +211,18 @@ test.describe('at 360 px', () => {
     expect(await insideStage(page, '.sr-sentence')).toBe(true);
   });
 
+  test('the outline bar keeps its menu icon whole and ellipsizes a long heading', async ({ page }) => {
+    await page.setViewportSize({ width: 280, height: 800 });
+    await openDemo(page);
+    const toggle = (await page.locator('.sr-outline-toggle').boundingBox())!;
+    const icon = (await page.locator('.sr-outline-toggle .sr-icon').boundingBox())!;
+    const text = page.locator('.sr-outline-toggle-text');
+    expect(Math.round(icon.width)).toBe(20);
+    const box = (await text.boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(toggle.x + toggle.width);
+    expect(await text.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  });
+
   test('a nested list item stays inside the stage', async ({ page }) => {
     await openDemo(page);
     await page.keyboard.press('n');

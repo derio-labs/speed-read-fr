@@ -131,7 +131,8 @@ export const READER_CSS = `
   padding: 6px 10px; border: 1px solid var(--sr-border); border-radius: 8px;
   background: var(--sr-bg); cursor: pointer; text-align: left;
 }
-.sr-outline-toggle-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.sr-outline-toggle .sr-icon { flex: none; }
+.sr-outline-toggle-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .sr-outline {
   display: none; flex-direction: column; min-height: 0; z-index: 3;
   position: relative; align-self: stretch; width: min(320px, 88%);
