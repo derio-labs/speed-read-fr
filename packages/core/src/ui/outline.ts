@@ -101,7 +101,12 @@ export function createOutline(ctx: ReaderContext, { outline, bar, layout }: Outl
     barText.textContent = sections[titled]?.title ?? sections.find((s) => s.title !== undefined)?.title ?? 'Contents';
   }
 
-  toggle.addEventListener('click', () => setDrawer(layout.dataset.drawer !== 'open'));
+  toggle.addEventListener('click', () => {
+    const open = layout.dataset.drawer !== 'open';
+    setDrawer(open);
+    if (open) rows[0]?.button.focus({ preventScroll: true });
+    else ctx.reader.focus({ preventScroll: true });
+  });
   const off = [
     player.on('step', (e: StepEvent) => update(e.index)),
     player.on('settings', () => {
@@ -116,6 +121,7 @@ export function createOutline(ctx: ReaderContext, { outline, bar, layout }: Outl
     closeDrawer() {
       if (layout.dataset.drawer !== 'open') return false;
       setDrawer(false);
+      ctx.reader.focus({ preventScroll: true });
       return true;
     },
     destroy() {

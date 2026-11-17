@@ -93,3 +93,32 @@ describe('outline bar (narrow layout)', () => {
     expect(toggle.textContent).toBe('Setup');
   });
 });
+
+describe('drawer focus', () => {
+  it('moves focus into the drawer when opened and back to the root when closed by the toggle', () => {
+    const t = mountHarness(ARTICLE);
+    const toggle = t.q<HTMLButtonElement>('.sr-outline-toggle')!;
+    toggle.focus();
+    toggle.click();
+    expect(document.activeElement).toBe(rows(t)[0]);
+    toggle.click();
+    expect(t.q('.sr-layout')!.dataset.drawer).toBeUndefined();
+    expect(document.activeElement).toBe(t.reader);
+  });
+
+  it('closes on Esc whatever has focus inside the reader', () => {
+    const t = mountHarness(ARTICLE);
+    const toggle = t.q<HTMLButtonElement>('.sr-outline-toggle')!;
+    toggle.click();
+    const event = t.key('Escape', {}, rows(t)[2]);
+    expect(event.defaultPrevented).toBe(true);
+    expect(t.q('.sr-layout')!.dataset.drawer).toBeUndefined();
+    expect(document.activeElement).toBe(t.reader);
+    expect(t.handle.player.state).not.toBe('closed');
+    toggle.click();
+    toggle.focus();
+    t.key('Escape', {}, toggle);
+    expect(t.q('.sr-layout')!.dataset.drawer).toBeUndefined();
+    expect(t.handle.player.state).not.toBe('closed');
+  });
+});

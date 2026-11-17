@@ -45,7 +45,7 @@ function shortcut(key: string, t: KeyTargets): (() => void) | null {
     case 'Escape':
       return () => {
         if (exhibits.isExpanded()) exhibits.closeExpanded();
-        else if (!t.closeDrawer()) player.close();
+        else player.close();
       };
     case ',':
       return () => t.panel.open();
@@ -64,6 +64,12 @@ export function attachKeys(t: KeyTargets): () => void {
     const target = event.target as Element | null;
     if (!target || target.closest(FORM_CONTROL)) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
+    // An open drawer closes on Esc wherever focus is inside the reader.
+    if (event.key === 'Escape' && t.closeDrawer()) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     const onReader = target === t.reader || t.stage.contains(target);
     if (!onReader) {
       if (event.key === 'Tab') {
