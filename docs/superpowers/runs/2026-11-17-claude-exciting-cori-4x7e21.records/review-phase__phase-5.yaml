@@ -1,0 +1,341 @@
+schema_version: 12
+run: 2026-11-17-claude-exciting-cori-4x7e21
+step: review-phase
+item: phase/5
+outcome: done
+journal:
+- kind: review
+  id: review-p5
+  phase: 5
+  title: 'Phase 5 code and visual review by two reviewers: 25 in-scope findings fixed, 1 refuted, 2 out
+    of scope'
+  body: 'Reviewer a (overlay, dial, layout, dock, permission) checked spec section 13 constant by constant,
+    measured behaviour in Chromium on its own pages, compared against the approved mockup at several sizes
+    and opened its own screenshots; it also judged p3-r16, p3-r17 and p3-r18 fixed. Reviewer b (text-to-speech,
+    README, packaging, CI) checked section 9 against the Web Speech API, the README line by line against
+    the code, and drove the voice panel with a fake speechSynthesis. Findings raised: p5a-r1 to p5a-r13
+    and p5b-r1 to p5b-r15. Fixes verified by the orchestrator: full gate re-run green (570 unit, 66 browser
+    tests, three packages).'
+- kind: finding
+  id: p5a-r1
+  phase: 5
+  title: Overlay veil frame loop never stopped
+  body: 'Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5a-r2
+  phase: 5
+  title: Page follow failed on smooth-scrolling pages
+  body: 'Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5a-r3
+  phase: 5
+  title: Wheel over settings, exhibits or reading view chained to the page
+  body: 'Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5a-r4
+  phase: 5
+  title: Ctrl+wheel and horizontal swipes were swallowed
+  body: 'Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5a-r5
+  phase: 5
+  title: Veil colour ignored background images, oklch and dark schemes
+  body: 'Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5a-r6
+  phase: 5
+  title: Exhibit card squeezed in a narrow short window while the stage kept an empty band
+  body: 'Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5a-r7
+  phase: 5
+  title: Exhibit card appeared instantly and overlapped the gliding stage
+  body: 'Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5a-r8
+  phase: 5
+  title: Current block sat under the exhibit card in the narrow overlay
+  body: 'Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5a-r9
+  phase: 5
+  title: Wheel over the outline card turned the dial
+  body: 'Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5a-r10
+  phase: 5
+  title: Scrub from a stop reached by playback did not resume
+  body: 'Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5a-r11
+  phase: 5
+  title: Acceptance row browser-overlay-and-dock still said full-page overlay over a dimmed page
+  body: Raised by phase 5 reviewer a from the row's original text; in scope as a row of this feature.
+  review_scope: in
+- kind: finding
+  id: p5a-r12
+  phase: 5
+  title: Overlay host blocks pointer input to the faded page
+  body: Raised by phase 5 reviewer a and tagged out of scope. The spec's floating layout lets pointer
+    events through to nothing, so the faded page cannot be selected or pressed and Alt-hover is inactive
+    while the overlay is open; a design choice, now a README known limit.
+  review_scope: out
+- kind: finding
+  id: p5a-r13
+  phase: 5
+  title: Dock restore overwrites page changes made while docked
+  body: Raised by phase 5 reviewer a and tagged out of scope. The spec's approach restores the inline
+    values saved at opening; pages that restyle those elements meanwhile may see them shifted. Now a README
+    known limit.
+  review_scope: out
+- kind: finding
+  id: p5b-r1
+  phase: 5
+  title: Speech utterance not retained
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r2
+  phase: 5
+  title: No watchdog when end never fires
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r3
+  phase: 5
+  title: Every speech error advanced instantly
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r4
+  phase: 5
+  title: Local/network label truncated in the voice select
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r5
+  phase: 5
+  title: Warnings looked like hints; disabled toggle nearly invisible
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r6
+  phase: 5
+  title: Whole-sentence mode duplicated the sentence
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r7
+  phase: 5
+  title: Missing saved voice handled differently in panel and player
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r8
+  phase: 5
+  title: Titles spoken with inline-math TeX source
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r9
+  phase: 5
+  title: Destroy cancelled the page's own speech
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r10
+  phase: 5
+  title: README wrong about the Firefox permission prompt
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r11
+  phase: 5
+  title: README narrow thresholds incomplete
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r12
+  phase: 5
+  title: README overstated spoken headings
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r13
+  phase: 5
+  title: README test did not pin voice rules or defaults
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r14
+  phase: 5
+  title: CI lacked permissions and concurrency
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p5b-r15
+  phase: 5
+  title: Speech mapping tests missed edge cases
+  body: 'Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+resolves:
+- id: p5a-r1
+  state: fixed
+  body: Frames only while the follow moves; window re-placed on scroll, resize and block resize (3faf162).
+- id: p5a-r2
+  state: fixed
+  body: Instant scrollTo and arrival judged by the block's position; fixtures for smooth and snap pages
+    (3faf162).
+- id: p5a-r3
+  state: fixed
+  body: Overscroll containment and prevented default at the scroller's end (3faf162).
+- id: p5a-r4
+  state: fixed
+  body: Left to the browser, except a sideways turn on the strip itself (3faf162).
+- id: p5a-r5
+  state: fixed
+  body: Canvas colour parsing with a dark or light neutral fallback (3faf162).
+- id: p5a-r6
+  state: fixed
+  body: Stage hugs its content in the narrow floating layout; e2e at 744x600 (3faf162).
+- id: p5a-r7
+  state: fixed
+  body: Card height animates with the stage's ease; e2e samples frames for overlap (3faf162).
+- id: p5a-r8
+  state: fixed
+  body: Host follows to the reader's free band (3faf162).
+- id: p5a-r9
+  state: fixed
+  body: Outline scrolls its own list (3faf162).
+- id: p5a-r10
+  state: fixed
+  body: Scrub treats that state as playing (3faf162).
+- id: p5a-r11
+  state: refuted
+  body: 'The row carries a reword amendment written before the review (docs/acceptance/features/2026-11-17-structure-aware-speed-reader.yaml,
+    `row: browser-overlay-and-dock`, op reword, base 0) that restates it as the dock only; the floating
+    overlay has its own row. The reviewer read the base text, which an amendment never edits in place.'
+- id: p5a-r12
+  state: out-of-scope
+  body: The spec's floating layout lets pointer events through to nothing, so the faded page cannot be
+    selected or pressed and Alt-hover is inactive while the overlay is open; a design choice, now a README
+    known limit.
+- id: p5a-r13
+  state: out-of-scope
+  body: The spec's approach restores the inline values saved at opening; pages that restyle those elements
+    meanwhile may see them shifted. Now a README known limit.
+- id: p5b-r1
+  state: fixed
+  body: Driver holds the utterance in flight (1bd0f44).
+- id: p5b-r2
+  state: fixed
+  body: Watchdog on the injected scheduler; long sentences split into several utterances (1bd0f44).
+- id: p5b-r3
+  state: fixed
+  body: Errors fall back to timed text; two in a row turn speech off with a note (1bd0f44).
+- id: p5b-r4
+  state: fixed
+  body: Voices grouped under Local and Network with a badge beside the select (1bd0f44).
+- id: p5b-r5
+  state: fixed
+  body: Warning style with icon and contrast; visible disabled style (1bd0f44).
+- id: p5b-r6
+  state: fixed
+  body: Sentence line cleared while the whole sentence is on the stage (1bd0f44).
+- id: p5b-r7
+  state: fixed
+  body: Both fall back to Automatic and the panel says so (1bd0f44).
+- id: p5b-r8
+  state: fixed
+  body: Heading tokens kept; math omitted from spoken titles (1bd0f44).
+- id: p5b-r9
+  state: fixed
+  body: Cancel only while the driver's utterance is in flight (1bd0f44).
+- id: p5b-r10
+  state: fixed
+  body: Corrected (aad0000).
+- id: p5b-r11
+  state: fixed
+  body: Both thresholds named (aad0000).
+- id: p5b-r12
+  state: fixed
+  body: Corrected (aad0000).
+- id: p5b-r13
+  state: fixed
+  body: Assertions added (aad0000).
+- id: p5b-r14
+  state: fixed
+  body: Added and asserted (aad0000).
+- id: p5b-r15
+  state: fixed
+  body: Tests added (1bd0f44).
+evidence:
+  review: review-p5
+  reviewer: aa8646379353e464c,aa017c56bfb309e82
+  model: claude-fable-5-2
+visual:
+- row: browser-floating-overlay
+  script: scripts/capture-visual.mjs
+  shots:
+  - path: .visual/review-5a/overlay-article-1600.png
+    shows:
+    - floating cards over faded page with current block at full strength
+  - path: .visual/review-5a/overlay-styled-1600.png
+    shows:
+    - floating cards over faded page with current block at full strength
+  - path: .visual/review-5a/push-code24-1000.png
+    shows:
+    - narrow window exhibit card pushes stage down
+  - path: .visual/review-5a/push-short-1000.png
+    shows:
+    - narrow window exhibit card pushes stage down
+- row: browser-overlay-and-dock
+  script: scripts/capture-visual.mjs
+  shots:
+  - path: .visual/review-5a/dock-fixed-open.png
+    shows:
+    - docked side panel beside page
+- row: tts-voices-offline-labels
+  script: scripts/capture-visual.mjs
+  shots:
+  - path: .visual/review-5b/01-local-network-default.png
+    shows:
+    - speech settings with local and network voices
+  - path: .visual/review-5b/02-local-network-picked-network.png
+    shows:
+    - speech settings with local and network voices
