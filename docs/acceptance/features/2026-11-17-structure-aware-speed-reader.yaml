@@ -106,12 +106,12 @@ rows:
       - change words per chunk to 1 and to 8
   - id: browser-entry-points
     capability: browser-extension
-    acceptance: The toolbar button and Alt+Shift+R read the selection or else the main
-      content, and the context menu offers Speed read selection and Speed read from
-      here.
+    acceptance: The extension declares a toolbar action, the context-menu items Speed
+      read selection and Speed read from here, and the shortcut Alt+Shift+R, and each
+      opens the reader on the selection, on the main content, or from the clicked block
+      as appropriate.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R13
-    - spec:2026-11-17-structure-aware-speed-reader#R15
     levels: {}
     status: not-implemented
     notes: ''
