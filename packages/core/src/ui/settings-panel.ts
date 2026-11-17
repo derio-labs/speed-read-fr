@@ -92,7 +92,11 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       {},
       h('legend', {}, 'Speech'),
       field('Text-to-speech', 'read aloud', ttsToggle),
-      field('Voice', null, voiceSelect, voiceBadge),
+      (() => {
+        const row = field('Voice', null, voiceSelect, voiceBadge);
+        row.classList.add('sr-field-wide');
+        return row;
+      })(),
       ttsNotes,
     ),
     h('div', { class: 'sr-settings-foot' }, done),

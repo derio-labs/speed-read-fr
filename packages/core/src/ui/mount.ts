@@ -136,7 +136,8 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   const stage = h('section', { class: 'sr-stage', role: 'region', 'aria-label': 'Reader stage', tabindex: -1 });
   const reading = h('div', { class: 'sr-reading', role: 'region', 'aria-label': 'Normal reading', hidden: true });
   const main = h('div', { class: 'sr-main' }, toolbar, overall, stage, reading);
-  const exhibits = h('section', { class: 'sr-exhibits', role: 'region', 'aria-label': 'Exhibits' });
+  // Empty from the start, so a narrow reader does not show the card fading out as it mounts.
+  const exhibits = h('section', { class: 'sr-exhibits', role: 'region', 'aria-label': 'Exhibits', 'data-empty': true });
   // Floating: the outline bar (used when the outline card has no room) heads the stage card.
   if (floating) {
     main.prepend(outlineBar);

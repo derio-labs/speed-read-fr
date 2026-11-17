@@ -233,7 +233,10 @@ export const READER_CSS = `
 /* Speech without word boundaries shows the whole sentence. */
 .sr-chunk.sr-chunk-whole { font-size: 28px; }
 .sr-tts-notes { padding: 2px 0 6px; }
-.sr-settings select[name="tts-voice"] { max-width: 260px; min-width: 0; }
+/* The voice row: label above, the list and its badge across the panel, so long names keep their kind visible. */
+.sr-field.sr-field-wide { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.sr-field-wide .sr-field-controls { min-width: 0; }
+.sr-settings select[name="tts-voice"] { flex: 1; min-width: 0; width: 100%; }
 .sr-settings select[name="tts-voice"][size] { height: auto; padding: 4px; }
 .sr-tts-note { margin: 4px 0; }
 /* Warnings stand apart from hints: an icon and a colour of at least 4.5:1 on the panel (p5b-r5). */

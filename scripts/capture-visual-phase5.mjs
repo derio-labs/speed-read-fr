@@ -135,8 +135,8 @@ export async function capturePhase5(outDir) {
     await page.locator('.sr-settings [name="tts"]').check();
     await page.locator('.sr-settings .sr-tts-notes').scrollIntoViewIfNeeded();
     await page.locator('.sr-settings .sr-settings-foot').scrollIntoViewIfNeeded();
-    // The voice list itself, opened as a listbox is not capturable: show the options as a size-4 list.
-    await page.locator('.sr-settings [name="tts-voice"]').evaluate((el) => el.setAttribute('size', '4'));
+    // The voice list itself, opened as a listbox is not capturable: show the options as a size-6 list.
+    await page.locator('.sr-settings [name="tts-voice"]').evaluate((el) => el.setAttribute('size', '6'));
     await shot(page, 'speech-settings-voices.png');
   } finally {
     await context.close();
