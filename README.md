@@ -169,8 +169,9 @@ Text-to-speech uses the voices of the browser or the system (the Web Speech API)
   (the headings that stop) are not. Inline math is left out of the spoken text, headings
   included.
 - If the voice fails (for example a network voice while offline, or a voice that never starts
-  speaking), that sentence is shown as text at your reading speed instead; after two failures in a row speech is switched off for the
-  session and the status line and the settings say "Speech failed: showing text only".
+  speaking), that sentence is shown as text at your reading speed instead; after two failures in
+  a row speech is switched off for the session and the status line and the settings say
+  "Speech failed: showing text only".
 
 ## Known limits
 
