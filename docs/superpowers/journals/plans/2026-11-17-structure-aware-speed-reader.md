@@ -891,3 +891,288 @@ Overlay veil, follow and dock shift were each written once in reader-entry.ts (c
 ### no-refactor-p5-t2 · discovery · no-refactor-because P5.T2 (phase 5)
 
 The task's third step is the browser-level test and the capture, not a refactor step; no separate cleanup pass was made for this task, and its code is examined in the phase review.
+
+<!-- fr:journal kind=review scope=plan id=review-p5 created=2026-11-17T19:31:19+00:00 phase=5 -->
+### review-p5 · review · Phase 5 code and visual review by two reviewers: 25 in-scope findings fixed, 1 refuted, 2 out of scope (phase 5)
+
+Reviewer a (overlay, dial, layout, dock, permission) checked spec section 13 constant by constant, measured behaviour in Chromium on its own pages, compared against the approved mockup at several sizes and opened its own screenshots; it also judged p3-r16, p3-r17 and p3-r18 fixed. Reviewer b (text-to-speech, README, packaging, CI) checked section 9 against the Web Speech API, the README line by line against the code, and drove the voice panel with a fake speechSynthesis. Findings raised: p5a-r1 to p5a-r13 and p5b-r1 to p5b-r15. Fixes verified by the orchestrator: full gate re-run green (570 unit, 66 browser tests, three packages).
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r1 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5a-r1 · finding [open] (reviewer: in scope) · Overlay veil frame loop never stopped (phase 5)
+
+Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r2 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5a-r2 · finding [open] (reviewer: in scope) · Page follow failed on smooth-scrolling pages (phase 5)
+
+Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r3 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5a-r3 · finding [open] (reviewer: in scope) · Wheel over settings, exhibits or reading view chained to the page (phase 5)
+
+Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r4 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5a-r4 · finding [open] (reviewer: in scope) · Ctrl+wheel and horizontal swipes were swallowed (phase 5)
+
+Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r5 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5a-r5 · finding [open] (reviewer: in scope) · Veil colour ignored background images, oklch and dark schemes (phase 5)
+
+Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r6 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5a-r6 · finding [open] (reviewer: in scope) · Exhibit card squeezed in a narrow short window while the stage kept an empty band (phase 5)
+
+Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r7 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5a-r7 · finding [open] (reviewer: in scope) · Exhibit card appeared instantly and overlapped the gliding stage (phase 5)
+
+Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r8 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5a-r8 · finding [open] (reviewer: in scope) · Current block sat under the exhibit card in the narrow overlay (phase 5)
+
+Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r9 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5a-r9 · finding [open] (reviewer: in scope) · Wheel over the outline card turned the dial (phase 5)
+
+Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r10 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5a-r10 · finding [open] (reviewer: in scope) · Scrub from a stop reached by playback did not resume (phase 5)
+
+Raised by phase 5 reviewer a with file and line or measurement; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r11 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5a-r11 · finding [open] (reviewer: in scope) · Acceptance row browser-overlay-and-dock still said full-page overlay over a dimmed page (phase 5)
+
+Raised by phase 5 reviewer a from the row's original text; in scope as a row of this feature.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r12 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=out -->
+### p5a-r12 · finding [open] (reviewer: out of scope) · Overlay host blocks pointer input to the faded page (phase 5)
+
+Raised by phase 5 reviewer a and tagged out of scope. The spec's floating layout lets pointer events through to nothing, so the faded page cannot be selected or pressed and Alt-hover is inactive while the overlay is open; a design choice, now a README known limit.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r13 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=out -->
+### p5a-r13 · finding [open] (reviewer: out of scope) · Dock restore overwrites page changes made while docked (phase 5)
+
+Raised by phase 5 reviewer a and tagged out of scope. The spec's approach restores the inline values saved at opening; pages that restyle those elements meanwhile may see them shifted. Now a README known limit.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r1 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r1 · finding [open] (reviewer: in scope) · Speech utterance not retained (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r2 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r2 · finding [open] (reviewer: in scope) · No watchdog when end never fires (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r3 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r3 · finding [open] (reviewer: in scope) · Every speech error advanced instantly (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r4 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r4 · finding [open] (reviewer: in scope) · Local/network label truncated in the voice select (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r5 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r5 · finding [open] (reviewer: in scope) · Warnings looked like hints; disabled toggle nearly invisible (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r6 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r6 · finding [open] (reviewer: in scope) · Whole-sentence mode duplicated the sentence (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r7 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r7 · finding [open] (reviewer: in scope) · Missing saved voice handled differently in panel and player (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r8 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r8 · finding [open] (reviewer: in scope) · Titles spoken with inline-math TeX source (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r9 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r9 · finding [open] (reviewer: in scope) · Destroy cancelled the page's own speech (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r10 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r10 · finding [open] (reviewer: in scope) · README wrong about the Firefox permission prompt (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r11 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r11 · finding [open] (reviewer: in scope) · README narrow thresholds incomplete (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r12 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r12 · finding [open] (reviewer: in scope) · README overstated spoken headings (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r13 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r13 · finding [open] (reviewer: in scope) · README test did not pin voice rules or defaults (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r14 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r14 · finding [open] (reviewer: in scope) · CI lacked permissions and concurrency (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r15 created=2026-11-17T19:31:19+00:00 phase=5 state=open review_scope=in -->
+### p5b-r15 · finding [open] (reviewer: in scope) · Speech mapping tests missed edge cases (phase 5)
+
+Raised by phase 5 reviewer b with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r1-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5a-r1 -->
+### p5a-r1-resolved · finding [fixed] · resolves p5a-r1: Overlay veil frame loop never stopped (phase 5)
+
+Frames only while the follow moves; window re-placed on scroll, resize and block resize (3faf162).
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r2-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5a-r2 -->
+### p5a-r2-resolved · finding [fixed] · resolves p5a-r2: Page follow failed on smooth-scrolling pages (phase 5)
+
+Instant scrollTo and arrival judged by the block's position; fixtures for smooth and snap pages (3faf162).
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r3-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5a-r3 -->
+### p5a-r3-resolved · finding [fixed] · resolves p5a-r3: Wheel over settings, exhibits or reading view chained to the page (phase 5)
+
+Overscroll containment and prevented default at the scroller's end (3faf162).
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r4-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5a-r4 -->
+### p5a-r4-resolved · finding [fixed] · resolves p5a-r4: Ctrl+wheel and horizontal swipes were swallowed (phase 5)
+
+Left to the browser, except a sideways turn on the strip itself (3faf162).
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r5-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5a-r5 -->
+### p5a-r5-resolved · finding [fixed] · resolves p5a-r5: Veil colour ignored background images, oklch and dark schemes (phase 5)
+
+Canvas colour parsing with a dark or light neutral fallback (3faf162).
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r6-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5a-r6 -->
+### p5a-r6-resolved · finding [fixed] · resolves p5a-r6: Exhibit card squeezed in a narrow short window while the stage kept an empty band (phase 5)
+
+Stage hugs its content in the narrow floating layout; e2e at 744x600 (3faf162).
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r7-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5a-r7 -->
+### p5a-r7-resolved · finding [fixed] · resolves p5a-r7: Exhibit card appeared instantly and overlapped the gliding stage (phase 5)
+
+Card height animates with the stage's ease; e2e samples frames for overlap (3faf162).
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r8-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5a-r8 -->
+### p5a-r8-resolved · finding [fixed] · resolves p5a-r8: Current block sat under the exhibit card in the narrow overlay (phase 5)
+
+Host follows to the reader's free band (3faf162).
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r9-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5a-r9 -->
+### p5a-r9-resolved · finding [fixed] · resolves p5a-r9: Wheel over the outline card turned the dial (phase 5)
+
+Outline scrolls its own list (3faf162).
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r10-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5a-r10 -->
+### p5a-r10-resolved · finding [fixed] · resolves p5a-r10: Scrub from a stop reached by playback did not resume (phase 5)
+
+Scrub treats that state as playing (3faf162).
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r11-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=refuted resolves=p5a-r11 -->
+### p5a-r11-resolved · finding [refuted] · resolves p5a-r11: Acceptance row browser-overlay-and-dock still said full-page overlay over a dimmed page (phase 5)
+
+The row carries a reword amendment written before the review (docs/acceptance/features/2026-11-17-structure-aware-speed-reader.yaml, `row: browser-overlay-and-dock`, op reword, base 0) that restates it as the dock only; the floating overlay has its own row. The reviewer read the base text, which an amendment never edits in place.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r12-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=open resolves=p5a-r12 out_of_scope=true -->
+### p5a-r12-resolved · finding [out-of-scope] · resolves p5a-r12: Overlay host blocks pointer input to the faded page (phase 5)
+
+The spec's floating layout lets pointer events through to nothing, so the faded page cannot be selected or pressed and Alt-hover is inactive while the overlay is open; a design choice, now a README known limit.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r13-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=open resolves=p5a-r13 out_of_scope=true -->
+### p5a-r13-resolved · finding [out-of-scope] · resolves p5a-r13: Dock restore overwrites page changes made while docked (phase 5)
+
+The spec's approach restores the inline values saved at opening; pages that restyle those elements meanwhile may see them shifted. Now a README known limit.
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r1-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r1 -->
+### p5b-r1-resolved · finding [fixed] · resolves p5b-r1: Speech utterance not retained (phase 5)
+
+Driver holds the utterance in flight (1bd0f44).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r2-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r2 -->
+### p5b-r2-resolved · finding [fixed] · resolves p5b-r2: No watchdog when end never fires (phase 5)
+
+Watchdog on the injected scheduler; long sentences split into several utterances (1bd0f44).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r3-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r3 -->
+### p5b-r3-resolved · finding [fixed] · resolves p5b-r3: Every speech error advanced instantly (phase 5)
+
+Errors fall back to timed text; two in a row turn speech off with a note (1bd0f44).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r4-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r4 -->
+### p5b-r4-resolved · finding [fixed] · resolves p5b-r4: Local/network label truncated in the voice select (phase 5)
+
+Voices grouped under Local and Network with a badge beside the select (1bd0f44).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r5-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r5 -->
+### p5b-r5-resolved · finding [fixed] · resolves p5b-r5: Warnings looked like hints; disabled toggle nearly invisible (phase 5)
+
+Warning style with icon and contrast; visible disabled style (1bd0f44).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r6-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r6 -->
+### p5b-r6-resolved · finding [fixed] · resolves p5b-r6: Whole-sentence mode duplicated the sentence (phase 5)
+
+Sentence line cleared while the whole sentence is on the stage (1bd0f44).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r7-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r7 -->
+### p5b-r7-resolved · finding [fixed] · resolves p5b-r7: Missing saved voice handled differently in panel and player (phase 5)
+
+Both fall back to Automatic and the panel says so (1bd0f44).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r8-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r8 -->
+### p5b-r8-resolved · finding [fixed] · resolves p5b-r8: Titles spoken with inline-math TeX source (phase 5)
+
+Heading tokens kept; math omitted from spoken titles (1bd0f44).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r9-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r9 -->
+### p5b-r9-resolved · finding [fixed] · resolves p5b-r9: Destroy cancelled the page's own speech (phase 5)
+
+Cancel only while the driver's utterance is in flight (1bd0f44).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r10-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r10 -->
+### p5b-r10-resolved · finding [fixed] · resolves p5b-r10: README wrong about the Firefox permission prompt (phase 5)
+
+Corrected (aad0000).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r11-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r11 -->
+### p5b-r11-resolved · finding [fixed] · resolves p5b-r11: README narrow thresholds incomplete (phase 5)
+
+Both thresholds named (aad0000).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r12-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r12 -->
+### p5b-r12-resolved · finding [fixed] · resolves p5b-r12: README overstated spoken headings (phase 5)
+
+Corrected (aad0000).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r13-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r13 -->
+### p5b-r13-resolved · finding [fixed] · resolves p5b-r13: README test did not pin voice rules or defaults (phase 5)
+
+Assertions added (aad0000).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r14-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r14 -->
+### p5b-r14-resolved · finding [fixed] · resolves p5b-r14: CI lacked permissions and concurrency (phase 5)
+
+Added and asserted (aad0000).
+
+<!-- fr:journal kind=finding scope=plan id=p5b-r15-resolved created=2026-11-17T19:31:19+00:00 phase=5 state=fixed resolves=p5b-r15 -->
+### p5b-r15-resolved · finding [fixed] · resolves p5b-r15: Speech mapping tests missed edge cases (phase 5)
+
+Tests added (1bd0f44).
