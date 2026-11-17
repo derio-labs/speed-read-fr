@@ -25,6 +25,7 @@ const LIGHT = `
   --sr-progress-soft: var(--speed-read-progress-soft, #dde6f8);
   --sr-focus: var(--speed-read-focus, #2f63c9);
   --sr-shadow: 0 1px 2px rgb(0 0 0 / 6%), 0 8px 24px rgb(0 0 0 / 8%);
+  --sr-float-shadow: 0 10px 34px rgb(23 32 56 / 18%), 0 1px 3px rgb(23 32 56 / 12%);
   color-scheme: light;
 `;
 
@@ -41,6 +42,7 @@ const DARK = `
   --sr-progress-soft: var(--speed-read-progress-soft, #263451);
   --sr-focus: var(--speed-read-focus, #7aa7ff);
   --sr-shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 35%);
+  --sr-float-shadow: 0 10px 34px rgb(0 0 0 / 55%), 0 1px 3px rgb(0 0 0 / 50%);
   color-scheme: dark;
 `;
 
@@ -251,9 +253,10 @@ export const READER_CSS = `
 .sr-exhibit-body { padding: 10px 12px; overflow: auto; max-height: 420px; }
 /* Pictures and diagrams fit; an SVG inside KaTeX (a radical, an arrow) keeps KaTeX's own sizing. */
 .sr-exhibit-body img, .sr-exhibit-body svg:not(.katex svg), .sr-expanded-body img, .sr-expanded-body svg:not(.katex svg), .sr-reading img, .sr-reading svg:not(.katex svg) { max-width: 100%; height: auto; }
+/* Expanded over the whole reader (spec section 13): up to 92 % of its width and 88 % of its height. */
 .sr-expanded {
-  position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column;
-  background: var(--sr-bg); border-left: 1px solid var(--sr-border);
+  position: absolute; inset: 6% 4%; z-index: 6; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--sr-bg); border: 1px solid var(--sr-border); border-radius: 14px; box-shadow: var(--sr-float-shadow);
 }
 .sr-expanded-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 18px; border-bottom: 1px solid var(--sr-border); font-size: 13px; color: var(--sr-muted); }
 .sr-expanded-title { flex: 1; font-weight: 650; color: var(--sr-text); }
@@ -332,5 +335,63 @@ export const READER_CSS = `
 .sr-layout[data-mode="reading"] .sr-main { grid-row: 2 / -1; }
 @container sr-reader (min-width: ${WIDE_MIN_PX}px) {
   .sr-layout[data-mode="reading"] .sr-main { grid-row: 1; }
+}
+
+/* Narrow exhibit push (spec section 13, R28), both layouts: the exhibit card sits above the stage,
+   as tall as its content up to --sr-exhibit-max; the stage moves down by the numbers ui/layout.ts sets. */
+@container sr-reader (max-width: ${WIDE_MIN_PX - 1}px) {
+  .sr-exhibits[data-empty] { display: none; }
+  .sr-exhibit-body { max-height: none; }
+  .sr-reader[data-layout="panel"] .sr-layout { grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "bar" "main"; }
+  .sr-reader[data-layout="panel"] .sr-layout[data-outline="none"] { grid-template-rows: minmax(0, 1fr); grid-template-areas: "main"; }
+  .sr-reader[data-layout="panel"] .sr-stage { margin-top: var(--sr-stage-push, 0px); transition: margin-top .4s ease; }
+  .sr-reader[data-layout="panel"] .sr-exhibits {
+    position: absolute; z-index: 2; left: 12px; right: 12px; top: var(--sr-exhibit-top, 96px); max-height: var(--sr-exhibit-max, 40%);
+    border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-float-shadow); overflow: hidden;
+  }
+}
+
+/* Floating layout (spec section 13): no reader background; the outline, the stage and the exhibits
+   are separate cards; the space between them is the host's (the browser overlay's faded page). */
+.sr-reader[data-layout="floating"] { background: transparent; min-height: 0; }
+.sr-reader[data-layout="floating"] .sr-layout { display: block; position: relative; height: 100%; }
+.sr-reader[data-layout="floating"] .sr-outline,
+.sr-reader[data-layout="floating"] .sr-main,
+.sr-reader[data-layout="floating"] .sr-exhibits {
+  position: absolute; z-index: 1; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 14px;
+  box-shadow: var(--sr-float-shadow); overflow: hidden;
+}
+.sr-reader[data-layout="floating"] .sr-outline {
+  display: flex; left: 18px; top: 50%; transform: translateY(-50%); width: 232px; max-height: 70%; align-self: auto;
+}
+.sr-reader[data-layout="floating"] .sr-outline-bar { display: none; }
+.sr-reader[data-layout="floating"] .sr-main {
+  left: 50%; top: 56%; transform: translate(-50%, -50%); width: min(600px, calc(100% - 668px)); max-height: calc(100% - 24px);
+}
+.sr-reader[data-layout="floating"] .sr-stage { flex: none; min-height: 0; padding: 16px 20px 14px; }
+.sr-reader[data-layout="floating"] .sr-exhibits { right: 18px; top: 50%; transform: translateY(-50%); width: 300px; max-height: 70%; border-left: 1px solid var(--sr-border); }
+.sr-reader[data-layout="floating"] .sr-layout[data-mode="reading"] .sr-main { top: 50%; height: calc(100% - 48px); width: min(760px, calc(100% - 32px)); }
+.sr-reader[data-layout="floating"] .sr-settings-backdrop { padding: 12px; }
+.sr-reader[data-layout="floating"] .sr-settings { border: 1px solid var(--sr-border); border-radius: 14px; box-shadow: var(--sr-float-shadow); }
+/* Under 1180 px the outline card collapses to the bar and drawer in the stage card's header. */
+@container sr-reader (max-width: 1179px) {
+  .sr-reader[data-layout="floating"] .sr-outline { display: none; }
+  .sr-reader[data-layout="floating"] .sr-outline-bar { display: flex; }
+  .sr-reader[data-layout="floating"] .sr-layout[data-outline="none"] .sr-outline-bar { display: none; }
+  .sr-reader[data-layout="floating"] .sr-layout[data-drawer="open"] .sr-outline {
+    display: flex; z-index: 4; left: 16px; top: 16px; bottom: 16px; transform: none; max-height: none; width: min(320px, calc(100% - 32px));
+  }
+  .sr-reader[data-layout="floating"] .sr-main { left: calc((100% - 334px) / 2); width: min(600px, calc(100% - 366px)); }
+}
+@container sr-reader (max-width: ${WIDE_MIN_PX - 1}px) {
+  .sr-reader[data-layout="floating"] .sr-main {
+    left: 50%; width: min(600px, calc(100% - 32px)); top: var(--sr-stage-top, 30%); transform: translateX(-50%); transition: top .4s ease;
+  }
+  .sr-reader[data-layout="floating"] .sr-exhibits {
+    left: 16px; right: 16px; width: auto; top: var(--sr-exhibit-top, 8px); transform: none; max-height: var(--sr-exhibit-max, 40%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sr-reader .sr-stage, .sr-reader .sr-main { transition: none !important; }
 }
 `;

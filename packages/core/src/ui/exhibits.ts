@@ -18,8 +18,8 @@ function details(block: ExhibitBlock): string {
 
 export interface ExhibitElements {
   pane: HTMLElement;
-  /** The main column; the expanded view covers it. */
-  main: HTMLElement;
+  /** The reader's layout root; the expanded view covers it (spec section 13, p3-r18). */
+  root: HTMLElement;
 }
 
 export interface ExhibitZone extends Zone {
@@ -33,7 +33,7 @@ interface Shown {
 }
 
 /** The exhibit pane (revealed non-prose blocks of the current section) and the expanded view (E). */
-export function createExhibits(ctx: ReaderContext, { pane, main }: ExhibitElements): ExhibitZone {
+export function createExhibits(ctx: ReaderContext, { pane, root }: ExhibitElements): ExhibitZone {
   const { h, host, player } = ctx;
   const list = h('div', { class: 'sr-exhibit-list' });
   const empty = h('p', { class: 'sr-exhibits-empty' }, 'Code, tables, formulas and images in this section appear here as you reach them.');
@@ -79,6 +79,7 @@ export function createExhibits(ctx: ReaderContext, { pane, main }: ExhibitElemen
       } else item.removeAttribute('aria-current');
     }
     empty.hidden = shown.size > 0;
+    pane.toggleAttribute('data-empty', shown.size === 0);
   }
 
   /** Scroll the pane's own list (never an ancestor) so the item's caption is in view. */
@@ -118,7 +119,7 @@ export function createExhibits(ctx: ReaderContext, { pane, main }: ExhibitElemen
       h('div', { class: 'sr-expanded-head' }, h('span', { class: 'sr-expanded-title' }, label), h('span', {}, 'E or Esc to close'), close),
       h('div', { class: 'sr-expanded-body' }, node),
     );
-    main.append(overlay);
+    root.append(overlay);
     expanded = { overlay, node };
   }
 

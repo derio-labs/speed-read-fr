@@ -6,6 +6,7 @@ import type { FrameSource, ReaderContext, Zone } from './context';
 import { builder, icon, ICONS } from './dom';
 import type { Host } from './host';
 import { createExhibits } from './exhibits';
+import { createLayout } from './layout';
 import { attachKeys } from './keys';
 import { createOutline } from './outline';
 import { createReading } from './reading';
@@ -41,6 +42,8 @@ export interface ReaderHandle {
   applySettings(settings: Settings): void;
   /** Turn the position dial by a wheel event from outside the stage (the browser overlay's page). */
   wheel(event: WheelEvent): void;
+  /** Recompute the narrow exhibit push now (it also follows resizes by itself). */
+  relayout(): void;
   destroy(): void;
 }
 
@@ -101,7 +104,8 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   const scheduler = options.scheduler ?? defaultScheduler(win);
   const player = createPlayer(timeline, settings, scheduler);
 
-  const reader = h('div', { class: 'sr-reader', tabindex: 0, 'aria-label': 'Speed reader', 'data-state': player.state });
+  const floating = options.layout === 'floating';
+  const reader = h('div', { class: 'sr-reader', tabindex: 0, 'aria-label': 'Speed reader', 'data-state': player.state, 'data-layout': floating ? 'floating' : 'panel' });
   const layout = h('div', { class: 'sr-layout' });
   const outlineBar = h('div', { class: 'sr-outline-bar' });
   const outline = h('nav', { class: 'sr-outline', 'aria-label': 'Outline' });
@@ -114,7 +118,11 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   const reading = h('div', { class: 'sr-reading', role: 'region', 'aria-label': 'Normal reading', hidden: true });
   const main = h('div', { class: 'sr-main' }, toolbar, overall, stage, reading);
   const exhibits = h('section', { class: 'sr-exhibits', role: 'region', 'aria-label': 'Exhibits' });
-  layout.append(outlineBar, outline, main, exhibits);
+  // Floating: the outline bar (used when the outline card has no room) heads the stage card.
+  if (floating) {
+    main.prepend(outlineBar);
+    layout.append(outline, main, exhibits);
+  } else layout.append(outlineBar, outline, main, exhibits);
   reader.append(layout);
   root.appendChild(reader);
   const removeStyles = applyStyles(root, reader);
@@ -137,7 +145,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     accepts: (event) => !options.trustedEventsOnly || event.isTrusted,
   };
   const outlineZone = createOutline(ctx, { outline, bar: outlineBar, layout });
-  const exhibitZone = createExhibits(ctx, { pane: exhibits, main });
+  const exhibitZone = createExhibits(ctx, { pane: exhibits, root: layout });
   const panel = createSettingsPanel(ctx, (next) => applySettings(next));
   const stageZone = createStage(ctx, { stage, status, overallFill: overall.firstElementChild as HTMLElement });
   const zones: Zone[] = [
@@ -147,6 +155,8 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     createReading(ctx, { reading, layout }),
     panel,
   ];
+  const push = createLayout({ reader, floating, main, stage, overall, exhibits, list: exhibits.querySelector<HTMLElement>('.sr-exhibit-list')! });
+  zones.push(push);
   const detachKeys = attachKeys({
     accepts: ctx.accepts,
     player,
@@ -210,6 +220,9 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     },
     wheel(event) {
       if (!destroyed) stageZone.wheel(event);
+    },
+    relayout() {
+      if (!destroyed) push.update();
     },
     destroy() {
       if (destroyed) return;

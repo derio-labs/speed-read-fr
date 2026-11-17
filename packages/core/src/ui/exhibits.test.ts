@@ -92,14 +92,14 @@ describe('exhibit pane', () => {
 });
 
 describe('expanded exhibit', () => {
-  it('requests an expanded node into an overlay over the stage and releases it on close', () => {
+  it('requests an expanded node into an overlay over the whole reader and releases it on close', () => {
     const t = mountHarness('<p>Intro.</p><pre>a\nb\nc</pre>');
     t.handle.player.toggle();
     runToStop(t);
     t.handle.player.expand();
     const call = t.host.exhibit.mock.calls.find(([, use]) => use === 'expanded');
     expect(call?.[0]).toBe(t.doc.sections[0].blocks[1]);
-    const overlay = t.q('.sr-main .sr-expanded')!;
+    const overlay = t.q('.sr-layout > .sr-expanded')!;
     expect(overlay.hidden).toBe(false);
     const node = t.host.exhibit.mock.results[t.host.exhibit.mock.calls.indexOf(call!)].value;
     expect(overlay.contains(node)).toBe(true);

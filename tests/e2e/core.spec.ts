@@ -146,19 +146,17 @@ test('Tab shows normal reading at the current block and returns paused', async (
   await expect(page.locator('.sr-sentence')).toContainText('After every stop the speed ramps');
 });
 
-test('the exhibit pane sits right of the stage when wide and below it at 700 px', async ({ page }) => {
+test('the exhibit pane sits right of the stage when wide; narrow, the outline is a bar and drawer', async ({ page }) => {
   await openDemo(page);
   const stage = page.locator('.sr-stage');
   const pane = page.locator('.sr-exhibits');
-  let s = (await stage.boundingBox())!;
-  let p = (await pane.boundingBox())!;
+  const s = (await stage.boundingBox())!;
+  const p = (await pane.boundingBox())!;
   expect(p.x).toBeGreaterThanOrEqual(s.x + s.width - 1);
 
   await page.setViewportSize({ width: 700, height: 900 });
-  await expect.poll(async () => (await pane.boundingBox())!.y).toBeGreaterThan(s.y);
-  s = (await stage.boundingBox())!;
-  p = (await pane.boundingBox())!;
-  expect(p.y).toBeGreaterThanOrEqual(s.y + s.height - 1);
+  // Narrow and nothing revealed yet: the exhibit card is hidden (R28).
+  await expect(pane).toBeHidden();
   await expect(page.locator('.sr-outline')).toBeHidden();
   await expect(page.locator('.sr-outline-toggle')).toBeVisible();
   await page.locator('.sr-outline-toggle').click();
@@ -337,5 +335,101 @@ test.describe('position dial (R27)', () => {
     await page.mouse.up();
     expect(await index(page)).toBeGreaterThan(before);
     await expect(state(page)).toHaveText('Playing', { timeout: 3000 });
+  });
+});
+
+/** Move to the code stop of the fixture: N to its section, then sentence moves until the stop shows. */
+async function toCodeStop(page: Page) {
+  for (let i = 0; i < 4; i++) await page.keyboard.press('n');
+  await expect(page.locator('.sr-card-chapter .sr-card-title')).toHaveText('Code, tables and math');
+  for (let i = 0; i < 30 && (await display(page).getAttribute('data-kind')) !== 'stop'; i++) await page.keyboard.press('ArrowRight');
+  await expect(display(page)).toHaveAttribute('data-kind', 'stop');
+}
+
+const box = async (page: Page, selector: string) => (await page.locator(selector).boundingBox())!;
+
+for (const layout of ['panel', 'floating'] as const) {
+  test(`narrow (${layout}): the exhibit card sits above the stage, as tall as it needs, and the stage moves down and back`, async ({ page }) => {
+    await page.setViewportSize({ width: 700, height: 900 });
+    await page.goto(`${DEMO}?layout=${layout}`);
+    await expect(page.locator('.sr-reader')).toBeFocused();
+    const moving = layout === 'floating' ? '.sr-main' : '.sr-stage';
+    const pane = page.locator('.sr-exhibits');
+    await expect(pane).toBeHidden();
+    const resting = (await box(page, moving)).y;
+    const reader = await box(page, '.sr-reader');
+
+    await toCodeStop(page);
+    await expect(pane).toBeVisible();
+    await expect.poll(async () => (await box(page, moving)).y, { message: 'the stage moves down' }).toBeGreaterThan(resting + 20);
+    // Let the 400 ms ease finish, then measure.
+    await page.waitForTimeout(600);
+    const card = await box(page, '.sr-exhibits');
+    const stage = await box(page, moving);
+    expect(card.y).toBeGreaterThanOrEqual(reader.y);
+    expect(card.y + card.height).toBeLessThanOrEqual(stage.y);
+    expect(stage.y).toBeGreaterThanOrEqual(card.y + card.height + 12 - 1);
+    expect(stage.y + stage.height).toBeLessThanOrEqual(reader.y + reader.height + 1);
+    // As tall as its content, or as tall as the room allows.
+    const fit = await page.locator('.sr-exhibit-list').evaluate((list) => {
+      const max = parseFloat(getComputedStyle(list.closest('.sr-reader')!).getPropertyValue('--sr-exhibit-max'));
+      const cardHeight = (list.closest('.sr-exhibits') as HTMLElement).getBoundingClientRect().height;
+      return { overflows: list.scrollHeight > list.clientHeight + 1, atMax: Math.abs(cardHeight - max) <= 1 };
+    });
+    expect(fit.overflows ? fit.atMax : true).toBe(true);
+
+    // A section with nothing revealed yet: the card goes and the stage glides back.
+    await page.keyboard.press('n');
+    await expect(pane).toBeHidden();
+    // At rest the panel stage is under the toolbar; the floating stage card is centred at 56 % (its height varies by card).
+    const offRest = async () => {
+      const b = await box(page, moving);
+      return layout === 'panel' ? Math.abs(b.y - resting) : Math.abs(b.y + b.height / 2 - (reader.y + reader.height * 0.56));
+    };
+    await expect.poll(offRest).toBeLessThanOrEqual(1);
+  });
+}
+
+test.describe('floating layout', () => {
+  test('a transparent root with three separate cards; the outline collapses to the bar under 1180 px', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto(`${DEMO}?layout=floating`);
+    await expect(page.locator('.sr-reader')).toBeFocused();
+    const bg = await page.locator('.sr-reader').evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(bg).toBe('rgba(0, 0, 0, 0)');
+    const outline = await box(page, '.sr-outline');
+    const main = await box(page, '.sr-main');
+    const pane = await box(page, '.sr-exhibits');
+    expect(outline.x + outline.width).toBeLessThan(main.x);
+    expect(main.x + main.width).toBeLessThan(pane.x);
+    expect(main.width).toBeLessThanOrEqual(600);
+    // The band above the stage is free: the stage sits below the middle.
+    expect(main.y + main.height / 2).toBeGreaterThan(450);
+    for (const sel of ['.sr-outline', '.sr-main', '.sr-exhibits']) {
+      const style = await page.locator(sel).evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(style).not.toBe('rgba(0, 0, 0, 0)');
+    }
+    await expect(page.locator('.sr-main .sr-outline-toggle')).toBeHidden();
+
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await expect(page.locator('.sr-outline')).toBeHidden();
+    await expect(page.locator('.sr-main .sr-outline-toggle')).toBeVisible();
+    const m = await box(page, '.sr-main');
+    const p = await box(page, '.sr-exhibits');
+    expect(m.x + m.width).toBeLessThanOrEqual(p.x);
+  });
+
+  test('an expanded exhibit is wider than the stage and within 92 % of the reader', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto(`${DEMO}?layout=floating`);
+    await expect(page.locator('.sr-reader')).toBeFocused();
+    await toCodeStop(page);
+    await page.keyboard.press('e');
+    const expanded = await box(page, '.sr-expanded');
+    const main = await box(page, '.sr-main');
+    const reader = await box(page, '.sr-reader');
+    expect(expanded.width).toBeGreaterThan(main.width);
+    expect(expanded.width).toBeLessThanOrEqual(reader.width * 0.92 + 1);
+    expect(expanded.height).toBeLessThanOrEqual(reader.height * 0.88 + 1);
   });
 });
