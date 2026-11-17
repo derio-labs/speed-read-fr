@@ -3,7 +3,7 @@ run: 2026-11-17-claude-exciting-cori-4x7e21
 workflow: fr-goal@1
 branch: claude/exciting-cori-4x7e21
 started: '2026-11-17T15:08:54+00:00'
-cursor: spec-review
+cursor: plan
 steps:
   brainstorm:
     state: done
@@ -12,17 +12,25 @@ steps:
     emitted:
       spec: docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md
   spec-review:
-    state: running
-    at: '2026-11-17T15:16:32+00:00'
+    state: done
+    at: '2026-11-17T15:27:42+00:00'
     units:
       step/spec-review:
         attempts:
         - dispatched: '2026-11-17T15:16:32+00:00'
+          agent: a8fd2a6e91ba6dc0b
           agent_type: super-fr:fr-spec-reviewer
           harness: claude-code
+          model: claude-opus-5-5
           tier: hard
           bound: opus
           session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T15:27:42+00:00'
+          outcome: done
+        evidence:
+          review: spec-review-2
+          reviewer: a8fd2a6e91ba6dc0b
+          findings: sr-r1,sr-r2,sr-r3,sr-r4,sr-r5,sr-r6,sr-r7,sr-r8,sr-r9,sr-r10,sr-r11,sr-r12,sr-r13,sr-r14,sr-r15,sr-r16,sr2-r1,sr2-r2,sr2-r3,sr2-r4,sr2-r5,sr2-r6,sr2-r7,sr2-r8,sr2-r9,sr2-r10,sr2-r11,sr2-r12,sr2-r13,sr2-r14
   plan:
     state: pending
   plan-review:
