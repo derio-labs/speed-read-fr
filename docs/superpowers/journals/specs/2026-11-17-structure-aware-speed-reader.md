@@ -528,3 +528,6 @@ run_kind: none
 
 <!-- fr:journal kind=decision scope=spec id=phase-split-2026-11-17-structure-aware-speed-reader-p2 created=2026-11-17T15:30:45+00:00 -->
 ### phase-split-2026-11-17-structure-aware-speed-reader-p2 · decision · ask: structure extraction and the shared reader UI (R3, R10-R12) are their own deliverable on top of the engine
+
+<!-- fr:journal kind=decision scope=spec id=phase-split-2026-11-17-structure-aware-speed-reader-p3 created=2026-11-17T15:30:46+00:00 -->
+### phase-split-2026-11-17-structure-aware-speed-reader-p3 · decision · ask: the Chrome and Firefox extension (R13-R18) is the brief's second deliverable
