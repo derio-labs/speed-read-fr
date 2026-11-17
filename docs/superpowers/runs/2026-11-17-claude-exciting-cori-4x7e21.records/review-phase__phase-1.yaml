@@ -1,0 +1,106 @@
+schema_version: 12
+run: 2026-11-17-claude-exciting-cori-4x7e21
+step: review-phase
+item: phase/1
+outcome: done
+journal:
+- kind: review
+  id: review-p1
+  phase: 1
+  title: 'Phase 1 code review: 9 findings, all in scope, all fixed'
+  body: 'Independent reviewer checked the phase 1 diff against spec sections 1-5 and plan 01.yaml, ran
+    typecheck and the suite, and confirmed chunking, sentence split, ORP, step kinds, durations and ramp
+    match the spec. Findings raised: p1-r1 to p1-r9. Fixes verified by the orchestrator: suite re-run
+    green, 126 tests.'
+- kind: finding
+  id: p1-r1
+  phase: 1
+  title: sentence(+/-1) after the end throws
+  body: 'Raised by the phase 1 reviewer with file and line; in scope: caused by this phase''s code.'
+  review_scope: in
+- kind: finding
+  id: p1-r2
+  phase: 1
+  title: End-card elapsed time and words wrong when playback starts via navigation or replays
+  body: 'Raised by the phase 1 reviewer with file and line; in scope: caused by this phase''s code.'
+  review_scope: in
+- kind: finding
+  id: p1-r3
+  phase: 1
+  title: Timer scheduled after emitting lets a listener's close or pause leave a live timer
+  body: 'Raised by the phase 1 reviewer with file and line; in scope: caused by this phase''s code.'
+  review_scope: in
+- kind: finding
+  id: p1-r4
+  phase: 1
+  title: Navigating onto a stop while paused needed two Space presses
+  body: 'Raised by the phase 1 reviewer with file and line; in scope: caused by this phase''s code.'
+  review_scope: in
+- kind: finding
+  id: p1-r5
+  phase: 1
+  title: All heading steps shared one source object
+  body: 'Raised by the phase 1 reviewer with file and line; in scope: caused by this phase''s code.'
+  review_scope: in
+- kind: finding
+  id: p1-r6
+  phase: 1
+  title: Player could not take new settings or a new timeline
+  body: 'Raised by the phase 1 reviewer with file and line; in scope: caused by this phase''s code.'
+  review_scope: in
+- kind: finding
+  id: p1-r7
+  phase: 1
+  title: Some skipped exhibits were never revealed
+  body: 'Raised by the phase 1 reviewer with file and line; in scope: caused by this phase''s code.'
+  review_scope: in
+- kind: finding
+  id: p1-r8
+  phase: 1
+  title: .gitignore lost the acceptance report entries
+  body: 'Raised by the phase 1 reviewer with file and line; in scope: caused by this phase''s code.'
+  review_scope: in
+- kind: finding
+  id: p1-r9
+  phase: 1
+  title: directSubheadings was quadratic
+  body: 'Raised by the phase 1 reviewer with file and line; in scope: caused by this phase''s code.'
+  review_scope: in
+- kind: lens
+  lens: errors
+  title: 'Suggested by the phase 1 reviewer: the player threw or kept timers on edge-state commands'
+resolves:
+- id: p1-r1
+  state: fixed
+  body: After the end, -1 goes to the last landing and +1 does nothing; tests added (74941cc).
+- id: p1-r2
+  state: fixed
+  body: A reading session starts on the first play after idle whatever led there; tests for jump-then-play
+    and replay (74941cc).
+- id: p1-r3
+  state: fixed
+  body: State settled and timer scheduled before events; generation counter drops stale timers; nothing
+    advances once closed (74941cc).
+- id: p1-r4
+  state: fixed
+  body: Landing on a waiting step sets stopped; one Space continues (74941cc).
+- id: p1-r5
+  state: fixed
+  body: Section heading now carries its own SourceRef used by heading steps (ebf354a).
+- id: p1-r6
+  state: fixed
+  body: Added replaceTimeline and setSpeed, keeping position, play state, session and reveals (74941cc).
+- id: p1-r7
+  state: fixed
+  body: Exhibits reveal once the position passes their reveal step, including step-less sections and navigation
+    (74941cc).
+- id: p1-r8
+  state: fixed
+  body: Entries restored (b0c6e56).
+- id: p1-r9
+  state: fixed
+  body: Iterates by index (ebf354a).
+evidence:
+  review: review-p1
+  reviewer: ad6508c2329752f5b
+  model: claude-fable-5-2
