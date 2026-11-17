@@ -362,3 +362,98 @@ Icon keeps its size; heading ellipsizes (697f1fd).
 ### p2-r8-resolved · finding [fixed] · resolves p2-r8: Empty and no-heading states, shared prose-run source, outline rewrote every row (phase 2)
 
 Empty state and collapsed outline; only changed rows update; prose-run source keeps the container with nearest data-line, recorded as a known limit (f1780c0, 366e687).
+
+<!-- fr:journal kind=discovery scope=plan id=p3-extension-loading created=2026-11-17T17:00:52+00:00 phase=3 -->
+### p3-extension-loading · discovery · The unpacked extension loads headless with the chromium channel in this container (phase 3)
+
+`chromium.launchPersistentContext(dir, { channel: 'chromium', headless: true, args: ['--disable-extensions-except=…', '--load-extension=…'] })`
+with the preinstalled Playwright 1.63.0 browser at /opt/pw-browsers loads the extension and its service worker
+appears at once in `context.serviceWorkers()`; xvfb was not needed. tests/e2e/extension.spec.ts uses one persistent
+context for the file (serial), calls `__speedReadTest.openReader(tabId, mode)` through `worker.evaluate`, and finds the
+tab id by matching `tabs.query({})` URLs (the `<all_urls>` grant exposes them). The Playwright webServer command now
+also runs `node packages/browser-extension/build.mjs`.
+
+<!-- fr:journal kind=decision scope=plan id=p3-bridge-and-modes created=2026-11-17T17:00:52+00:00 phase=3 -->
+### p3-bridge-and-modes · decision · Content script and reader share the isolated world; the read modes and their fallbacks (phase 3)
+
+- The content script and the injected reader.js run in the extension's one isolated world, so the reader asks the content
+  script for the remembered context-menu target and the Alt+pressed block through a global (`__speedReadContent`
+  with `contextTarget()` / `hoverTarget()`), not a message. Verified in Chromium by the from-here and Alt-hover tests.
+- Message modes: `auto` (toolbar, command), `selection`, `from-here` (menus), `from-block` (hover). `selection` with no live
+  selection reads the main content; `from-here`/`from-block` with no connected target read the main content from its start.
+- From a block: the container is extracted and only blocks that are, contain, or follow the target are kept; a heading
+  before the target is dropped. A block outside the generic main content gets its nearest article/main/section/[role=main]
+  ancestor, else its parent, as container.
+- Selection: the container passed to the host (style source and normal-reading view) is the adapter/generic container when
+  it holds the whole range, else the range's common ancestor.
+- The hover message is sent on the click event only; mousedown, mouseup, click and auxclick on the outlined block are all
+  prevented and stopped. Alt state comes from the pointer event's altKey (so Alt pressed while unfocused still works).
+- The block under the pointer is the nearest p/li/pre/blockquote/h1-6/table/figure/dd/dt/details, else the nearest
+  non-inline element, never body or html.
+- Opening while a reader is open replaces it. A repeated injection is a no-op through `globalThis.__speedRead`.
+
+<!-- fr:journal kind=decision scope=plan id=p3-mount-choices created=2026-11-17T17:00:52+00:00 phase=3 -->
+### p3-mount-choices · decision · Browser mount choices where spec section 7 is silent (phase 3)
+
+- The shadow root is open (Playwright and the page's own tools can inspect it; page selectors still cannot reach it).
+- Every inline style is set through the CSSOM (`style.cssText` / `setProperty`), not `setAttribute('style')`, so a page
+  CSP without 'unsafe-inline' cannot block it.
+- Overlay: backdrop rgba(15,23,42,0.6) and a frame inset max(16px,4vh) max(16px,4vw); clicking the backdrop closes. Page
+  scroll lock is `overflow: hidden !important` on the html element; the dock margin is `margin-right: 420px !important`
+  on the html element; both restore the previous inline value on close.
+- keydown/keyup/keypress bubbling out of the host element are stopped, so the page's own shortcuts do not fire while the
+  reader has focus.
+- Close by the reader (Esc, close button, backdrop) scrolls to the last position's element and outlines it for 1.6 s;
+  a re-mount or replacement closes silently.
+- Display change: the store wrapper notices a saved `display` different from the mounted mode and re-mounts in the other
+  mode, then `jumpToBlock` to the last position once settings load.
+- Settings live under the `settings` key of `storage.local`.
+- Clones: a neutral outer `div[data-sr-clone]` carries the slot name, the copied inherited properties, the background
+  (white when no ancestor has one), padding 12px 16px, max-width 100% and overflow auto. Ancestor shells keep their classes
+  but drop their layout and box (display block, no margin, padding, border, width or position), so page layout rules for
+  those ancestors do not squeeze the clone. Ids inside the clone are kept (page `#id` rules still match; the page's
+  getElementById finds the original first); only shells lose them. img and svg inside a clone get max-width 100%.
+- The background requests host access fire-and-forget (`.catch`), then opens at once: activeTab covers the tab either way.
+- The core now exports `blockWords` (used to recount a section's words after trimming it from a block).
+
+<!-- fr:journal kind=decision scope=plan id=p3-site-selectors created=2026-11-17T17:00:52+00:00 phase=3 -->
+### p3-site-selectors · decision · Site adapter selectors are best knowledge, untested against the real sites (phase 3)
+
+claude.ai: replies `[data-is-streaming]`, `.font-claude-response`, `.font-claude-message`, content `.standard-markdown, .progressive-markdown`.
+chatgpt.com / chat.openai.com: reply `[data-message-author-role="assistant"]`, content `.markdown`.
+gemini.google.com: replies `model-response`, `message-content`, content `.markdown, .model-response-text`.
+When several reply selectors nest, the outermost match is the reply. Only the selection logic is tested, on synthetic
+markup; the real sites are the live row chat-site-adapters.
+
+<!-- fr:journal kind=finding scope=plan id=p3-v1-visual-fixes created=2026-11-17T17:00:52+00:00 phase=3 state=fixed review_scope=in -->
+### p3-v1-visual-fixes · finding [fixed] (reviewer: in scope) · Visual review: exhibit squeezed by ancestor padding, tall card clipped in the docked panel (phase 3)
+
+The first capture showed (1) the styled page's code exhibit narrow and cut, because the `.site` shell kept the page's
+32px padding, and (2) the chapter card in the 420 px dock clipped at its top, because `.sr-display` shrank below the
+card and centred it. Fixed: shells drop padding and border; `.sr-display` no longer shrinks and centres with `safe`
+alignment, and `.sr-stage` scrolls vertically, so a card taller than the stage starts at its top. Recaptured and reviewed.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p3-t1 created=2026-11-17T17:00:52+00:00 phase=3 -->
+### no-refactor-p3-t1 · discovery · no-refactor-because P3.T1 (phase 3)
+
+The package was written in its final shape (one build.mjs for bundling, icons and zips; one ext.ts shim). The only follow-up was a tsBuildInfoFile path so tsc -b does not collide with core.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p3-t2 created=2026-11-17T17:00:52+00:00 phase=3 -->
+### no-refactor-p3-t2 · discovery · no-refactor-because P3.T2 (phase 3)
+
+sites.ts is data only and generic.ts holds two small functions; findContainer in adapters/index.ts is the single entry. Nothing duplicated.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p3-t3 created=2026-11-17T17:00:52+00:00 phase=3 -->
+### no-refactor-p3-t3 · discovery · no-refactor-because P3.T3 (phase 3)
+
+host.ts was built around one cloneSafe walk and one wrap helper shared by exhibit() and document(); the later switch from setAttribute('style') to CSSOM cssText (CSP-safe) was the only cleanup.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p3-t5 created=2026-11-17T17:00:52+00:00 phase=3 -->
+### no-refactor-p3-t5 · discovery · no-refactor-because P3.T5 (phase 3)
+
+content.ts is one install function with a listener table; nothing to remove.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p3-t6 created=2026-11-17T17:00:52+00:00 phase=3 -->
+### no-refactor-p3-t6 · discovery · no-refactor-because P3.T6 (phase 3)
+
+background.ts routes every entry point through openReader plus two tiny helpers; the refactor step changed nothing.

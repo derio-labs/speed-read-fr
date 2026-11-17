@@ -118,7 +118,7 @@ steps:
           visual: reader-three-zone-ui:8:7703c99c8fe7,reader-keys:1:e1f8412371b6,reader-settings:3:3de18ebd61de
           findings: p2-v1-wide-outline-hidden,p2-v2-visual-fixes,p2-r1,p2-r2,p2-r3,p2-r4,p2-r5,p2-r6,p2-r7,p2-r8
       phase/3/implement-phase:
-        state: running
+        state: done
         attempts:
         - dispatched: '2026-11-17T16:40:03+00:00'
           agent: ac0d4eca179210c51
@@ -128,6 +128,10 @@ steps:
           tier: hard
           bound: opus
           session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T17:00:53+00:00'
+          outcome: done
+        evidence:
+          visual: browser-alt-hover:1:83426c6e7a7f,browser-exhibits-page-styled:1:2711e8034321,browser-overlay-and-dock:1:dc9efb0b49aa
   journal-check:
     state: pending
   lens-review:
