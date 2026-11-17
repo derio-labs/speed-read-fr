@@ -193,8 +193,9 @@ rows:
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R15
     levels: {}
-    status: not-implemented
-    notes: ''
+    status: walk-owed
+    notes: Built and covered by the suite as far as it can go; owed an operator walk
+      on the real host after merge (spec Test Plan)
     verify: live
   - id: browser-exhibits-page-styled
     capability: browser-extension
