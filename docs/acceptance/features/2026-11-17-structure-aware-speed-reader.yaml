@@ -408,9 +408,11 @@ rows:
       in Firefox and in VS Code, and lists the keys, the settings and the known limits.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R23
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:tests/readme.test.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
   - id: ci-builds-packages
     capability: distribution
     acceptance: Every pull request and push to main runs the tests and produces a downloadable
