@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "../../node_modules/.cache/tsc/browser-extension",
+    "tsBuildInfoFile": "../../node_modules/.cache/tsc/browser-extension.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["src"],
+  "references": [{ "path": "../core" }]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@speed-read/browser-extension",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "package": "node build.mjs --package"
+  },
+  "dependencies": {
+    "@speed-read/core": "0.1.0"
+  }
+}
