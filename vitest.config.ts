@@ -9,7 +9,7 @@ export default defineConfig({
     alias: { vscode: fileURLToPath(new URL('./packages/vscode-extension/src/test/vscode-stub.ts', import.meta.url)) },
   },
   test: {
-    include: ['packages/*/src/**/*.test.ts', 'packages/*/test/**/*.test.ts'],
+    include: ['packages/*/src/**/*.test.ts', 'packages/*/test/**/*.test.ts', 'tests/*.test.ts'],
     environment: 'node',
   },
 });
