@@ -6,7 +6,8 @@ import { DEFAULT_SETTINGS, memoryStore, type Settings } from '../settings';
 import { createCloneHost } from '../ui/clone-host';
 import type { Host } from '../ui/host';
 import { mountReader, type ReaderHandle } from '../ui/mount';
-import { fakeClock } from './clock';
+import { fakeClock, type FakeClock } from './clock';
+import type { SpeechDriver } from '../tts';
 
 export interface Harness {
   doc: Doc;
@@ -36,6 +37,8 @@ export interface HarnessOptions {
   layout?: 'panel' | 'floating';
   /** Declare the host's page fade setting (the browser overlay). */
   pageFade?: boolean;
+  /** A speech driver, or one built on the harness clock; none (unavailable) by default. */
+  speech?: SpeechDriver | ((clock: FakeClock) => SpeechDriver);
 }
 
 export function mountHarness(markup: string, opts: HarnessOptions = {}): Harness {
@@ -83,6 +86,7 @@ export function mountHarness(markup: string, opts: HarnessOptions = {}): Harness
     trustedEventsOnly: opts.trustedEventsOnly,
     layout: opts.layout,
     hostSettings: opts.pageFade ? ['pageFade'] : undefined,
+    speech: typeof opts.speech === 'function' ? opts.speech(clock) : opts.speech,
     frame,
   });
   const reader = mount.querySelector<HTMLElement>('.sr-reader')!;

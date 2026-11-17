@@ -50,6 +50,9 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     ),
   );
 
+  const ttsToggle = h('input', { type: 'checkbox', name: 'tts' });
+  const voiceSelect = h('select', { name: 'tts-voice', 'aria-label': 'Voice' });
+  const ttsNotes = h('div', { class: 'sr-tts-notes' });
   const done = h('button', { type: 'button', class: 'sr-settings-done' }, 'Done');
   const panel = h(
     'div',
@@ -86,11 +89,9 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       'fieldset',
       {},
       h('legend', {}, 'Speech'),
-      (() => {
-        const row = field('Text-to-speech', 'available in a later version', h('input', { type: 'checkbox', name: 'tts', disabled: true }));
-        row.setAttribute('data-disabled', '');
-        return row;
-      })(),
+      field('Text-to-speech', 'read aloud', ttsToggle),
+      field('Voice', null, voiceSelect),
+      ttsNotes,
     ),
     h('div', { class: 'sr-settings-foot' }, done),
   );
@@ -113,7 +114,36 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     control('display').value = s.display;
     if (control('pageFade')) control('pageFade').value = String(Math.round(s.pageFade * 100));
     control('tts').checked = s.tts.enabled;
+    showVoices(s.tts.voiceURI);
     enableSeconds();
+  }
+
+  /** The voice list (each labelled local or network) with `picked` selected; '' is the automatic choice. */
+  function showVoices(picked: string | null) {
+    const { speech } = ctx;
+    const voices = speech.voices();
+    const auto = speech.defaultVoice();
+    const options = [h('option', { value: '' }, auto ? `Automatic: ${auto.name}` : 'Choose a voice')];
+    for (const v of voices) options.push(h('option', { value: v.uri }, `${v.name} (${v.lang}) · ${v.local ? 'local' : 'network'}`));
+    if (picked && !voices.some((v) => v.uri === picked)) options.push(h('option', { value: picked }, 'Saved voice (not found)'));
+    voiceSelect.replaceChildren(...options);
+    voiceSelect.value = picked ?? '';
+    showSpeechState();
+  }
+
+  /** Enable the controls and write the notes for the voice chosen in the select (spec section 9). */
+  function showSpeechState() {
+    const { speech } = ctx;
+    const picked = voiceSelect.value;
+    const voice = picked ? speech.voices().find((v) => v.uri === picked) : speech.defaultVoice();
+    ttsToggle.disabled = !speech.available || !voice;
+    voiceSelect.disabled = !speech.available;
+    const lines: string[] = [];
+    if (!speech.available) lines.push('Text-to-speech is not available here');
+    else if (speech.noLocalVoice && !picked) lines.push('No offline voice installed');
+    if (voice && !voice.local) lines.push('This voice needs a network connection');
+    lines.push('Offline speech uses voices installed on this device');
+    ttsNotes.replaceChildren(...lines.map((line) => h('p', { class: 'sr-tts-note sr-field-hint' }, line)));
   }
 
   function enableSeconds() {
@@ -143,6 +173,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       imageDwellSeconds: num('imageDwellSeconds', current.imageDwellSeconds),
       display: control('display').value as Settings['display'],
       pageFade: control('pageFade') ? num('pageFade', current.pageFade * 100) / 100 : current.pageFade,
+      tts: { enabled: ttsToggle.checked, voiceURI: voiceSelect.value || null },
     });
   }
 
@@ -162,6 +193,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
   const onCommit = (e: Event) => ctx.accepts(e) && apply(true);
   panel.addEventListener('input', onInput);
   panel.addEventListener('change', onCommit);
+  const offVoices = ctx.speech.onVoices(() => showVoices(voiceSelect.value || null));
 
   function close() {
     if (backdrop.hidden) return;
@@ -198,6 +230,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     destroy() {
       panel.removeEventListener('input', onInput);
       panel.removeEventListener('change', onCommit);
+      offVoices();
       backdrop.remove();
     },
   };

@@ -2,6 +2,7 @@ import type { Doc } from '../model';
 import type { Player, Scheduler } from '../player';
 import type { Settings } from '../settings';
 import type { Timeline } from '../timeline';
+import type { SpeechDriver } from '../tts';
 import type { Build } from './dom';
 import type { Host } from './host';
 
@@ -21,6 +22,8 @@ export interface ReaderContext {
   readonly scheduler: Scheduler;
   /** Animation frames (the dial's coast); tests fake them. */
   readonly frame: FrameSource;
+  /** Text-to-speech (unavailable when the host has no Web Speech API). */
+  readonly speech: SpeechDriver;
   /** Settings only this host uses, shown in the panel when declared (`MountOptions.hostSettings`). */
   readonly hostSettings: readonly HostSetting[];
   /** Whether an input event may act: with `trustedEventsOnly`, only events from the user do. */

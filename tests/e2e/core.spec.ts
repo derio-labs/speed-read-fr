@@ -433,3 +433,71 @@ test.describe('floating layout', () => {
     expect(expanded.height).toBeLessThanOrEqual(reader.height * 0.88 + 1);
   });
 });
+
+test.describe('text-to-speech with an injected speechSynthesis (R22)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      const voices = [
+        { name: 'Local Voice', lang: 'en-US', voiceURI: 'local-1', localService: true, default: true },
+        { name: 'Cloud Voice', lang: 'en-GB', voiceURI: 'cloud-1', localService: false, default: false },
+      ];
+      const spoken: { text: string; voice: { name: string } | null; onboundary?: (e: { charIndex: number; name: string }) => void; onend?: () => void }[] = [];
+      (window as unknown as Record<string, unknown>).__spoken = spoken;
+      class FakeUtterance {
+        text: string;
+        rate = 1;
+        lang = '';
+        voice = null;
+        onboundary = null;
+        onend = null;
+        onerror = null;
+        constructor(text: string) {
+          this.text = text;
+        }
+      }
+      const synth = {
+        getVoices: () => voices,
+        speak: (u: (typeof spoken)[number]) => spoken.push(u),
+        cancel: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      };
+      Object.defineProperty(window, 'speechSynthesis', { value: synth, configurable: true });
+      Object.defineProperty(window, 'SpeechSynthesisUtterance', { value: FakeUtterance, configurable: true });
+    });
+  });
+
+  test('voices are labelled local or network, a network voice is warned about, and chunks follow the boundaries', async ({ page }) => {
+    await openDemo(page, { chunkWords: 1 });
+    await page.locator('.sr-settings-button').click();
+    const select = page.locator('.sr-settings [name="tts-voice"]');
+    await expect(select.locator('option')).toContainText(['Automatic: Local Voice', 'Local Voice (en-US) · local', 'Cloud Voice (en-GB) · network']);
+    const notes = page.locator('.sr-settings .sr-tts-note');
+    await expect(notes).toContainText(['Offline speech uses voices installed on this device']);
+    await select.selectOption('cloud-1');
+    await expect(notes).toContainText(['This voice needs a network connection', 'Offline speech uses voices installed on this device']);
+    await select.selectOption('local-1');
+    await expect(notes).not.toContainText(['This voice needs a network connection']);
+    await page.locator('.sr-settings [name="tts"]').check();
+    await page.locator('.sr-settings-done').click();
+    await page.keyboard.press('Space'); // chapter card
+    await page.keyboard.press('Space'); // speaks the first sentence
+    const spoken = () => page.evaluate(() => (window as unknown as { __spoken: { text: string }[] }).__spoken.map((u) => u.text));
+    await expect.poll(spoken).toHaveLength(1);
+    const first = (await spoken())[0];
+    const words = first.split(' ');
+    await expect(chunk(page)).toHaveText(words[0]);
+    // A boundary at the third word shows the third word.
+    const at = words[0].length + 1 + words[1].length + 1;
+    await page.evaluate((charIndex) => {
+      const list = (window as unknown as { __spoken: { onboundary(e: { charIndex: number; name: string }): void }[] }).__spoken;
+      list[list.length - 1].onboundary({ charIndex, name: 'word' });
+    }, at);
+    await expect(chunk(page)).toHaveText(words[2]);
+    await page.evaluate(() => {
+      const list = (window as unknown as { __spoken: { onend(): void }[] }).__spoken;
+      list[list.length - 1].onend();
+    });
+    await expect.poll(spoken).toHaveLength(2);
+  });
+});

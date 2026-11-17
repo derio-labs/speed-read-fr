@@ -2,6 +2,7 @@ import type { Doc } from '../model';
 import { createPlayer, type Player, type Scheduler } from '../player';
 import { normalizeSettings, type Settings, type SettingsStore } from '../settings';
 import { buildTimeline, type Timeline } from '../timeline';
+import { createSpeechDriver, type SpeechDriver, type SpeechSynth, type UtteranceLike } from '../tts';
 import type { FrameSource, HostSetting, ReaderContext, Zone } from './context';
 import { builder, icon, ICONS } from './dom';
 import type { Host } from './host';
@@ -34,6 +35,8 @@ export interface MountOptions {
   hostSettings?: readonly HostSetting[];
   /** Animation frames for the position dial's coast; the window's by default. */
   frame?: FrameSource;
+  /** Text-to-speech; by default a driver over the window's `speechSynthesis` (unavailable without one). */
+  speech?: SpeechDriver;
 }
 
 export interface ReaderHandle {
@@ -104,7 +107,16 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   let settings = normalizeSettings(options.settings);
   let timeline: Timeline = buildTimeline(doc, settings);
   const scheduler = options.scheduler ?? defaultScheduler(win);
-  const player = createPlayer(timeline, settings, scheduler);
+  const ownSpeech = !options.speech;
+  const speechWin = win as unknown as { speechSynthesis?: SpeechSynth; SpeechSynthesisUtterance?: new (text: string) => UtteranceLike };
+  const speech =
+    options.speech ??
+    createSpeechDriver(speechWin.speechSynthesis, {
+      Utterance: speechWin.SpeechSynthesisUtterance,
+      lang: ownerDocument.documentElement.lang || win.navigator?.language,
+    });
+  speech.setVoice(settings.tts.voiceURI);
+  const player = createPlayer(timeline, settings, scheduler, speech);
 
   const floating = options.layout === 'floating';
   const reader = h('div', { class: 'sr-reader', tabindex: 0, 'aria-label': 'Speed reader', 'data-state': player.state, 'data-layout': floating ? 'floating' : 'panel' });
@@ -143,6 +155,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     scheduler,
     frame: options.frame ?? defaultFrame(win),
     hostSettings: options.hostSettings ?? [],
+    speech,
     h,
     reader,
     accepts: (event) => !options.trustedEventsOnly || event.isTrusted,
@@ -174,6 +187,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     player.on('position', (e) => host.onPosition(e.source)),
     player.on('settings', (next) => {
       settings = next;
+      speech.setVoice(next.tts.voiceURI);
       if (saving) void store.save(next);
     }),
     player.on('state', (state) => {
@@ -195,6 +209,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       return;
     }
     settings = next;
+    speech.setVoice(next.tts.voiceURI);
     timeline = buildTimeline(doc, next);
     player.replaceTimeline(timeline, next);
     for (const zone of zones) zone.refresh?.();
@@ -234,6 +249,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       detachKeys();
       player.close();
       for (const zone of zones) zone.destroy();
+      if (ownSpeech) speech.destroy();
       reader.remove();
       removeStyles();
     },

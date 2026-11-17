@@ -226,6 +226,11 @@ export const READER_CSS = `
 .sr-dial-needle { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--sr-progress); pointer-events: none; }
 .sr-dial-gain { min-width: 3.4em; text-align: right; font-size: 13px; font-weight: 650; color: var(--sr-progress); font-variant-numeric: tabular-nums; }
 
+/* Speech without word boundaries shows the whole sentence. */
+.sr-chunk.sr-chunk-whole { font-size: 28px; }
+.sr-tts-notes { padding: 2px 0 6px; }
+.sr-tts-note { margin: 4px 0; }
+
 /* Cards that replace the chunk. */
 .sr-card { width: min(100%, 560px); padding: 26px 28px; border: 1px solid var(--sr-border); border-radius: 14px; background: var(--sr-surface); box-shadow: var(--sr-shadow); }
 .sr-card-eyebrow { font-size: 11px; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; color: var(--sr-accent); }

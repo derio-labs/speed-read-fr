@@ -4,7 +4,9 @@ import { rampFactor, stepDuration } from './pacing';
 import { createPlayer, type PlayerEvents, type StepEvent } from './player';
 import { DEFAULT_SETTINGS, type Settings } from './settings';
 import { fakeClock } from './testing/clock';
-import { doc, exhibit, flatList, prose, section } from './testing/doc';
+import { doc, exhibit, flatList, item, list, prose, section } from './testing/doc';
+import { fakeSpeech, voice } from './testing/speech';
+import { createSpeechDriver } from './tts';
 import { buildTimeline } from './timeline';
 
 const base = 200; // 300 wpm
@@ -702,5 +704,120 @@ describe('player: scrub (the position dial, spec section 13)', () => {
     r.player.close();
     expect(r.player.scrub(1)).toBe(0);
     expect(r.clock.pending()).toBe(0);
+  });
+});
+
+describe('player: text-to-speech (spec section 9)', () => {
+  const spoken: Settings = { ...one, tts: { enabled: true, voiceURI: null } };
+
+  function speaking(d: Doc, settings: Settings = spoken) {
+    const clock = fakeClock();
+    const speech = fakeSpeech([voice('Local', 'en-US', true)]);
+    const driver = createSpeechDriver(speech.synth, { Utterance: speech.Utterance, scheduler: clock });
+    const timeline = buildTimeline(d, settings);
+    const player = createPlayer(timeline, settings, clock, driver);
+    const shown: string[] = [];
+    const wholes: PlayerEvents['whole'][] = [];
+    player.on('step', (e) => shown.push(e.step.kind === 'chunk' || e.step.kind === 'item-chunk' ? e.step.chunk.text : e.step.kind));
+    player.on('whole', (w) => wholes.push(w));
+    const texts = () => speech.spoken.map((u) => u.text);
+    const last = () => speech.spoken[speech.spoken.length - 1];
+    return { clock, speech, player, shown, wholes, texts, last, timeline };
+  }
+
+  it('speaks one utterance per sentence; boundaries pick the chunk; end moves to the next sentence', () => {
+    const r = speaking(doc(section('s', undefined, prose('Aa bb cc. Dd ee.'))));
+    r.player.toggle();
+    expect(r.texts()).toEqual(['Aa bb cc.']);
+    expect(r.shown).toEqual(['Aa']);
+    // No pacing timer drives the chunks: only the driver's boundary wait is pending.
+    r.last().boundary(3);
+    expect(r.shown).toEqual(['Aa', 'bb']);
+    r.last().boundary(6);
+    expect(r.shown.at(-1)).toBe('cc.');
+    r.last().end();
+    expect(r.texts()).toEqual(['Aa bb cc.', 'Dd ee.']);
+    expect(r.shown.at(-1)).toBe('Dd');
+    expect(r.player.state).toBe('playing');
+  });
+
+  it('shows the whole sentence when the voice sends no boundaries', () => {
+    const r = speaking(doc(section('s', undefined, prose('Aa bb cc.'))));
+    r.player.toggle();
+    r.clock.advance(1000);
+    expect(r.wholes).toHaveLength(1);
+    expect(r.wholes[0].from).toBe(0);
+    expect(r.wholes[0].to).toBe(2);
+  });
+
+  it('speaks list items one by one, and titles', () => {
+    const r = speaking(
+      doc(section('s', { level: 4, text: 'A small title' }, list([item('the first item has several more words here', 1, 2), item('the second item has several more words too', 2, 2)]))),
+    );
+    r.player.toggle();
+    expect(r.texts()).toEqual(['A small title']);
+    r.last().end();
+    expect(r.texts().at(-1)).toBe('the first item has several more words here');
+    r.last().end();
+    // The item gap is timed; then the next item is spoken.
+    r.clock.advance(1000);
+    expect(r.texts().at(-1)).toBe('the second item has several more words too');
+  });
+
+  it('never speaks code, tables or math; a stop cancels speech and continue speaks the next sentence', () => {
+    const r = speaking(doc(section('s', undefined, prose('Aa.'), exhibit('code'), exhibit('table'), exhibit('math'), prose('Bb.'))));
+    r.player.toggle();
+    r.last().end();
+    expect(r.player.state).toBe('stopped');
+    expect(r.speech.synth.cancel).toHaveBeenCalled();
+    r.player.continue();
+    r.player.continue();
+    r.player.continue();
+    expect(r.texts()).toEqual(['Aa.', 'Bb.']);
+  });
+
+  it('pause, jumps and close cancel speech; a cancelled utterance ending does nothing', () => {
+    const r = speaking(doc(section('a', undefined, prose('Aa bb. Cc dd.')), section('b', { level: 4, text: 'B' }, prose('Ee ff.'))));
+    r.player.toggle();
+    const first = r.last();
+    const cancels = r.speech.synth.cancel.mock.calls.length;
+    r.player.toggle(); // pause
+    expect(r.speech.synth.cancel.mock.calls.length).toBeGreaterThan(cancels);
+    first.end();
+    expect(r.texts()).toHaveLength(1);
+    expect(r.player.state).toBe('paused');
+    r.player.toggle(); // play again from the same chunk
+    expect(r.texts()).toEqual(['Aa bb.', 'Aa bb.']);
+    r.player.sentence(1);
+    expect(r.texts().at(-1)).toBe('Cc dd.');
+    r.player.section(1);
+    expect(r.texts().at(-1)).toBe('B');
+    const before = r.speech.synth.cancel.mock.calls.length;
+    r.player.close();
+    expect(r.speech.synth.cancel.mock.calls.length).toBeGreaterThan(before);
+    r.last().end();
+    expect(r.texts().at(-1)).toBe('B');
+  });
+
+  it('speaks from the current chunk when playback resumes mid-sentence', () => {
+    const r = speaking(doc(section('s', undefined, prose('Aa bb cc.'))));
+    r.player.scrub(1);
+    r.player.toggle();
+    expect(r.texts()).toEqual(['bb cc.']);
+  });
+
+  it('with tts off, or without a usable voice, plays by the timer as before', () => {
+    const off = speaking(doc(section('s', undefined, prose('Aa bb.'))), one);
+    off.player.toggle();
+    expect(off.texts()).toEqual([]);
+    off.clock.advance(10_000);
+    expect(off.shown).toContain('bb.');
+
+    const clock = fakeClock();
+    const speech = fakeSpeech([voice('Net', 'en-US', false)]);
+    const driver = createSpeechDriver(speech.synth, { Utterance: speech.Utterance, scheduler: clock });
+    const p = createPlayer(buildTimeline(doc(section('s', undefined, prose('Aa bb.'))), spoken), spoken, clock, driver);
+    p.toggle();
+    expect(speech.spoken).toHaveLength(0);
   });
 });

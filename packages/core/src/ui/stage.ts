@@ -272,8 +272,17 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
     overallFill.style.width = `${pct}%`;
   }
 
+  /** Speech without word boundaries: the sentence's chunks together, wrapped. */
+  function showWhole({ from, to }: { from: number; to: number }) {
+    const tokens = ctx.timeline.steps.slice(from, to + 1).flatMap((s) => (isChunk(s) ? s.chunk.tokens : []));
+    aligned = null;
+    setDisplay('whole', h('div', { class: 'sr-chunk sr-chunk-whole' }, ...tokenNodes(tokens)));
+    display.dataset.wrap = 'true';
+  }
+
   let shown = false;
   const off = [
+    player.on('whole', showWhole),
     player.on('step', (e: StepEvent) => {
       shown = true;
       if (ctx.timeline.steps.length === 0) showEmpty();

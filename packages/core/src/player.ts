@@ -2,6 +2,7 @@ import type { SourceRef } from './model';
 import { isRamped, rampFactor, stepDuration } from './pacing';
 import type { Settings } from './settings';
 import type { Step, StepPosition, Timeline, TimelineExhibit, TimelineSection } from './timeline';
+import type { SpeechDriver } from './tts';
 
 /** Timer functions the player runs on; tests inject a fake clock. */
 export interface Scheduler {
@@ -38,6 +39,8 @@ export interface PlayerEvents {
   settings: Settings;
   /** E on an exhibit step: the exhibit to show expanded. */
   expand: StepPosition;
+  /** Text-to-speech without word boundaries: show steps `from`..`to` (one sentence) whole until it ends. */
+  whole: { from: number; to: number };
 }
 
 export interface Player {
@@ -100,8 +103,16 @@ function sourceMatches(ref: SourceRef, source: SourceRef): boolean {
 /** Identity of an exhibit across rebuilt timelines: its DOM element, else its block. */
 const exhibitKey = (e: TimelineExhibit): unknown => e.block.source.element ?? e.block;
 
-/** The state machine over a timeline (spec section 5). */
-export function createPlayer(initialTimeline: Timeline, initialSettings: Settings, scheduler: Scheduler): Player {
+type SpokenStep = Extract<Step, { kind: 'chunk' | 'item-chunk' }>;
+const isSentencePart = (step: Step | undefined): step is SpokenStep => step?.kind === 'chunk' || step?.kind === 'item-chunk';
+const sameSentence = (a: SpokenStep, b: Step | undefined) =>
+  isSentencePart(b) && b.kind === a.kind && b.source === a.source && b.sentenceIndex === a.sentenceIndex;
+
+/**
+ * The state machine over a timeline (spec section 5). With `speech` and `settings.tts.enabled`,
+ * prose sentences, list items and titles are timed by the speech driver instead of the pacing timer.
+ */
+export function createPlayer(initialTimeline: Timeline, initialSettings: Settings, scheduler: Scheduler, speech?: SpeechDriver): Player {
   type Listener = (payload: PlayerEvents[keyof PlayerEvents]) => void;
   const listeners = new Map<keyof PlayerEvents, Set<Listener>>();
   let steps: Step[] = [];
@@ -116,6 +127,8 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
   let rampSlot = 0;
   /** True when the current stop was reached by playback, so navigation keeps playing. */
   let stopFromPlayback = false;
+  /** An utterance is in flight (cancelled with the timer). */
+  let speaking = false;
   /** Pending resume after scrubbing, and whether playback was on when the scrub began. */
   let resumeTimer: unknown = null;
   let scrubWasPlaying = false;
@@ -155,6 +168,54 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
     timer = null;
     if (resumeTimer !== null) scheduler.clearTimeout(resumeTimer);
     resumeTimer = null;
+    if (speaking) {
+      speaking = false;
+      speech?.cancel();
+    }
+  }
+
+  /** Speech times this step: tts is on, a voice is usable, and the step is prose, a list item or a title. */
+  const speaks = (step: Step) =>
+    !!speech?.available && settings.tts.enabled && speech.currentVoice() !== null && (isSentencePart(step) || step.kind === 'title');
+
+  /** A chunk reached by a speech boundary: shown without touching timers or speech. */
+  function showSpoken(at: number) {
+    index = at;
+    visited.add(at);
+    markPassed(at);
+    const step = steps[at];
+    if (lastPosition !== at) {
+      lastPosition = at;
+      emit('position', { sectionId: step.sectionId, blockIndex: step.blockIndex, source: step.source, index: at });
+    }
+    emit('step', { step, index: at, durationMs: null });
+  }
+
+  /** Speak from step `at` to the end of its sentence (or the title), then play on. */
+  function startSpeech(at: number) {
+    const gen = generation;
+    const step = steps[at];
+    let last = at;
+    if (isSentencePart(step)) while (sameSentence(step, steps[last + 1])) last++;
+    const chunks = isSentencePart(step)
+      ? steps.slice(at, last + 1).map((s) => (s as SpokenStep).chunk)
+      : [{ tokens: (step as Extract<Step, { kind: 'title' }>).text.split(/\s+/).filter(Boolean).map((text) => ({ kind: 'word' as const, text })) }];
+    speaking = true;
+    speech!.speak(chunks, settings.wpm, {
+      onChunk(i) {
+        if (gen === generation) showSpoken(at + i);
+      },
+      onWholeSentence() {
+        if (gen === generation && last > at) emit('whole', { from: at, to: last });
+      },
+      onEnd() {
+        if (gen !== generation) return;
+        speaking = false;
+        for (let i = at; i <= last; i++) visited.add(i);
+        index = last;
+        advance();
+      },
+    });
   }
 
   const isTimed = (step: Step | undefined) => !!step && !waitsForReader(step) && stepDuration(step, settings) !== null;
@@ -226,7 +287,11 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
 
     let durationMs: number | null = null;
     let next = state;
-    if (timed) {
+    const spoken = timed && speaks(step);
+    if (spoken) {
+      next = 'playing';
+      stopFromPlayback = true;
+    } else if (timed) {
       durationMs = stepDuration(step, settings);
       if (durationMs !== null && isRamped(step)) durationMs /= rampFactor(rampSlot++);
       next = waitsForReader(step) ? 'stopped' : 'playing';
@@ -252,6 +317,7 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
       if (gen !== generation) return;
     }
     emit('step', { step, index: at, durationMs });
+    if (spoken && gen === generation) startSpeech(at);
   }
 
   function advance() {
