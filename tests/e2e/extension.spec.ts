@@ -1,4 +1,5 @@
-// The built Chrome extension, loaded unpacked into the full Chromium (the headless shell cannot load
+// The built Chrome extension (the test variant in dist-test/chrome, which adds the openReader hook and
+// an open shadow root; the packaged build in dist/chrome is loaded where a test says so), loaded unpacked into the full Chromium (the headless shell cannot load
 // extensions), on our own pages served from localhost. Playwright cannot press the toolbar button,
 // a context-menu item or a `commands` shortcut, so the tests call the one handler they all route to
 // (`openReader`) from the service worker; hover, keys and pointer input are real input.
@@ -10,7 +11,8 @@ import path from 'node:path';
 // The extension API inside `worker.evaluate` (the service worker's global).
 declare const chrome: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-const EXTENSION = path.resolve('packages/browser-extension/dist/chrome');
+const EXTENSION = path.resolve('packages/browser-extension/dist-test/chrome');
+const PACKAGED = path.resolve('packages/browser-extension/dist/chrome');
 const LOCAL = /^(https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/|chrome-extension:\/\/|data:|blob:|about:)/;
 const ARTICLE = '/tests/fixtures/article.html';
 const STYLED = '/tests/fixtures/styled.html';

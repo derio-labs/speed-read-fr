@@ -126,7 +126,8 @@ export function createReader({ api, win, scope }: ReaderDeps): Reader {
     hostElement.setAttribute('data-speed-read-host', '');
     hostElement.dataset.display = mode;
     hostElement.style.cssText = HOST_BASE + HOST_LAYOUT[mode];
-    const shadow = hostElement.attachShadow({ mode: 'open' });
+    // Closed, so page scripts cannot reach the reader; open only in the browser-level test build.
+    const shadow = hostElement.attachShadow({ mode: __SR_TEST__ ? 'open' : 'closed' });
     for (const type of CONTAINED_EVENTS) hostElement.addEventListener(type, (e) => e.stopPropagation());
     if (mode === 'overlay') {
       const backdrop = doc.createElement('div');

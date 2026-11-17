@@ -71,5 +71,6 @@ api.runtime.onMessage.addListener((message, sender) => {
   if ((message as { type?: string } | null)?.type === HOVER_MESSAGE.type) open(sender.tab?.id, 'from-block');
 });
 
-// For the browser-level tests: the handler every entry point routes to, callable from the worker.
-(globalThis as Record<string, unknown>).__speedReadTest = { openReader };
+// For the browser-level tests only (absent from the packaged build): the handler every entry point
+// routes to, callable from the worker.
+if (__SR_TEST__) (globalThis as Record<string, unknown>).__speedReadTest = { openReader };

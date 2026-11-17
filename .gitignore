@@ -2,6 +2,7 @@ docs/acceptance/report.html
 docs/acceptance/report.md
 node_modules
 dist
+dist-test
 .visual
 test-results
 playwright-report

@@ -55,7 +55,23 @@ describe('build output', () => {
   const dist = path.join(pkg, 'dist');
   beforeAll(() => {
     execFileSync(process.execPath, [path.join(pkg, 'build.mjs')], { cwd: pkg, stdio: 'pipe' });
+    execFileSync(process.execPath, [path.join(pkg, 'build.mjs'), '--test'], { cwd: pkg, stdio: 'pipe' });
   }, 60_000);
+
+  it('the production build has no test hook and a closed shadow root', () => {
+    const background = readFileSync(path.join(dist, 'chrome', 'background.js'), 'utf8');
+    const reader = readFileSync(path.join(dist, 'chrome', 'reader.js'), 'utf8');
+    expect(background).not.toContain('__speedReadTest');
+    expect(reader).toMatch(/mode: "closed"/);
+    expect(reader).not.toMatch(/mode: "open"/);
+  });
+
+  it('the test build, in its own directory, has the hook and an open shadow root', () => {
+    const testDist = path.join(pkg, 'dist-test', 'chrome');
+    expect(readFileSync(path.join(testDist, 'background.js'), 'utf8')).toContain('__speedReadTest');
+    expect(readFileSync(path.join(testDist, 'reader.js'), 'utf8')).toMatch(/mode: "open"/);
+    expect(existsSync(path.join(pkg, 'dist-test', 'firefox'))).toBe(false);
+  });
 
   it.each(['chrome', 'firefox'])('dist/%s holds the manifest, the three scripts and icons', (target) => {
     const dir = path.join(dist, target);

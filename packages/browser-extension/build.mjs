@@ -1,6 +1,8 @@
 // Build the Chrome and Firefox extensions from one source tree (spec section 7, R18).
 //   node build.mjs              -> dist/chrome, dist/firefox
 //   node build.mjs --package    -> also <repo>/dist/speed-read-chrome.zip and speed-read-firefox.zip
+//   node build.mjs --test       -> dist-test/chrome only: the browser-level test variant, with the
+//                                  `__speedReadTest` hook and an open shadow root (__SR_TEST__ true)
 // The JS is bundled once and copied into both targets, so the two builds' scripts are identical;
 // only the manifest differs. Icons are generated PNGs; nothing is fetched.
 import { build } from 'esbuild';
@@ -11,7 +13,6 @@ import { crc32, deflateRawSync, deflateSync } from 'node:zlib';
 
 const pkg = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(pkg, '../..');
-const dist = path.join(pkg, 'dist');
 const TARGETS = ['chrome', 'firefox'];
 const ENTRIES = { background: 'src/background.ts', content: 'src/content.ts', reader: 'src/reader-entry.ts' };
 const ICON_SIZES = [16, 32, 48, 128];
@@ -111,7 +112,11 @@ async function listFiles(dir, prefix = '') {
   return out;
 }
 
-export async function buildExtension({ packageZips = false } = {}) {
+export const extensionDir = (test = false) => path.join(pkg, test ? 'dist-test' : 'dist', 'chrome');
+
+export async function buildExtension({ packageZips = false, test = false } = {}) {
+  const dist = path.join(pkg, test ? 'dist-test' : 'dist');
+  const targets = test ? ['chrome'] : TARGETS;
   await rm(dist, { recursive: true, force: true });
   const bundle = path.join(dist, '.bundle');
   await build({
@@ -121,9 +126,12 @@ export async function buildExtension({ packageZips = false } = {}) {
     format: 'iife',
     target: ['chrome120', 'firefox128'],
     legalComments: 'none',
+    define: { __SR_TEST__: String(test) },
+    // Folds the flag and drops the dead branches, so the packaged build carries no test hook.
+    minifySyntax: true,
     logLevel: 'warning',
   });
-  for (const target of TARGETS) {
+  for (const target of targets) {
     const out = path.join(dist, target);
     await mkdir(path.join(out, 'icons'), { recursive: true });
     for (const name of Object.keys(ENTRIES)) await copyFile(path.join(bundle, `${name}.js`), path.join(out, `${name}.js`));
@@ -132,7 +140,7 @@ export async function buildExtension({ packageZips = false } = {}) {
     for (const size of ICON_SIZES) await writeFile(path.join(out, 'icons', `icon-${size}.png`), iconPng(size));
   }
   await rm(bundle, { recursive: true, force: true });
-  if (packageZips) {
+  if (packageZips && !test) {
     await mkdir(path.join(repo, 'dist'), { recursive: true });
     for (const target of TARGETS) {
       const dir = path.join(dist, target);
@@ -143,5 +151,5 @@ export async function buildExtension({ packageZips = false } = {}) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await buildExtension({ packageZips: process.argv.includes('--package') });
+  await buildExtension({ packageZips: process.argv.includes('--package'), test: process.argv.includes('--test') });
 }

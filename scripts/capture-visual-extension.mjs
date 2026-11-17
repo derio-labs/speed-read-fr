@@ -5,15 +5,16 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildExtension } from '../packages/browser-extension/build.mjs';
+import { buildExtension, extensionDir } from '../packages/browser-extension/build.mjs';
 import { startServer } from './serve.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const EXTENSION = path.join(root, 'packages/browser-extension/dist/chrome');
 const LOCAL = /^(https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/|chrome-extension:\/\/|data:|blob:|about:)/;
 
 export async function capturePhase3(outDir) {
-  await buildExtension();
+  // The test variant: it carries the openReader hook the capture drives the reader with.
+  await buildExtension({ test: true });
+  const EXTENSION = extensionDir(true);
   const server = await startServer(0);
   const base = `http://127.0.0.1:${server.address().port}/tests/fixtures`;
   const userDataDir = await mkdtemp(path.join(tmpdir(), 'speed-read-visual-'));
