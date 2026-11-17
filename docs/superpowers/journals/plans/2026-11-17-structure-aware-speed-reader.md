@@ -1451,3 +1451,8 @@ Operator decided to fix it in this run. The dock now moves fixed elements out fr
 ### p3-r17-resolved-2 · finding [fixed] · resolves p3-r17: Chrome prompts on every toolbar press when site access is on-click
 
 Operator decided to fix it in this run. The permission request is made only in Firefox, so Chrome no longer prompts on each toolbar press (phase 5 task 7); confirmed fixed in code by the phase 5 reviewer, a real toolbar press is part of the live walk.
+
+<!-- fr:journal kind=finding scope=plan id=p3-r18-resolved-2 created=2026-11-17T20:41:36+00:00 state=fixed resolves=p3-r18 answered_by=operator -->
+### p3-r18-resolved-2 · finding [fixed] · resolves p3-r18: Expanded exhibit limited to the stage width
+
+Operator decided to fix it in this run. An expanded exhibit now uses the whole reader (92 percent by 88 percent); confirmed fixed by the phase 5 reviewer.
