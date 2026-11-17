@@ -395,9 +395,13 @@ rows:
       makes no network request.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R2
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      ui:
+      - speed-read-fr:tests/e2e/extension.spec.ts
+      - speed-read-fr:tests/e2e/webview.spec.ts
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
   - id: install-docs
     capability: documentation
     acceptance: The README tells a user how to install and use the reader in Chrome,
