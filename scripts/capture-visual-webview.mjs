@@ -30,7 +30,6 @@ export async function capturePhase4(outDir) {
   const server = await startServer(0);
   const origin = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch();
-  const markdown = await readFixture('sample.md');
   const written = [];
   const offsite = [];
   try {
@@ -38,6 +37,8 @@ export async function capturePhase4(outDir) {
       { name: 'webview-dark.png', theme: 'dark', viewport: { width: 1100, height: 760 } },
       { name: 'webview-light.png', theme: 'light', viewport: { width: 1100, height: 760 } },
       { name: 'webview-dark-narrow.png', theme: 'dark', viewport: { width: 640, height: 900 } },
+      // Exhibits wider or taller than the pane, with the notice shown after the source is edited.
+      { name: 'webview-dark-wide-exhibits.png', theme: 'dark', viewport: { width: 1100, height: 760 }, fixture: 'wide.md', stale: true },
     ]) {
       const context = await browser.newContext({ viewport: shot.viewport, deviceScaleFactor: 2, colorScheme: shot.theme });
       const page = await context.newPage();
@@ -48,11 +49,12 @@ export async function capturePhase4(outDir) {
       page.on('pageerror', (e) => errors.push(String(e)));
       page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
       await openWebview(page, origin, { theme: shot.theme });
-      await sendRead(page, origin, { markdown, settings: SETTINGS });
+      await sendRead(page, origin, { markdown: await readFixture(shot.fixture ?? 'sample.md'), settings: SETTINGS });
       await page.keyboard.press('Space');
       await page.locator('.sr-exhibits .sr-exhibit[data-kind="diagram"] svg').waitFor({ timeout: 30_000 });
       await page.keyboard.press('Space');
       await page.locator('.sr-status-state', { hasText: 'Paused' }).waitFor();
+      if (shot.stale) await page.evaluate(() => window.postMessage({ type: 'stale' }, '*'));
       await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(400);
       const violations = await page.evaluate(() => window.__violations);
