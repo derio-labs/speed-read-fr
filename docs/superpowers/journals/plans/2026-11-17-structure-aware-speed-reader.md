@@ -695,3 +695,118 @@ The providers, commands and panel were written around one `command(id, range)` h
 ### no-refactor-p4-t5 · discovery · no-refactor-because P4.T5 (phase 4)
 
 The refactor happened inside the task: core `runSource` and `sourceOf` became one `sourceOf` with the nearest-ancestor line. Display math got one renderer shared by both block rules.
+
+<!-- fr:journal kind=review scope=plan id=review-p4 created=2026-11-17T18:24:29+00:00 phase=4 -->
+### review-p4 · review · Phase 4 code and visual review: 10 in-scope findings fixed, 1 out of scope (phase 4)
+
+Independent reviewer read the extension-host code against the real VS Code API (the unit tests see only a stub), checked manifest, CSP, hover link, handshake, rendering hardening and ranges against spec section 8, ran typecheck, unit, build, browser and package gates, and stressed the webview with its own Markdown in dark, light and high-contrast themes at wide and 450 px widths, opening its own screenshots. No path from file content to script or remote request was found. Findings raised: p4-r1 to p4-r11. Fixes verified by the orchestrator: full gate re-run green.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r1 created=2026-11-17T18:24:29+00:00 phase=4 state=open review_scope=in -->
+### p4-r1 · finding [open] (reviewer: in scope) · KaTeX SVGs collapsed: radicals and vector arrows vanished (phase 4)
+
+Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r2 created=2026-11-17T18:24:29+00:00 phase=4 state=open review_scope=in -->
+### p4-r2 · finding [open] (reviewer: in scope) · Commands resolved the document from activeTextEditor (phase 4)
+
+Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r3 created=2026-11-17T18:24:29+00:00 phase=4 state=open review_scope=in -->
+### p4-r3 · finding [open] (reviewer: in scope) · Command titles repeated the category (phase 4)
+
+Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r4 created=2026-11-17T18:24:29+00:00 phase=4 state=open review_scope=in -->
+### p4-r4 · finding [open] (reviewer: in scope) · Settings write-back not serialised (phase 4)
+
+Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r5 created=2026-11-17T18:24:29+00:00 phase=4 state=open review_scope=in -->
+### p4-r5 · finding [open] (reviewer: in scope) · Changing localResourceRoots reloads the webview while ready stayed true (phase 4)
+
+Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r6 created=2026-11-17T18:24:29+00:00 phase=4 state=open review_scope=in -->
+### p4-r6 · finding [open] (reviewer: in scope) · Wide display equation clipped with no cue (phase 4)
+
+Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r7 created=2026-11-17T18:24:29+00:00 phase=4 state=open review_scope=in -->
+### p4-r7 · finding [open] (reviewer: in scope) · Large flowchart illegible in the pane (phase 4)
+
+Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r8 created=2026-11-17T18:24:29+00:00 phase=4 state=open review_scope=in -->
+### p4-r8 · finding [open] (reviewer: in scope) · Relative image in an untitled document tripped the CSP (phase 4)
+
+Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r9 created=2026-11-17T18:24:29+00:00 phase=4 state=open review_scope=in -->
+### p4-r9 · finding [open] (reviewer: in scope) · Edits while reading made cursor follow use stale lines (phase 4)
+
+Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r10 created=2026-11-17T18:24:29+00:00 phase=4 state=open review_scope=in -->
+### p4-r10 · finding [open] (reviewer: in scope) · Reveal moved an open reader to another column (phase 4)
+
+Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r11 created=2026-11-17T18:24:29+00:00 phase=4 state=open review_scope=out -->
+### p4-r11 · finding [open] (reviewer: out of scope) · Headings with inline math show TeX source in outline and section cards (phase 4)
+
+Raised by the phase 4 reviewer and tagged out of scope. The outline and section cards show a heading's inline math as TeX source. This follows from the core's heading text and the spec's stated limit that inline math is shown as source outside normal reading; not caused by this phase.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r1-resolved created=2026-11-17T18:24:29+00:00 phase=4 state=fixed resolves=p4-r1 -->
+### p4-r1-resolved · finding [fixed] · resolves p4-r1: KaTeX SVGs collapsed: radicals and vector arrows vanished (phase 4)
+
+Image rule limited to images and Mermaid SVGs, also in the core sheet; e2e checks SVG heights (6a38d72).
+
+<!-- fr:journal kind=finding scope=plan id=p4-r2-resolved created=2026-11-17T18:24:29+00:00 phase=4 state=fixed resolves=p4-r2 -->
+### p4-r2-resolved · finding [fixed] · resolves p4-r2: Commands resolved the document from activeTextEditor (phase 4)
+
+Lens and hover pass the URI; palette commands fall back to the last source editor (e0cd935).
+
+<!-- fr:journal kind=finding scope=plan id=p4-r3-resolved created=2026-11-17T18:24:29+00:00 phase=4 state=fixed resolves=p4-r3 -->
+### p4-r3-resolved · finding [fixed] · resolves p4-r3: Command titles repeated the category (phase 4)
+
+Titles shortened; line-argument commands hidden from the palette (16410d8).
+
+<!-- fr:journal kind=finding scope=plan id=p4-r4-resolved created=2026-11-17T18:24:29+00:00 phase=4 state=fixed resolves=p4-r4 -->
+### p4-r4-resolved · finding [fixed] · resolves p4-r4: Settings write-back not serialised (phase 4)
+
+Writes queued, pushes held while pending, each key written to its effective scope (7912692).
+
+<!-- fr:journal kind=finding scope=plan id=p4-r5-resolved created=2026-11-17T18:24:29+00:00 phase=4 state=fixed resolves=p4-r5 -->
+### p4-r5-resolved · finding [fixed] · resolves p4-r5: Changing localResourceRoots reloads the webview while ready stayed true (phase 4)
+
+Ready reset and the read held until the new ready (144cb1c).
+
+<!-- fr:journal kind=finding scope=plan id=p4-r6-resolved created=2026-11-17T18:24:29+00:00 phase=4 state=fixed resolves=p4-r6 -->
+### p4-r6-resolved · finding [fixed] · resolves p4-r6: Wide display equation clipped with no cue (phase 4)
+
+Scales to 0.6 then scrolls with an edge fade (5357581).
+
+<!-- fr:journal kind=finding scope=plan id=p4-r7-resolved created=2026-11-17T18:24:29+00:00 phase=4 state=fixed resolves=p4-r7 -->
+### p4-r7-resolved · finding [fixed] · resolves p4-r7: Large flowchart illegible in the pane (phase 4)
+
+Not scaled below half size; scrolls and shows E to expand (5357581).
+
+<!-- fr:journal kind=finding scope=plan id=p4-r8-resolved created=2026-11-17T18:24:29+00:00 phase=4 state=fixed resolves=p4-r8 -->
+### p4-r8-resolved · finding [fixed] · resolves p4-r8: Relative image in an untitled document tripped the CSP (phase 4)
+
+Placeholder when no resolver (76c4545).
+
+<!-- fr:journal kind=finding scope=plan id=p4-r9-resolved created=2026-11-17T18:24:29+00:00 phase=4 state=fixed resolves=p4-r9 -->
+### p4-r9-resolved · finding [fixed] · resolves p4-r9: Edits while reading made cursor follow use stale lines (phase 4)
+
+Follow stops and a Document changed notice offers Re-read (110fec1).
+
+<!-- fr:journal kind=finding scope=plan id=p4-r10-resolved created=2026-11-17T18:24:29+00:00 phase=4 state=fixed resolves=p4-r10 -->
+### p4-r10-resolved · finding [fixed] · resolves p4-r10: Reveal moved an open reader to another column (phase 4)
+
+reveal(undefined, false) (fe3fdda).
+
+<!-- fr:journal kind=finding scope=plan id=p4-r11-resolved created=2026-11-17T18:24:29+00:00 phase=4 state=open resolves=p4-r11 out_of_scope=true -->
+### p4-r11-resolved · finding [out-of-scope] · resolves p4-r11: Headings with inline math show TeX source in outline and section cards (phase 4)
+
+The outline and section cards show a heading's inline math as TeX source. This follows from the core's heading text and the spec's stated limit that inline math is shown as source outside normal reading; not caused by this phase.
