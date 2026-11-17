@@ -201,6 +201,23 @@ rows:
     status: not-implemented
     notes: ''
     verify: live
+  - id: browser-floating-overlay
+    capability: browser-extension
+    acceptance: The browser reader opens as floating outline, stage and exhibit cards
+      over the page, which stays visible but faded with the block being read at full
+      strength and scrolls to follow the reading position; in a narrow window the exhibit
+      card pushes the stage down and lets it return.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R17
+    - spec:2026-11-17-structure-aware-speed-reader#R28
+    - spec:2026-11-17-structure-aware-speed-reader#R29
+    levels: {}
+    status: not-implemented
+    notes: ''
+    visual:
+      states:
+      - floating cards over faded page with current block at full strength
+      - narrow window exhibit card pushes stage down
   - id: vscode-entry-points
     capability: vscode-extension
     acceptance: VS Code offers commands to read the file, the selection and from the
