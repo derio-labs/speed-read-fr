@@ -306,7 +306,7 @@ resolves:
   body: Tests added (1bd0f44).
 evidence:
   review: review-p5
-  reviewer: aa8646379353e464c,aa017c56bfb309e82
+  reviewer: aa8646379353e464c
   model: claude-fable-5-2
 visual:
 - row: browser-floating-overlay
