@@ -11,7 +11,9 @@ journal:
     Errors: l-errors-r1 to r11. Security: l-security-r1 to r5, with every earlier security fix re-verified
     in the final code and no route found from a Markdown file to script execution or exfiltration. Tests:
     l-tests-r1 to r8, with a requirement-to-test table. Fixes verified by the orchestrator: full gate
-    re-run green.'
+    re-run green. The first security return named a file outside the diff, so a second security reviewer
+    was dispatched on the fixed code: it re-verified fixes r1 to r5 and raised l-security-r6 and r7, both
+    fixed.'
 - kind: finding
   id: l-errors-r1
   global: true
@@ -161,6 +163,20 @@ journal:
   title: test:e2e used pass-with-no-tests
   body: 'Raised by the tests lens reviewer with file and line; in scope: caused by this feature''s code.'
   review_scope: in
+- kind: finding
+  id: l-security-r6
+  global: true
+  title: API shim accepted a page-clobberable browser global
+  body: 'Raised by the second security lens reviewer with file and line and a scenario; in scope: caused
+    by this feature''s code.'
+  review_scope: in
+- kind: finding
+  id: l-security-r7
+  global: true
+  title: Untrusted paths and webview text in notifications could form command links
+  body: 'Raised by the second security lens reviewer with file and line and a scenario; in scope: caused
+    by this feature''s code.'
+  review_scope: in
 resolves:
 - id: l-errors-r1
   state: fixed
@@ -237,6 +253,13 @@ resolves:
 - id: l-tests-r8
   state: fixed
   body: Flag removed (a8fee35).
+- id: l-security-r6
+  state: fixed
+  body: Only an own global whose runtime has sendMessage and getURL functions is accepted, falling through
+    to chrome; fixture and e2e cover it (634f7ba).
+- id: l-security-r7
+  state: fixed
+  body: One helper neutralises link syntax in every interpolated notification value (5f25fd8).
 evidence:
   review: review-lenses
-  reviewer: errors=ac9d8702581cd2a85,security=ac247ae5db104cf6d,tests=af1e6aa777ccbf342
+  reviewer: errors=ac9d8702581cd2a85,security=a70f0a5954d40d159,tests=af1e6aa777ccbf342
