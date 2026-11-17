@@ -30,7 +30,14 @@ describe('VS Code extension manifest', () => {
   it('contributes the five commands', () => {
     const ids = pkg.contributes.commands.map((c: { command: string }) => c.command);
     expect(ids.sort()).toEqual([...COMMANDS].sort());
-    for (const c of pkg.contributes.commands) expect(c.title).toEqual(expect.any(String));
+    // The palette shows "category: title", so a title must not repeat the category.
+    expect(pkg.contributes.commands.map((c: { title: string; category: string }) => [c.category, c.title])).toEqual([
+      ['Speed Read', 'Read File'],
+      ['Speed Read', 'Read Selection'],
+      ['Speed Read', 'Read From Cursor'],
+      ['Speed Read', 'Read Section'],
+      ['Speed Read', 'Read From Line'],
+    ]);
   });
 
   it('hides the line-argument commands from the palette', () => {

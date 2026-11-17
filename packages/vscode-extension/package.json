@@ -18,11 +18,11 @@
   "activationEvents": ["onLanguage:markdown"],
   "contributes": {
     "commands": [
-      { "command": "speedRead.readFile", "title": "Speed Read: Read File", "category": "Speed Read" },
-      { "command": "speedRead.readSelection", "title": "Speed Read: Read Selection", "category": "Speed Read" },
-      { "command": "speedRead.readFromCursor", "title": "Speed Read: Read From Cursor", "category": "Speed Read" },
-      { "command": "speedRead.readSection", "title": "Speed Read: Read Section", "category": "Speed Read" },
-      { "command": "speedRead.readFromLine", "title": "Speed Read: Read From Line", "category": "Speed Read" }
+      { "command": "speedRead.readFile", "title": "Read File", "category": "Speed Read" },
+      { "command": "speedRead.readSelection", "title": "Read Selection", "category": "Speed Read" },
+      { "command": "speedRead.readFromCursor", "title": "Read From Cursor", "category": "Speed Read" },
+      { "command": "speedRead.readSection", "title": "Read Section", "category": "Speed Read" },
+      { "command": "speedRead.readFromLine", "title": "Read From Line", "category": "Speed Read" }
     ],
     "menus": {
       "commandPalette": [
