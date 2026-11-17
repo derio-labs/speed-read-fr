@@ -126,6 +126,15 @@ describe('renderMarkdown', () => {
     expect(decodeURIComponent(remote.getAttribute('src')!)).toContain('&lt;b&gt;&amp;&quot;');
   });
 
+  it('shows a relative image as a placeholder when there is no resolver (an untitled document)', () => {
+    render('![chart](img/chart.png)');
+    const img = root.querySelector('img')!;
+    expect(img.classList.contains('sr-remote-image')).toBe(true);
+    expect(img.getAttribute('src')).toMatch(/^data:image\/svg\+xml/);
+    expect(decodeURIComponent(img.getAttribute('src')!)).toContain('chart');
+    expect(root.innerHTML).not.toContain('img/chart.png');
+  });
+
   it('renders links as inert text', () => {
     render('see [the docs](https://example.com/docs) now');
     const a = root.querySelector('a')!;

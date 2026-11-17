@@ -29,13 +29,16 @@ const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '
 
 const lineOffset = (env: unknown) => (env as Env | undefined)?.lineOffset ?? 0;
 
-/** A local stand-in for an image that is not loaded (remote, or a scheme the webview cannot load). */
-function placeholderSrc(alt: string): string {
+/**
+ * A local stand-in for an image that is not loaded: remote, a scheme the webview cannot load, or a
+ * relative path with no document folder to resolve it against (an untitled document).
+ */
+function placeholderSrc(alt: string, reason: string): string {
   const label = alt.length > 60 ? `${alt.slice(0, 57)}…` : alt;
   const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="72" viewBox="0 0 360 72">' +
     '<rect x="1" y="1" width="358" height="70" rx="8" fill="none" stroke="#8a8a8a" stroke-dasharray="6 4"/>' +
-    '<text x="180" y="30" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#8a8a8a">Remote image not loaded (offline)</text>' +
+    '<text x="180" y="30" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#8a8a8a">${reason}</text>' +
     `<text x="180" y="52" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#8a8a8a">${escapeHtml(label)}</text>` +
     '</svg>';
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -79,9 +82,11 @@ function createRenderer(): MarkdownIt {
     const src = token.attrGet('src') ?? '';
     const alt = self.renderInlineAsText(token.children ?? [], options, env);
     if (/^data:/i.test(src)) return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}">`;
-    if (/^([a-z][a-z0-9+.-]*:|\/\/)/i.test(src)) return `<img class="sr-remote-image" src="${placeholderSrc(alt)}" alt="${escapeHtml(alt)}">`;
+    const placeholder = (reason: string) => `<img class="sr-remote-image" src="${placeholderSrc(alt, reason)}" alt="${escapeHtml(alt)}">`;
+    if (/^([a-z][a-z0-9+.-]*:|\/\/)/i.test(src)) return placeholder('Remote image not loaded (offline)');
     const resolve = (env as Env).resolveUri;
-    return `<img src="${escapeHtml(resolve ? resolve(src) : src)}" alt="${escapeHtml(alt)}">`;
+    if (!resolve) return placeholder('Image not loaded (unsaved document)');
+    return `<img src="${escapeHtml(resolve(src))}" alt="${escapeHtml(alt)}">`;
   };
 
   // Links are inert: the reader is for reading, and a webview should not navigate.
