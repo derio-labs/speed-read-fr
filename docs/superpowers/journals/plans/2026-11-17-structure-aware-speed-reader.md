@@ -1456,3 +1456,8 @@ Operator decided to fix it in this run. The permission request is made only in F
 ### p3-r18-resolved-2 · finding [fixed] · resolves p3-r18: Expanded exhibit limited to the stage width
 
 Operator decided to fix it in this run. An expanded exhibit now uses the whole reader (92 percent by 88 percent); confirmed fixed by the phase 5 reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=p4-r11-resolved-2 created=2026-11-17T20:41:40+00:00 phase=4 state=open resolves=p4-r11 tracked_by=https://github.com/derio-net/speed-read-fr/issues/2 -->
+### p4-r11-resolved-2 · finding [deferred → https://github.com/derio-net/speed-read-fr/issues/2] · resolves p4-r11: Headings with inline math show TeX source in outline and section cards (phase 4)
+
+Filed at deliver as https://github.com/derio-net/speed-read-fr/issues/2.
