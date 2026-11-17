@@ -130,23 +130,47 @@ export type DiagramRenderer = (id: string, source: string) => Promise<{ svg: str
 
 let diagramCount = 0;
 
+/** How long one Mermaid render may take before its fence stays a code block (l-errors-r6). */
+export const DIAGRAM_TIMEOUT_MS = 10_000;
+export const DIAGRAM_FAILED = 'Diagram failed to render';
+
+/** The first line of an error's message, for the one-line caption. */
+function firstLine(error: unknown): string {
+  const text = (error instanceof Error ? error.message : String(error ?? '')).trim();
+  return text.split(/\r?\n/)[0].trim() || 'unknown error';
+}
+
 /**
  * Render every pending Mermaid fence under `root` with `render` (`mermaid.render`), replacing its
- * code with the SVG; a fence that fails stays a code block. Resolves once every diagram has settled.
+ * code with the SVG. A fence that fails, or whose render has not settled after `timeoutMs`, stays a
+ * code block under a one-line caption, "Diagram failed to render: <first line of the error>" (read
+ * as a short prose line before the code exhibit). Resolves once every diagram has settled or timed out.
  */
-export async function renderDiagrams(root: Element, render: DiagramRenderer): Promise<void> {
+export async function renderDiagrams(root: Element, render: DiagramRenderer, { timeoutMs = DIAGRAM_TIMEOUT_MS }: { timeoutMs?: number } = {}): Promise<void> {
   const pending = Array.from(root.querySelectorAll<HTMLElement>('[data-mermaid="pending"]'));
   await Promise.allSettled(
     pending.map(async (el) => {
       const source = el.querySelector('code')?.textContent ?? '';
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`timed out after ${Math.round(timeoutMs / 1000)} s`)), timeoutMs);
+      });
       try {
-        const { svg } = await render(`sr-mermaid-${++diagramCount}`, source);
+        const { svg } = await Promise.race([render(`sr-mermaid-${++diagramCount}`, source), timeout]);
         // Mermaid's output with securityLevel 'strict', sanitized by Mermaid itself.
         el.innerHTML = svg;
         el.classList.add('mermaid');
         el.dataset.mermaid = 'rendered';
-      } catch {
+      } catch (error) {
         el.dataset.mermaid = 'failed';
+        const caption = el.ownerDocument.createElement('p');
+        caption.className = 'sr-diagram-error';
+        const line = el.getAttribute('data-line');
+        if (line !== null) caption.setAttribute('data-line', line);
+        caption.textContent = `${DIAGRAM_FAILED}: ${firstLine(error)}`;
+        el.before(caption);
+      } finally {
+        clearTimeout(timer);
       }
     }),
   );

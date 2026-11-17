@@ -82,8 +82,9 @@ On a Markdown file (other text files are read as plain prose):
 - **▶ Speed read from here**, a link in the hover over headings and paragraphs.
 
 The reader opens in a panel beside the editor and renders the Markdown with math (`$…$`,
-`$$…$$`, `\(…\)`, `\[…\]`) and Mermaid diagrams. The editor cursor follows the block being
-read and stays on it when you pause or close.
+`$$…$$`, `\(…\)`, `\[…\]`) and Mermaid diagrams. A diagram that fails to render, or takes
+longer than 10 s, stays a code block under a one-line "Diagram failed to render" caption. The
+editor cursor follows the block being read and stays on it when you pause or close.
 
 ### The position dial
 
@@ -168,8 +169,7 @@ Text-to-speech uses the voices of the browser or the system (the Web Speech API)
   (the headings that stop) are not. Inline math is left out of the spoken text, headings
   included.
 - If the voice fails (for example a network voice while offline, or a voice that never starts
-  speaking), that sentence is shown as text
-  at your reading speed instead; after two failures in a row speech is switched off for the
+  speaking), that sentence is shown as text at your reading speed instead; after two failures in a row speech is switched off for the
   session and the status line and the settings say "Speech failed: showing text only".
 
 ## Known limits

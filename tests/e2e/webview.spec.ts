@@ -153,6 +153,52 @@ test('an edited source shows a "Document changed" notice whose Re-read asks the 
   await expect(notice).toBeHidden();
 });
 
+test('a read that fails shows an inline error in the panel and reports it to the extension (l-errors-r6)', async ({ page }) => {
+  await open(page);
+  // A malformed read: the render throws.
+  await page.evaluate((settings) => window.postMessage({ type: 'read', markdown: 42, startLine: 0, settings, format: 'markdown' }, '*'), FAST);
+  const error = page.locator('.sr-render-error');
+  await expect(error).toBeVisible();
+  await expect(error).toHaveAttribute('role', 'alert');
+  await expect(error).toContainText('Speed Read could not render this document');
+  await expect(page.locator('.sr-reader')).toHaveCount(0);
+  await expect.poll(async () => (await posted(page)).filter((m) => m.type === 'error')).toHaveLength(1);
+  // The next good read replaces the error.
+  await sendRead(page, serverOrigin(), { markdown: await readFixture('sample.md'), settings: FAST });
+  await expect(error).toHaveCount(0);
+});
+
+test('a diagram that fails to render stays code under a one-line caption (l-errors-r11)', async ({ page }) => {
+  await openWebview(page, serverOrigin());
+  await sendRead(page, serverOrigin(), { markdown: ['# Broken', '', '```mermaid', 'flowchart LR', 'A -->', '```', ''].join('\n'), settings: FAST });
+  const caption = page.locator('#sr-render p.sr-diagram-error');
+  await expect(caption).toHaveCount(1);
+  await expect(caption).toHaveText(/^Diagram failed to render: \S/);
+  expect(await caption.textContent()).not.toContain('\n');
+  await expect(page.locator('#sr-render [data-mermaid="failed"] pre code')).toHaveCount(1);
+});
+
+test('the extension\'s save-status and notice messages show in the panel; a repeated read id is ignored', async ({ page }) => {
+  await openWebview(page, serverOrigin());
+  const read = { type: 'read', markdown: await readFixture('sample.md'), startLine: 0, settings: FAST, format: 'markdown', baseUri: `${serverOrigin()}/tests/fixtures/`, id: 7 };
+  await page.evaluate((m) => window.postMessage(m, '*'), read);
+  await page.locator('.sr-reader').waitFor();
+  await page.locator('.sr-reader').evaluate((el) => el.setAttribute('data-first-mount', ''));
+  // The same read again (the reload fallback's second delivery) changes nothing; the note message
+  // that follows it is a positive event: once it shows, the duplicate has been handled.
+  await page.evaluate((m) => window.postMessage(m, '*'), read);
+  await page.evaluate(() => window.postMessage({ type: 'save-status', ok: false }, '*'));
+  await expect(page.locator('.sr-status [data-note="host"]')).toHaveText('Settings not saved');
+  await expect(page.locator('.sr-reader[data-first-mount]')).toHaveCount(1);
+  await page.evaluate(() => window.postMessage({ type: 'save-status', ok: true }, '*'));
+  await expect(page.locator('.sr-status [data-note="host"]')).toHaveCount(0);
+  await page.evaluate(() => window.postMessage({ type: 'notice', text: 'Source document is closed' }, '*'));
+  const notice = page.locator('.sr-stale-notice');
+  await expect(notice).toBeVisible();
+  await expect(notice.locator('span')).toHaveText('Source document is closed');
+  await expect(notice.getByRole('button', { name: 'Re-read' })).toBeHidden();
+});
+
 test("KaTeX's own SVGs (radicals, arrows) keep their height in exhibits and in normal reading", async ({ page }) => {
   await open(page);
   const svgHeights = (scope: string) =>

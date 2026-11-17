@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { extract } from '@speed-read/core';
 import { renderDiagrams, renderMarkdown, renderPlain } from './render';
 
@@ -188,7 +188,7 @@ describe('renderDiagrams', () => {
       return { svg: `<svg id="${id}" viewBox="0 0 10 10"><text>${source.trim()}</text></svg>` };
     });
     expect(new Set(ids).size).toBe(2);
-    const [ok, bad] = [...root.querySelectorAll('[data-line]')];
+    const [ok, bad] = [...root.querySelectorAll('[data-mermaid]')];
     expect(ok.classList.contains('mermaid')).toBe(true);
     expect(ok.querySelector('svg')?.id).toBe(ids[0]);
     expect(ok.getAttribute('data-mermaid')).toBe('rendered');
@@ -197,7 +197,42 @@ describe('renderDiagrams', () => {
     expect(bad.getAttribute('data-mermaid')).toBe('failed');
     expect(extract(root).sections[0].blocks.map((b) => [b.kind, b.source.line])).toEqual([
       ['diagram', 0],
+      ['prose', 5],
       ['code', 5],
     ]);
+  });
+
+  it('a failing fence gets a one-line caption above it with the first line of the error (l-errors-r11)', async () => {
+    render(MD);
+    await renderDiagrams(root, async (_id, source) => {
+      if (source.startsWith('not')) throw new Error('Parse error on line 1:\nnot a diagram\n^');
+      return { svg: '<svg viewBox="0 0 10 10"></svg>' };
+    });
+    const bad = root.querySelector('[data-mermaid="failed"]')!;
+    const caption = bad.previousElementSibling!;
+    expect(caption.tagName).toBe('P');
+    expect(caption.textContent).toBe('Diagram failed to render: Parse error on line 1:');
+    const blocks = extract(root).sections[0].blocks;
+    expect(blocks[1]).toMatchObject({ kind: 'prose' });
+    expect(blocks[2]).toMatchObject({ kind: 'code' });
+  });
+
+  it('a render that never settles stays a code block after the timeout, captioned (l-errors-r6)', async () => {
+    vi.useFakeTimers();
+    try {
+      render(['```mermaid', 'flowchart LR', 'A --> B', '```'].join('\n'));
+      let settled = false;
+      const done = renderDiagrams(root, () => new Promise(() => {})).then(() => (settled = true));
+      await vi.advanceTimersByTimeAsync(9_999);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await done;
+      const fence = root.querySelector('[data-line]:not(p)')!;
+      expect(fence.getAttribute('data-mermaid')).toBe('failed');
+      expect(fence.querySelector('pre code.language-mermaid')).not.toBeNull();
+      expect(root.querySelector('p.sr-diagram-error')?.textContent).toBe('Diagram failed to render: timed out after 10 s');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
