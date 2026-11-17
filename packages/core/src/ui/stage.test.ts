@@ -192,6 +192,17 @@ describe('cards', () => {
   });
 });
 
+describe('an empty document', () => {
+  it('shows an empty state, never an end card, with the status Ready', () => {
+    const t = mountHarness('');
+    expect(text(t.q('.sr-card-empty'))).toContain('Nothing to read here');
+    t.handle.player.toggle();
+    expect(t.q('.sr-card-end')).toBeNull();
+    expect(text(t.q('.sr-card-empty'))).toContain('Nothing to read here');
+    expect(text(t.q('.sr-status-state'))).toBe('Ready');
+  });
+});
+
 describe('status line', () => {
   it('shows WPM, state and overall progress', () => {
     const t = mountHarness('<p>One two three four five six seven eight nine ten.</p>', { settings: { chunkWords: 2 } });

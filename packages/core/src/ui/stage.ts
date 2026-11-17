@@ -228,8 +228,14 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
     }
   }
 
+  function showEmpty() {
+    replaceChildren(sentence);
+    setDisplay('empty', card('empty', eyebrow('Speed read'), title('Nothing to read here'), hint('This content has no text, lists, code or images to read.')));
+  }
+
   function showReady() {
     const steps = ctx.timeline.steps;
+    if (steps.length === 0) return showEmpty();
     const docTitle = ctx.doc.sections.find((s) => s.heading)?.heading?.text ?? 'Ready to read';
     const words = ctx.doc.sections.reduce((n, s) => n + s.words, 0);
     replaceChildren(sentence);
@@ -263,7 +269,8 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
   const off = [
     player.on('step', (e: StepEvent) => {
       shown = true;
-      showStep(e.step, e.index);
+      if (ctx.timeline.steps.length === 0) showEmpty();
+      else showStep(e.step, e.index);
       renderStatus();
     }),
     player.on('state', renderStatus),

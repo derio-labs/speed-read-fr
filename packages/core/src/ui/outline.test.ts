@@ -122,3 +122,26 @@ describe('drawer focus', () => {
     expect(t.handle.player.state).not.toBe('closed');
   });
 });
+
+describe('collapsing the outline', () => {
+  it('collapses for an empty document and for one with no headings', () => {
+    expect(mountHarness('').q('.sr-layout')!.dataset.outline).toBe('none');
+    expect(mountHarness('<p>Only prose here.</p>').q('.sr-layout')!.dataset.outline).toBe('none');
+    expect(mountHarness(ARTICLE).q('.sr-layout')!.dataset.outline).toBeUndefined();
+  });
+});
+
+describe('row updates', () => {
+  it('touch only the rows whose values changed', () => {
+    const t = mountHarness(ARTICLE, { settings: { chunkWords: 1 } });
+    t.handle.player.toggle();
+    t.handle.player.continue();
+    const observer = new MutationObserver(() => {});
+    observer.observe(t.q('.sr-outline')!, { subtree: true, childList: true, attributes: true, characterData: true });
+    t.clock.advance(t.clock.nextIn()!);
+    const touched = observer.takeRecords().map((r) => (r.target instanceof Element ? r.target : r.target.parentElement)!.closest('.sr-outline-row'));
+    observer.disconnect();
+    expect(touched.length).toBeGreaterThan(0);
+    expect(new Set(touched)).toEqual(new Set([rows(t)[0]]));
+  });
+});

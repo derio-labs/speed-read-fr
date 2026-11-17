@@ -282,6 +282,11 @@ export const READER_CSS = `
 .sr-field[data-disabled] .sr-field-label { color: var(--sr-faint); }
 .sr-settings input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--sr-progress); }
 
+/* Nothing to outline (no headings, or an empty document): no bar, no rail. */
+.sr-layout[data-outline="none"] { grid-template-rows: minmax(0, 1fr) minmax(0, 42%); grid-template-areas: "main" "exhibits"; }
+.sr-layout[data-outline="none"] .sr-outline-bar, .sr-layout[data-outline="none"] .sr-outline { display: none; }
+.sr-layout[data-outline="none"][data-mode="reading"] .sr-main { grid-row: 1 / -1; }
+
 /* Wide layout: last, so it overrides the narrow defaults above. */
 @container sr-reader (min-width: ${WIDE_MIN_PX}px) {
   .sr-layout {
@@ -293,6 +298,9 @@ export const READER_CSS = `
   .sr-outline { grid-area: outline; display: flex; position: static; border-right: 1px solid var(--sr-border); box-shadow: none; width: auto; }
   .sr-exhibits { border-top: 0; border-left: 1px solid var(--sr-border); }
   .sr-layout[data-mode="reading"] .sr-main { grid-column: 2 / -1; }
+  .sr-layout[data-outline="none"] { grid-template-columns: minmax(0, 1fr) minmax(280px, 32%); grid-template-areas: "main exhibits"; }
+  .sr-layout[data-outline="none"] .sr-outline { display: none; }
+  .sr-layout[data-outline="none"][data-mode="reading"] .sr-main { grid-column: 1 / -1; }
 }
 .sr-layout[data-mode="reading"] .sr-stage,
 .sr-layout[data-mode="reading"] .sr-exhibits { display: none; }

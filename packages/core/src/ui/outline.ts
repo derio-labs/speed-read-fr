@@ -15,6 +15,8 @@ interface Row {
   button: HTMLButtonElement;
   fill: HTMLElement;
   time: HTMLElement;
+  /** What the row shows now, so a step only touches rows whose values change. */
+  shown: { width: string; time: string; current: boolean } | null;
 }
 
 /** The outline rail: one row per headed section with progress and remaining time; a bar and drawer when narrow. */
@@ -73,9 +75,11 @@ export function createOutline(ctx: ReaderContext, { outline, bar, layout }: Outl
         player.jumpToSection(section.id);
         ctx.reader.focus({ preventScroll: true });
       });
-      rows.push({ sectionAt, button, fill, time });
+      rows.push({ sectionAt, button, fill, time, shown: null });
     });
     replaceChildren(list, ...rows.map((r) => h('li', {}, r.button)));
+    if (rows.length > 0) delete layout.dataset.outline;
+    else layout.dataset.outline = 'none';
     update(player.index);
   }
 
@@ -91,14 +95,24 @@ export function createOutline(ctx: ReaderContext, { outline, bar, layout }: Outl
       const from = Math.min(Math.max(index, first), end);
       const pct = end > first ? ((from - first) / (end - first)) * 100 : 100;
       const remaining = prefix[end] - prefix[from];
-      row.fill.style.width = `${Math.round(pct * 10) / 10}%`;
-      row.time.textContent = from >= end ? 'done' : formatDuration(remaining);
-      if (row.sectionAt === current) row.button.setAttribute('aria-current', 'true');
-      else row.button.removeAttribute('aria-current');
+      const next = {
+        width: `${Math.round(pct * 10) / 10}%`,
+        time: from >= end ? 'done' : formatDuration(remaining),
+        current: row.sectionAt === current,
+      };
+      const last = row.shown;
+      if (last?.width !== next.width) row.fill.style.width = next.width;
+      if (last?.time !== next.time) row.time.textContent = next.time;
+      if (last?.current !== next.current) {
+        if (next.current) row.button.setAttribute('aria-current', 'true');
+        else row.button.removeAttribute('aria-current');
+      }
+      row.shown = next;
     }
     let titled = current;
     while (titled > 0 && sections[titled]?.title === undefined) titled--;
-    barText.textContent = sections[titled]?.title ?? sections.find((s) => s.title !== undefined)?.title ?? 'Contents';
+    const heading = sections[titled]?.title ?? sections.find((s) => s.title !== undefined)?.title ?? 'Contents';
+    if (barText.textContent !== heading) barText.textContent = heading;
   }
 
   toggle.addEventListener('click', () => {
