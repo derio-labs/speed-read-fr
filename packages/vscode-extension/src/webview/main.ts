@@ -4,8 +4,9 @@
  * a host that shows clones. Reports the reading position (R21) and settings changes to the extension.
  */
 import mermaid from 'mermaid';
-import { createCloneHost, extract, mountReader, type ReaderHandle, type Settings, type SettingsStore } from '@speed-read/core';
+import { createCloneHost, extract, mountReader, type Host, type ReaderHandle, type Settings, type SettingsStore } from '@speed-read/core';
 import type { FromWebview, ReadMessage, ToWebview } from '../messages';
+import { FIT_CSS, fitExhibit } from './fit';
 import { renderDiagrams, renderMarkdown, renderPlain } from './render';
 
 declare function acquireVsCodeApi(): { postMessage(message: FromWebview): void };
@@ -43,10 +44,6 @@ body.vscode-light .sr-reader, body.vscode-high-contrast-light .sr-reader { color
 .sr-md th { background: var(--vscode-textCodeBlock-background); }
 /* Images and diagrams fit their box; KaTeX's own SVGs (radicals, arrows) keep KaTeX's sizing. */
 .sr-md img, .sr-md .mermaid svg { max-width: 100%; height: auto; }
-/* A tall diagram fits the pane, scaled down within its box (E expands it to full size). */
-.sr-exhibit-body .sr-md .mermaid svg { display: block; margin: 0 auto; max-height: 45vh; }
-/* Under 900 px the pane sits below the stage at 42% of the height. */
-@container sr-reader (max-width: 899px) { .sr-exhibit-body .sr-md .mermaid svg { max-height: 24vh; } }
 .sr-md .katex-display { margin: .4em 0; overflow-x: auto; overflow-y: hidden; }
 .sr-md .katex { font-size: 1.15em; }
 .sr-md blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--vscode-textBlockQuote-border, #8888); }
@@ -68,7 +65,7 @@ body.vscode-light .sr-reader, body.vscode-high-contrast-light .sr-reader { color
 `;
 
 const style = document.createElement('style');
-style.textContent = WEBVIEW_CSS;
+style.textContent = WEBVIEW_CSS + FIT_CSS;
 document.head.append(style);
 
 const readerRoot = document.getElementById('sr-reader-root') ?? document.body.appendChild(document.createElement('div'));
@@ -153,7 +150,7 @@ async function read(message: ReadMessage) {
   mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: isDark() ? 'dark' : 'default', suppressErrorRendering: true });
   await renderDiagrams(renderRoot, (id, source) => mermaid.render(id, source, diagramScratch));
   if (current !== generation) return;
-  const host = createCloneHost(renderRoot, {
+  const clones = createCloneHost(renderRoot, {
     wrapperClass: 'sr-md',
     onPosition(ref) {
       if (typeof ref.line !== 'number' || ref.line === lastLine) return;
@@ -162,6 +159,21 @@ async function read(message: ReadMessage) {
     },
     onClose: close,
   });
+  // Exhibits in the pane are fitted to it; the fitting stops when the core releases the node.
+  const fitted = new Map<Node, () => void>();
+  const host: Host = {
+    ...clones,
+    exhibit(block, use) {
+      const node = clones.exhibit(block, use);
+      if (use === 'pane') fitted.set(node, fitExhibit(node, block.kind));
+      return node;
+    },
+    release(node) {
+      fitted.get(node)?.();
+      fitted.delete(node);
+      clones.release(node);
+    },
+  };
   handle = mountReader(readerRoot, extractRendered(), { settings: message.settings, store, host });
 }
 

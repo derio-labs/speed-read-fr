@@ -170,3 +170,71 @@ test("KaTeX's own SVGs (radicals, arrows) keep their height in exhibits and in n
   expect(reading.length).toBeGreaterThanOrEqual(2);
   for (const h of reading) expect(h).toBeGreaterThan(2);
 });
+
+test.describe('exhibits wider or taller than the pane', () => {
+  /** Play wide.md to its diagram (math dwells briefly, the diagram long) and pause there. */
+  async function openWide(page: Page) {
+    await openWebview(page, serverOrigin());
+    await sendRead(page, serverOrigin(), { markdown: await readFixture('wide.md'), settings: { ...FAST, imageDwellSeconds: 30 } });
+    await page.keyboard.press('Space');
+    await expect(page.locator('.sr-exhibits .sr-exhibit[data-kind="diagram"] svg')).toBeVisible({ timeout: 20_000 });
+    await page.keyboard.press('Space');
+  }
+  const fit = (page: Page, index: number) =>
+    page.locator('.sr-exhibits .sr-exhibit[data-kind="math"] .katex-display').nth(index).evaluate((el) => {
+      const display = el as HTMLElement;
+      const body = display.closest('.sr-exhibit-body') as HTMLElement;
+      const html = display.querySelector('.katex-html > .base:last-child') as HTMLElement;
+      return {
+        zoom: Number(getComputedStyle(display).zoom),
+        fits: html.getBoundingClientRect().right <= body.getBoundingClientRect().right + 1,
+        scrolls: display.scrollWidth > display.clientWidth + 1,
+        clip: display.dataset.clip ?? '',
+        mask: getComputedStyle(display).maskImage || getComputedStyle(display).webkitMaskImage,
+      };
+    });
+
+  test('a wide display equation is scaled down to fit the pane', async ({ page }) => {
+    await openWide(page);
+    const f = await fit(page, 0);
+    expect(f.zoom).toBeLessThan(1);
+    expect(f.zoom).toBeGreaterThanOrEqual(0.6);
+    expect(f.fits).toBe(true);
+    expect(f.scrolls).toBe(false);
+    expect(f.clip).toBe('');
+  });
+
+  test('a wider one stops at 0.6, scrolls, and fades the clipped side', async ({ page }) => {
+    await openWide(page);
+    let f = await fit(page, 1);
+    expect(f.zoom).toBeCloseTo(0.6, 2);
+    expect(f.scrolls).toBe(true);
+    expect(f.clip).toBe('right');
+    expect(f.mask).toContain('gradient');
+    const display = page.locator('.sr-exhibits .sr-exhibit[data-kind="math"] .katex-display').nth(1);
+    await display.evaluate((el) => (el.scrollLeft = el.scrollWidth));
+    await expect.poll(async () => (await fit(page, 1)).clip).toBe('left');
+  });
+
+  test('a 20-node flowchart is not shrunk below half size: it scrolls and the header says E to expand', async ({ page }) => {
+    await openWide(page);
+    const exhibit = page.locator('.sr-exhibits .sr-exhibit[data-kind="diagram"]');
+    const sizes = await exhibit.locator('svg').first().evaluate((svg) => {
+      const box = svg.getBoundingClientRect();
+      const view = (svg as SVGSVGElement).viewBox.baseVal;
+      const body = svg.closest('.sr-exhibit-body') as HTMLElement;
+      return { scale: box.height / view.height, scrolls: body.scrollHeight > body.clientHeight + 1 };
+    });
+    expect(sizes.scale).toBeCloseTo(0.5, 2);
+    expect(sizes.scrolls).toBe(true);
+    await expect(exhibit.locator('.sr-exhibit-caption')).toContainText('E to expand');
+  });
+
+  test('a diagram that fits keeps no expand hint', async ({ page }) => {
+    await open(page, { ...FAST, imageDwellSeconds: 30 });
+    await page.keyboard.press('Space');
+    const exhibit = page.locator('.sr-exhibits .sr-exhibit[data-kind="diagram"]');
+    await expect(exhibit.locator('svg')).toBeVisible({ timeout: 20_000 });
+    await expect(exhibit.locator('.sr-exhibit-caption')).not.toContainText('E to expand');
+  });
+});
