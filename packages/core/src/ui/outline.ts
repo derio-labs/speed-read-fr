@@ -43,11 +43,16 @@ export function createOutline(ctx: ReaderContext, { outline, bar, layout }: Outl
     toggle.setAttribute('aria-expanded', String(open));
   }
 
+  /** Step estimates at the player's current speed (rerun when only the speed changes). */
+  function estimate() {
+    prefix = [0];
+    for (const step of ctx.timeline.steps) prefix.push(prefix[prefix.length - 1] + sectionEstimate([step], player.settings));
+  }
+
   function build() {
     const { steps, sections } = ctx.timeline;
     builtFor = ctx.timeline;
-    prefix = [0];
-    for (const step of steps) prefix.push(prefix[prefix.length - 1] + sectionEstimate([step], ctx.settings));
+    estimate();
     ends = sections.map((s, i) => (i + 1 < sections.length ? sections[i + 1].firstStep : steps.length));
     rows = [];
     sections.forEach((section, sectionAt) => {
@@ -97,7 +102,13 @@ export function createOutline(ctx: ReaderContext, { outline, bar, layout }: Outl
   }
 
   toggle.addEventListener('click', () => setDrawer(layout.dataset.drawer !== 'open'));
-  const off = player.on('step', (e: StepEvent) => update(e.index));
+  const off = [
+    player.on('step', (e: StepEvent) => update(e.index)),
+    player.on('settings', () => {
+      estimate();
+      update(player.index);
+    }),
+  ];
   build();
 
   return {
@@ -107,6 +118,8 @@ export function createOutline(ctx: ReaderContext, { outline, bar, layout }: Outl
       setDrawer(false);
       return true;
     },
-    destroy: off,
+    destroy() {
+      for (const o of off) o();
+    },
   };
 }

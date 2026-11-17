@@ -53,6 +53,31 @@ describe('outline rail', () => {
   });
 });
 
+describe('remaining times follow the speed', () => {
+  const seconds = (row: Element) => {
+    const t = time(row)!;
+    return t.endsWith(' min') ? parseFloat(t) * 60 : parseFloat(t);
+  };
+
+  it('recompute when only the speed changes', () => {
+    const t = mountHarness(ARTICLE);
+    const usage = rows(t)[3];
+    const before = seconds(usage);
+    t.handle.player.setSpeed(1000);
+    expect(seconds(usage)).toBeLessThan(before);
+    t.handle.player.setSpeed(100);
+    expect(seconds(usage)).toBeGreaterThan(before);
+  });
+
+  it('use the speed loaded from the store', async () => {
+    const plain = mountHarness(ARTICLE);
+    const before = seconds(rows(plain)[3]);
+    const t = mountHarness(ARTICLE, { saved: { wpm: 1000 } });
+    await t.settle();
+    expect(seconds(rows(t)[3])).toBeLessThan(before);
+  });
+});
+
 describe('outline bar (narrow layout)', () => {
   it('shows the current heading and opens the rail as a drawer', () => {
     const t = mountHarness(ARTICLE);
