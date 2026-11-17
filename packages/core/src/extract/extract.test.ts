@@ -90,6 +90,14 @@ describe('prose', () => {
     expect(d.sections[0].blocks.map(words)).toEqual(['one two']);
   });
 
+  it('gives bare prose runs the parent as source and the nearest data-line ancestor as line', () => {
+    const root = html('<section data-line="20"><div>loose text<p data-line="22">para</p>more</div></section>');
+    const div = root.querySelector('div')!;
+    const [first, , last] = extract(root).sections[0].blocks;
+    expect(first.source).toEqual({ element: div, line: 20 });
+    expect(last.source).toEqual({ element: div, line: 20 });
+  });
+
   it('copies data-line into source.line', () => {
     const root = html('<p data-line="12">x</p>');
     expect(extract(root).sections[0].blocks[0].source).toEqual({ element: root.querySelector('p'), line: 12 });
