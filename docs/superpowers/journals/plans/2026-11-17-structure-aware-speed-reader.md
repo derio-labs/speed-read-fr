@@ -272,3 +272,8 @@ The shell was built with its helpers (builder, applyStyles, defaultScheduler) fa
 ### no-refactor-p2-t6 · discovery · no-refactor-because P2.T6 (phase 2)
 
 No refactor step: the task adds the fixture, demo page, scripts and browser tests; the visual review led to CSS fixes recorded as findings below, not to restructuring.
+
+<!-- fr:journal kind=decision scope=plan id=p2-prose-run-source created=2026-11-17T16:37:51+00:00 phase=2 decided_by=agent -->
+### p2-prose-run-source · decision · Bare prose runs share their parent container as source; line from the nearest data-line ancestor (phase 2) (phase 2)
+
+Inline text between blocks (loose text in a div) has no element of its own. The core never wraps or mutates page text, so such a run keeps the parent container as its `SourceRef.element` (several blocks can share one element: jumpToBlock and normal-reading marks then land on the container). Its `line` comes from the nearest `data-line` ancestor, so the VS Code cursor still lands on a source line. This stays a known limit (review finding p2-r8c).
