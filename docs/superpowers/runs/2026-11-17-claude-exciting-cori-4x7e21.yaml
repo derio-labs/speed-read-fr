@@ -1,0 +1,27 @@
+schema_version: 11
+run: 2026-11-17-claude-exciting-cori-4x7e21
+workflow: fr-goal@1
+branch: claude/exciting-cori-4x7e21
+started: '2026-11-17T15:08:54+00:00'
+cursor: brainstorm
+steps:
+  brainstorm:
+    state: pending
+  spec-review:
+    state: pending
+  plan:
+    state: pending
+  plan-review:
+    state: pending
+  implement:
+    state: pending
+    members:
+    - implement-phase
+    - review-phase
+  journal-check:
+    state: pending
+  lens-review:
+    state: pending
+  deliver:
+    state: pending
+fr_version: 8.1.3
