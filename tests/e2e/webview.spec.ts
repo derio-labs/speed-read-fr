@@ -132,3 +132,23 @@ test('closing the reader tells the extension', async ({ page }) => {
   await expect.poll(async () => (await posted(page)).some((m) => m.type === 'close')).toBe(true);
   await expect(page.locator('.sr-reader')).toHaveCount(0);
 });
+
+test('an edited source shows a "Document changed" notice whose Re-read asks the extension to re-read', async ({ page }) => {
+  await open(page);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await posted(page)).some((m) => m.type === 'position')).toBe(true);
+  await page.keyboard.press('Space');
+  const notice = page.locator('.sr-stale-notice');
+  await expect(notice).toBeHidden();
+  await page.evaluate(() => window.postMessage({ type: 'stale' }, '*'));
+  await expect(notice).toBeVisible();
+  await expect(notice).toHaveAttribute('role', 'status');
+  await expect(notice).toContainText('Document changed');
+  // The notice does not take focus from the reader.
+  await expect(page.locator('.sr-reader')).toBeFocused();
+  const lastLine = (await posted(page)).filter((m) => m.type === 'position').at(-1)!.line;
+  await notice.getByRole('button', { name: 'Re-read' }).click();
+  await expect.poll(async () => (await posted(page)).filter((m) => m.type === 'reread')).toEqual([{ type: 'reread', line: lastLine }]);
+  await sendRead(page, serverOrigin(), { markdown: await readFixture('sample.md'), settings: FAST, startLine: 17 });
+  await expect(notice).toBeHidden();
+});

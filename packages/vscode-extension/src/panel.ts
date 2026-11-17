@@ -3,7 +3,7 @@ import { normalizeSettings, type Settings } from '@speed-read/core';
 import { readSettings, writeSettings } from './config';
 import { createNonce, webviewHtml } from './html';
 import type { FromWebview, ReadMessage, ToWebview } from './messages';
-import type { LineRange } from './ranges';
+import { blockStart, type LineRange } from './ranges';
 
 /** What to read: a document and a range (`endLine` absent: to the end). */
 export interface ReadRequest {
@@ -21,15 +21,26 @@ const dirname = (uri: vscode.Uri) => uri.with({ path: uri.path.replace(/\/[^/]*$
 export class ReaderPanel implements vscode.Disposable {
   private panel: vscode.WebviewPanel | null = null;
   private ready = false;
-  private pending: ToWebview | null = null;
-  private source: vscode.Uri | null = null;
+  private pending: ReadMessage | null = null;
+  /** The document of the current read; null once the panel is disposed. */
+  private source: vscode.TextDocument | null = null;
   private lastLine: number | null = null;
+  /** The source was edited after the read: its lines no longer match, so the cursor stops following. */
+  private stale = false;
+  private readonly watchEdits: vscode.Disposable;
   /** Settings writes from the webview, run one after another. */
   private writes: Promise<void> = Promise.resolve();
   private pendingWrites = 0;
   private sentSettings: Settings | null = null;
 
-  constructor(private readonly extensionUri: vscode.Uri) {}
+  constructor(private readonly extensionUri: vscode.Uri) {
+    this.watchEdits = vscode.workspace.onDidChangeTextDocument((e) => {
+      if (this.stale || !this.source || e.contentChanges.length === 0) return;
+      if (e.document.uri.toString() !== this.source.uri.toString()) return;
+      this.stale = true;
+      this.post({ type: 'stale' });
+    });
+  }
 
   show({ document, range, settings }: ReadRequest): void {
     const roots = this.resourceRoots(document);
@@ -43,8 +54,9 @@ export class ReaderPanel implements vscode.Disposable {
       }
       this.panel.reveal(undefined, false);
     }
-    this.source = document.uri;
+    this.source = document;
     this.lastLine = null;
+    this.stale = false;
     const message: ReadMessage = {
       type: 'read',
       markdown: document.getText(),
@@ -80,12 +92,30 @@ export class ReaderPanel implements vscode.Disposable {
   }
 
   dispose(): void {
+    this.watchEdits.dispose();
     this.panel?.dispose();
   }
 
+  /**
+   * Post to the webview, or hold the message until it is ready. Only a read is held: it carries the
+   * settings, so a settings push before it only updates the held read, and a notice is dropped.
+   */
   private post(message: ToWebview) {
     if (this.ready) void this.panel?.webview.postMessage(message);
-    else this.pending = message;
+    else if (message.type === 'read') this.pending = message;
+    else if (message.type === 'settings' && this.pending?.type === 'read') this.pending = { ...this.pending, settings: message.settings };
+  }
+
+  /**
+   * Re-read the edited source from the block at the current position: the source editor's cursor,
+   * which VS Code moved along with the edits, else the line the webview last read.
+   */
+  private reread(line: unknown) {
+    const document = this.source;
+    if (!document || document.isClosed) return;
+    const editor = vscode.window.visibleTextEditors.find((e) => e.document.uri.toString() === document.uri.toString());
+    const at = editor ? editor.selection.active.line : Number.isInteger(line) && (line as number) >= 0 ? (line as number) : 0;
+    this.show({ document, range: { startLine: blockStart(document.getText(), at) }, settings: readSettings() });
   }
 
   private resourceRoots(document: vscode.TextDocument): vscode.Uri[] {
@@ -127,8 +157,8 @@ export class ReaderPanel implements vscode.Disposable {
    * editor no longer visible or a disposed panel is ignored, and the cursor stays where it was.
    */
   private follow(line: unknown) {
-    const source = this.source?.toString();
-    if (!source || typeof line !== 'number' || !Number.isInteger(line) || line < 0 || line === this.lastLine) return;
+    const source = this.source?.uri.toString();
+    if (!source || this.stale || typeof line !== 'number' || !Number.isInteger(line) || line < 0 || line === this.lastLine) return;
     const editor = vscode.window.visibleTextEditors.find((e) => !e.document.isClosed && e.document.uri.toString() === source);
     if (!editor || line >= editor.document.lineCount) return;
     this.lastLine = line;
@@ -152,6 +182,9 @@ export class ReaderPanel implements vscode.Disposable {
         break;
       case 'position':
         this.follow(message.line);
+        break;
+      case 'reread':
+        this.reread(message.line);
         break;
       case 'close':
         this.panel?.dispose();

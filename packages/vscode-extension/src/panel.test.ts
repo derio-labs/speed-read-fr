@@ -35,6 +35,14 @@ describe('panel reuse', () => {
     expect(reads()[1].markdown).toBe('x');
   });
 
+  it('a settings push while the reload is pending updates the held read instead of replacing it', () => {
+    const other = __stub.document('x', { path: '/elsewhere/b.md' });
+    reader.show({ document: other as unknown as vscode.TextDocument, range: { startLine: 0 }, settings: DEFAULT_SETTINGS });
+    reader.pushSettings({ ...DEFAULT_SETTINGS, wpm: 410 });
+    panel.webview.receive({ type: 'ready' });
+    expect(panel.webview.posted.at(-1)).toMatchObject({ type: 'read', markdown: 'x', settings: { wpm: 410 } });
+  });
+
   it('a document in the same folder is posted at once, without a reload', () => {
     const sibling = __stub.document('y', { path: '/work/notes/c.md' });
     reader.show({ document: sibling as unknown as vscode.TextDocument, range: { startLine: 0 }, settings: DEFAULT_SETTINGS });
@@ -97,5 +105,46 @@ describe('cursor follow (R21)', () => {
     panel.webview.receive({ type: 'position', line: 2 });
     expect(at(otherEditor)).toEqual([2, 0, 2, 0]);
     expect(at(editor)).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe('document edited after the read (snapshot)', () => {
+  const posted = () => panel.webview.posted;
+
+  it('stops cursor follow and tells the webview, once', () => {
+    panel.webview.receive({ type: 'position', line: 2 });
+    __stub.changeDocument(editor.document, 'inserted\n' + TEXT);
+    __stub.changeDocument(editor.document, 'inserted twice\n' + TEXT);
+    expect(posted().filter((m) => m.type === 'stale')).toHaveLength(1);
+    panel.webview.receive({ type: 'position', line: 4 });
+    expect(at(editor)).toEqual([2, 0, 2, 0]);
+  });
+
+  it('ignores events with no content change and edits to other documents', () => {
+    __stub.changeDocument(editor.document, TEXT, 0);
+    __stub.changeDocument(__stub.document('other', { path: '/work/notes/o.md' }), 'changed');
+    expect(posted().filter((m) => m.type === 'stale')).toHaveLength(0);
+    panel.webview.receive({ type: 'position', line: 4 });
+    expect(at(editor)).toEqual([4, 0, 4, 0]);
+  });
+
+  it('re-reads the edited document from the block at the current position, and follows again', () => {
+    panel.webview.receive({ type: 'position', line: 4 });
+    // VS Code shifts the caret with the edit: two lines inserted above it.
+    __stub.changeDocument(editor.document, 'new\n\n' + TEXT);
+    editor.selection = new Selection(new Position(6, 0), new Position(6, 0));
+    panel.webview.receive({ type: 'reread', line: 4 });
+    const read = posted().filter((m) => m.type === 'read').at(-1);
+    expect(read).toMatchObject({ markdown: 'new\n\n' + TEXT, startLine: 6 });
+    expect(read).not.toHaveProperty('endLine');
+    panel.webview.receive({ type: 'position', line: 8 });
+    expect(at(editor)).toEqual([8, 0, 8, 0]);
+  });
+
+  it('re-reads from the line the webview sends when the source editor is not visible', () => {
+    __stub.changeDocument(editor.document, TEXT + '\n\nmore');
+    __stub.state.visibleTextEditors.length = 0;
+    panel.webview.receive({ type: 'reread', line: 5 });
+    expect(posted().filter((m) => m.type === 'read').at(-1)).toMatchObject({ startLine: 6 });
   });
 });

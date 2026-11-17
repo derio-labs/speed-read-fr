@@ -19,11 +19,18 @@ export interface SettingsMessage {
   settings: Settings;
 }
 
-export type ToWebview = ReadMessage | SettingsMessage;
+/** Extension -> webview: the source was edited after the read; offer to re-read. */
+export interface StaleMessage {
+  type: 'stale';
+}
+
+export type ToWebview = ReadMessage | SettingsMessage | StaleMessage;
 
 /** Webview -> extension. */
 export type FromWebview =
   | { type: 'ready' }
   | { type: 'position'; line: number }
   | { type: 'settings'; settings: Settings }
-  | { type: 'close' };
+  | { type: 'close' }
+  /** Re-read the edited source from the current position (`line`: the last line the webview read). */
+  | { type: 'reread'; line: number | null };

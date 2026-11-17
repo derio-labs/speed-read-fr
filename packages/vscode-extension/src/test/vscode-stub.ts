@@ -179,6 +179,7 @@ function createState() {
     /** Documents `openTextDocument` can open that are not open yet. */
     files: new Map<string, StubDocument>(),
     activeEditorChanged: new EventEmitter<StubEditor | undefined>(),
+    documentChanged: new EventEmitter<{ document: StubDocument; contentChanges: unknown[] }>(),
     infoMessages: [] as string[],
     focusCalls: 0,
   };
@@ -285,6 +286,7 @@ export const workspace = {
       },
     };
   },
+  onDidChangeTextDocument: (listener: Listener<{ document: StubDocument; contentChanges: unknown[] }>) => state.documentChanged.event(listener),
   onDidChangeConfiguration: (listener: Listener<{ affectsConfiguration(section: string): boolean }>) => state.configChanged.event(listener),
 };
 
@@ -321,10 +323,27 @@ export const __stub = {
   },
   /** An open text document (in `workspace.textDocuments`), or with `open: false` one only `openTextDocument` finds. */
   document(text: string, { path = '/work/notes/doc.md', languageId = 'markdown', open = true } = {}): StubDocument {
-    const doc = { uri: Uri.file(path), languageId, isClosed: false, lineCount: text.split('\n').length, getText: () => text };
+    let current = text;
+    const doc = {
+      uri: Uri.file(path),
+      languageId,
+      isClosed: false,
+      get lineCount() {
+        return current.split('\n').length;
+      },
+      getText: () => current,
+      setText(next: string) {
+        current = next;
+      },
+    };
     if (open) state.textDocuments.push(doc);
     else state.files.set(doc.uri.toString(), doc);
     return doc;
+  },
+  /** Edit `doc`: its text becomes `text` and a change event fires (`changes` 0 models a save or dirty-flag event). */
+  changeDocument(doc: StubDocument, text: string, changes = 1) {
+    (doc as StubDocument & { setText(t: string): void }).setText(text);
+    state.documentChanged.fire({ document: doc, contentChanges: Array.from({ length: changes }, () => ({})) });
   },
   /** Focus moves to the webview: VS Code then reports no active text editor. */
   focusWebview() {

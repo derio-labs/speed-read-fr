@@ -50,6 +50,20 @@ body.vscode-light .sr-reader, body.vscode-high-contrast-light .sr-reader { color
 .sr-md .katex { font-size: 1.15em; }
 .sr-md blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--vscode-textBlockQuote-border, #8888); }
 .sr-md a { color: var(--vscode-textLink-foreground); text-decoration: none; }
+.sr-stale-notice {
+  position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 10;
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 12px; border-radius: 6px;
+  font: 12px/1.4 var(--vscode-font-family, system-ui, sans-serif);
+  color: var(--vscode-notifications-foreground, var(--vscode-editor-foreground));
+  background: var(--vscode-notifications-background, var(--vscode-editorWidget-background));
+  border: 1px solid var(--vscode-notifications-border, var(--vscode-widget-border, #8884));
+  box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+}
+.sr-stale-notice[hidden] { display: none; }
+.sr-stale-notice button {
+  font: inherit; cursor: pointer; padding: 2px 10px; border-radius: 4px; border: 0;
+  color: var(--vscode-button-foreground, #fff); background: var(--vscode-button-background, #0078d4);
+}
 `;
 
 const style = document.createElement('style');
@@ -87,6 +101,20 @@ function extractRendered() {
 
 const isDark = () => document.body.classList.contains('vscode-dark') || (document.body.classList.contains('vscode-high-contrast') && !document.body.classList.contains('vscode-high-contrast-light'));
 
+/** Shown when the source was edited after this read: its lines no longer match (cursor follow stops). */
+const staleNotice = document.createElement('div');
+staleNotice.className = 'sr-stale-notice';
+staleNotice.setAttribute('role', 'status');
+staleNotice.hidden = true;
+const staleText = document.createElement('span');
+staleText.textContent = 'Document changed';
+const rereadButton = document.createElement('button');
+rereadButton.type = 'button';
+rereadButton.textContent = 'Re-read';
+staleNotice.append(staleText, rereadButton);
+document.body.append(staleNotice);
+rereadButton.addEventListener('click', () => vscode.postMessage({ type: 'reread', line: lastLine }));
+
 let handle: ReaderHandle | null = null;
 let settings: Settings | null = null;
 let generation = 0;
@@ -113,6 +141,7 @@ async function read(message: ReadMessage) {
   handle?.destroy();
   handle = null;
   lastLine = null;
+  staleNotice.hidden = true;
   settings = message.settings;
   const base = message.baseUri;
   const range = { startLine: message.startLine, endLine: message.endLine };
@@ -138,6 +167,7 @@ async function read(message: ReadMessage) {
 window.addEventListener('message', (event: MessageEvent<ToWebview>) => {
   const message = event.data;
   if (message?.type === 'read') void read(message);
+  else if (message?.type === 'stale') staleNotice.hidden = false;
   else if (message?.type === 'settings') {
     if (JSON.stringify(message.settings) === JSON.stringify(settings)) return;
     settings = message.settings;
