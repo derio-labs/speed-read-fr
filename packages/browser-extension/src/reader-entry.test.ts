@@ -3,7 +3,7 @@ import type { Doc } from '@speed-read/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExtApi } from './ext';
 import { createReader, DOCK_WIDTH_PX, install, type Reader } from './reader-entry';
-import { BRIDGE_KEY, type ContentBridge } from './shared';
+import { BRIDGE_KEY, READER_KEY, type ContentBridge } from './shared';
 import { SETTINGS_KEY } from './storage';
 
 const PAGE = `
@@ -49,7 +49,7 @@ const hostEl = () => document.querySelector('[data-speed-read-host]') as HTMLEle
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 let bridge: ContentBridge;
-let scope: Record<string, unknown>;
+let scope: Record<PropertyKey, unknown>;
 let reader: Reader | undefined;
 
 beforeEach(() => {
@@ -76,29 +76,42 @@ function make(stored?: Record<string, unknown>) {
 describe('install', () => {
   it('registers one message listener and guards a second evaluation', () => {
     const fake = fakeApi();
-    const s: Record<string, unknown> = { chrome: fake.api };
+    const s: Record<PropertyKey, unknown> = { chrome: fake.api };
     expect(install(s, window)).toBe(true);
     expect(install(s, window)).toBe(false);
     expect(fake.raw.runtime.onMessage.addListener).toHaveBeenCalledOnce();
-    expect(s.__speedRead).toBeTruthy();
+    expect(s[READER_KEY]).toBeTruthy();
+  });
+
+  it('picks the real API over a page element named browser', () => {
+    const fake = fakeApi();
+    const s: Record<PropertyKey, unknown> = { browser: document.createElement('div'), chrome: fake.api };
+    expect(install(s, window)).toBe(true);
+    expect(fake.raw.runtime.onMessage.addListener).toHaveBeenCalledOnce();
+  });
+
+  it('is not fooled by a page element named like a guard', () => {
+    const fake = fakeApi();
+    const s: Record<PropertyKey, unknown> = { chrome: fake.api, __speedRead: document.createElement('div') };
+    expect(install(s, window)).toBe(true);
   });
 
   it('does nothing outside an extension', () => {
-    const s: Record<string, unknown> = {};
+    const s: Record<PropertyKey, unknown> = {};
     expect(install(s, window)).toBe(false);
-    expect(s.__speedRead).toBeUndefined();
+    expect(s[READER_KEY]).toBeUndefined();
   });
 
   it('opens the reader on a mode message and ignores other messages', async () => {
     const fake = fakeApi();
-    const s: Record<string, unknown> = { browser: fake.api, [BRIDGE_KEY]: bridge };
+    const s: Record<PropertyKey, unknown> = { browser: fake.api, [BRIDGE_KEY]: bridge };
     install(s, window);
     fake.listeners[0]({ type: 'other' }, {});
     await flush();
     expect(hostEl()).toBeNull();
     fake.listeners[0]({ mode: 'auto' }, {});
     await vi.waitFor(() => expect(hostEl()).not.toBeNull());
-    (s.__speedRead as Reader).close();
+    (s[READER_KEY] as Reader).close();
   });
 });
 

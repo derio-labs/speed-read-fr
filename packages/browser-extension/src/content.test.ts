@@ -2,9 +2,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HOVER_ATTRIBUTE, installContent } from './content';
 import type { ExtApi } from './ext';
-import { BRIDGE_KEY, type ContentBridge } from './shared';
+import { BRIDGE_KEY, bridgeOf, type ContentBridge } from './shared';
 
-let scope: Record<string, unknown>;
+let scope: Record<PropertyKey, unknown>;
 let sendMessage: ReturnType<typeof vi.fn>;
 let uninstall: () => void;
 
@@ -128,6 +128,69 @@ describe('context-menu target', () => {
     expect(bridge().contextTarget()).toBe($('inline'));
     pointer('contextmenu', $('li'));
     expect(bridge().contextTarget()).toBe($('li'));
+  });
+
+  it('is cleared once used', () => {
+    pointer('contextmenu', $('li'));
+    expect(bridge().contextTarget()).toBe($('li'));
+    expect(bridge().contextTarget()).toBeNull();
+  });
+
+  it('is not returned once it left the page', () => {
+    pointer('contextmenu', $('li'));
+    $('li').remove();
+    expect(bridge().contextTarget()).toBeNull();
+  });
+
+  it('the hover target is cleared once used', () => {
+    pointer('mousemove', $('link'), true);
+    pointer('click', $('link'), true);
+    expect(bridge().hoverTarget()).toBe($('p1'));
+    expect(bridge().hoverTarget()).toBeNull();
+  });
+});
+
+describe('inside the open reader', () => {
+  it('outlines nothing and intercepts nothing', () => {
+    const host = document.createElement('div');
+    host.setAttribute('data-speed-read-host', '');
+    host.innerHTML = '<p id="inside">Clone text <a id="inlink" href="#y">link</a></p>';
+    document.body.append(host);
+    pointer('mousemove', $('inlink'), true);
+    expect(outlined()).toEqual([]);
+    key('keydown', true);
+    expect(outlined()).toEqual([]);
+    for (const type of ['mousedown', 'mouseup', 'click', 'auxclick']) expect(pointer(type, $('inlink'), true).defaultPrevented, type).toBe(false);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('clears an outline when the pointer moves into the reader', () => {
+    const host = document.createElement('div');
+    host.setAttribute('data-speed-read-host', '');
+    document.body.append(host);
+    pointer('mousemove', $('inline'), true);
+    expect(outlined()).toEqual([$('p2')]);
+    pointer('mousemove', host, true);
+    expect(outlined()).toEqual([]);
+  });
+});
+
+describe('a page with elements named like the extension globals', () => {
+  it('still installs: the bridge lives under a symbol, not a string a named element can shadow', () => {
+    uninstall();
+    const named = document.createElement('div');
+    const s: Record<PropertyKey, unknown> = { __speedReadContent: named, __speedRead: named };
+    const off = installContent(s, window, { runtime: { sendMessage } } as unknown as ExtApi);
+    expect(typeof (s[BRIDGE_KEY] as ContentBridge).contextTarget).toBe('function');
+    pointer('contextmenu', $('li'));
+    expect((s[BRIDGE_KEY] as ContentBridge).contextTarget()).toBe($('li'));
+    off();
+    uninstall = () => {};
+  });
+
+  it('bridgeOf ignores a value that is not a bridge', () => {
+    expect(bridgeOf({ [BRIDGE_KEY]: document.createElement('div') })).toBeUndefined();
+    expect(bridgeOf({ __speedReadContent: { contextTarget: () => null, hoverTarget: () => null } })).toBeUndefined();
   });
 });
 

@@ -17,6 +17,8 @@ export interface MessageSender {
 
 export interface MenuClickInfo {
   menuItemId: string | number;
+  /** 0 (or absent) for the top frame. */
+  frameId?: number;
 }
 
 export interface ExtApi {
@@ -43,8 +45,13 @@ export interface ExtApi {
 
 type ExtScope = { browser?: ExtApi; chrome?: ExtApi };
 
+/** An extension API object, not a page element that an `id` made a named property of the global. */
+const isApi = (value: unknown): value is ExtApi =>
+  !!value && typeof value === 'object' && typeof (value as { runtime?: unknown }).runtime === 'object' && !!(value as { runtime?: unknown }).runtime;
+
 /** The extension API of `scope` (the global object by default), or undefined outside an extension. */
 export function ext(scope: object = globalThis): ExtApi | undefined {
   const s = scope as ExtScope;
-  return s.browser ?? s.chrome;
+  if (isApi(s.browser)) return s.browser;
+  return isApi(s.chrome) ? s.chrome : undefined;
 }

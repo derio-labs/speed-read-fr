@@ -4,10 +4,14 @@
  * the content script for its remembered targets through a global, not a message.
  */
 
-/** How the reader is opened: by the toolbar or shortcut, a context-menu item, or Alt+click. */
-export type ReadMode = 'auto' | 'selection' | 'from-here' | 'from-block';
+/**
+ * How the reader is opened: by the toolbar or shortcut (`auto`), a context-menu item (`selection`,
+ * `from-here`; `main` when the item was used in a subframe, which the top-frame reader cannot see
+ * into), or Alt+click (`from-block`).
+ */
+export type ReadMode = 'auto' | 'selection' | 'from-here' | 'from-block' | 'main';
 
-export const READ_MODES: readonly ReadMode[] = ['auto', 'selection', 'from-here', 'from-block'];
+export const READ_MODES: readonly ReadMode[] = ['auto', 'selection', 'from-here', 'from-block', 'main'];
 
 /** Background -> reader. */
 export interface ReadMessage {
@@ -19,7 +23,7 @@ export const HOVER_MESSAGE = { type: 'read-from-hover' } as const;
 
 export const isReadMessage = (m: unknown): m is ReadMessage => READ_MODES.includes((m as ReadMessage | null)?.mode as ReadMode);
 
-/** The content script's answers to the reader. */
+/** The content script's answers to the reader. Each target is handed out once, and only while in the page. */
 export interface ContentBridge {
   /** The element under the last `contextmenu` event. */
   contextTarget(): Element | null;
@@ -27,6 +31,18 @@ export interface ContentBridge {
   hoverTarget(): Element | null;
 }
 
-export const BRIDGE_KEY = '__speedReadContent';
+/**
+ * Keys of the shared state in the isolated world's global. Symbols, because an element `id` on the
+ * page becomes a named property of `window`, even in the isolated world, and would shadow a string key.
+ */
+export const BRIDGE_KEY: unique symbol = Symbol.for('speed-read.content-bridge');
+export const READER_KEY: unique symbol = Symbol.for('speed-read.reader');
 
-export const bridgeOf = (scope: object): ContentBridge | undefined => (scope as Record<string, ContentBridge | undefined>)[BRIDGE_KEY];
+/** An own property of `scope` under `key`, or undefined. */
+export const ownValue = (scope: object, key: PropertyKey): unknown =>
+  Object.prototype.hasOwnProperty.call(scope, key) ? (scope as Record<PropertyKey, unknown>)[key] : undefined;
+
+export function bridgeOf(scope: object): ContentBridge | undefined {
+  const b = ownValue(scope, BRIDGE_KEY) as Partial<ContentBridge> | undefined;
+  return b && typeof b.contextTarget === 'function' && typeof b.hoverTarget === 'function' ? (b as ContentBridge) : undefined;
+}

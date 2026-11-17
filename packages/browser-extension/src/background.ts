@@ -64,7 +64,9 @@ api.commands.onCommand.addListener((command, tab) => {
 
 api.contextMenus.onClicked.addListener((info, tab) => {
   const mode = MENU_MODES[String(info.menuItemId)];
-  if (mode) open(tab?.id, mode);
+  if (!mode) return;
+  // The reader runs in the top frame only: a menu used inside a frame reads the page's main content.
+  open(tab?.id, info.frameId ? 'main' : mode);
 });
 
 api.runtime.onMessage.addListener((message, sender) => {

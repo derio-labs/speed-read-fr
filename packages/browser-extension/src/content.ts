@@ -5,9 +5,11 @@
  * anything.
  */
 import { ext, type ExtApi } from './ext';
-import { BRIDGE_KEY, HOVER_MESSAGE, type ContentBridge } from './shared';
+import { BRIDGE_KEY, bridgeOf, HOVER_MESSAGE, type ContentBridge } from './shared';
 
 export const HOVER_ATTRIBUTE = 'data-speed-read-hover';
+/** Marks the reader's host element; nothing inside it (the reader, its slotted clones) is hovered. */
+export const READER_HOST_SELECTOR = '[data-speed-read-host]';
 const OUTLINE = '2px solid #f97316';
 const PRESS_EVENTS = ['mousedown', 'mouseup', 'click', 'auxclick'];
 const BLOCK_TAGS = new Set(['P', 'LI', 'PRE', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'TABLE', 'FIGURE', 'DD', 'DT', 'DETAILS']);
@@ -23,12 +25,19 @@ export function blockOf(el: Element | null, win: Window): Element | null {
   return fallback;
 }
 
-const elementTarget = (e: Event): Element | null => (e.target instanceof Element ? e.target : null);
+/** The event's element target, unless it is inside the open reader. */
+function pageTarget(e: Event): Element | null {
+  const target = e.target instanceof Element ? e.target : null;
+  return target && !target.closest(READER_HOST_SELECTOR) ? target : null;
+}
+
+/** Hand `el` out once, and only while it is in the page. */
+const take = (el: Element | null): Element | null => (el?.isConnected ? el : null);
 
 /** Install the listeners on `win` and the bridge on `scope`; returns the uninstall. */
 export function installContent(scope: object, win: Window, api: ExtApi | undefined): () => void {
-  const slots = scope as Record<string, ContentBridge | undefined>;
-  if (slots[BRIDGE_KEY]) return () => {};
+  const slots = scope as Record<PropertyKey, ContentBridge | undefined>;
+  if (bridgeOf(scope)) return () => {};
   let outlined: HTMLElement | null = null;
   let saved: [string, string, string, string] = ['', '', '', ''];
   let underPointer: Element | null = null;
@@ -60,7 +69,7 @@ export function installContent(scope: object, win: Window, api: ExtApi | undefin
   }
 
   const onMove = (e: MouseEvent) => {
-    underPointer = elementTarget(e);
+    underPointer = pageTarget(e);
     if (e.altKey) outline(underPointer);
     else clear();
   };
@@ -80,7 +89,7 @@ export function installContent(scope: object, win: Window, api: ExtApi | undefin
   };
 
   const onPress = (e: MouseEvent) => {
-    const target = elementTarget(e);
+    const target = pageTarget(e);
     if (!outlined || !e.altKey || !target || !outlined.contains(target)) return;
     e.preventDefault();
     e.stopImmediatePropagation();
@@ -92,7 +101,7 @@ export function installContent(scope: object, win: Window, api: ExtApi | undefin
   };
 
   const onContextMenu = (e: MouseEvent) => {
-    contextTarget = elementTarget(e);
+    contextTarget = e.target instanceof Element ? e.target : null;
   };
 
   const listeners: [string, EventListener][] = [
@@ -105,8 +114,16 @@ export function installContent(scope: object, win: Window, api: ExtApi | undefin
   ];
   for (const [type, fn] of listeners) win.addEventListener(type, fn, true);
   slots[BRIDGE_KEY] = {
-    contextTarget: () => contextTarget,
-    hoverTarget: () => hoverTarget,
+    contextTarget() {
+      const el = take(contextTarget);
+      contextTarget = null;
+      return el;
+    },
+    hoverTarget() {
+      const el = take(hoverTarget);
+      hoverTarget = null;
+      return el;
+    },
   };
   return () => {
     clear();

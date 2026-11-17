@@ -6,7 +6,7 @@ import { blockWords, DEFAULT_SETTINGS, extract, extractRange, mountReader, norma
 import { findContainer } from './adapters/index';
 import { ext, type ExtApi } from './ext';
 import { createBrowserHost } from './host';
-import { bridgeOf, isReadMessage, type ReadMode } from './shared';
+import { bridgeOf, isReadMessage, ownValue, READER_KEY, type ReadMode } from './shared';
 import { extensionStore } from './storage';
 
 export const DOCK_WIDTH_PX = 420;
@@ -211,12 +211,11 @@ export function createReader({ api, win, scope }: ReaderDeps): Reader {
 
 /** Register the reader once per page: a repeated injection is a no-op (spec section 7). */
 export function install(scope: object, win: Window): boolean {
-  const g = scope as { __speedRead?: Reader };
-  if (g.__speedRead) return false;
+  if (ownValue(scope, READER_KEY)) return false;
   const api = ext(scope);
   if (!api) return false;
   const reader = createReader({ api, win, scope });
-  g.__speedRead = reader;
+  (scope as Record<PropertyKey, unknown>)[READER_KEY] = reader;
   api.runtime.onMessage.addListener((message) => {
     if (isReadMessage(message)) void reader.open(message.mode);
   });

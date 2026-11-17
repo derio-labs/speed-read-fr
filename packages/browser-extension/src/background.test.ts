@@ -108,9 +108,15 @@ describe('routing to openReader', () => {
     ['speed-read-selection', 'selection'],
     ['speed-read-from-here', 'from-here'],
   ])('the menu item %s opens %s', async (menuItemId, mode) => {
-    fake.fire('menu', { menuItemId }, { id: 5 });
+    fake.fire('menu', { menuItemId, frameId: 0 }, { id: 5 });
     await settle();
     expect(fake.calls).toEqual(['inject:5:reader.js', `send:5:${mode}`]);
+  });
+
+  it.each(['speed-read-selection', 'speed-read-from-here'])('the menu item %s in a subframe reads the top page main content', async (menuItemId) => {
+    fake.fire('menu', { menuItemId, frameId: 4 }, { id: 5 });
+    await settle();
+    expect(fake.calls).toEqual(['inject:5:reader.js', 'send:5:main']);
   });
 
   it('a hover message opens from-block in the sender tab', async () => {
