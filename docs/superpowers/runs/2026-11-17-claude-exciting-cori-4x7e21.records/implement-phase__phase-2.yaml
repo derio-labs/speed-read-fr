@@ -89,7 +89,7 @@ journal:
       transparent, the panel keeps its border and shadow); a double frame on code in the pane (demo page
       styles lowered to `:where` specificity).
 resolves: []
-evidence: {tests: /tmp/claude-0/-home-user-speed-read-fr/304c235a-e6b6-566c-a451-2bef9b4242bd/scratchpad/logs/phase-2-suite.log}
+evidence: {}
 visual:
   - row: reader-three-zone-ui
     script: scripts/capture-visual.mjs
