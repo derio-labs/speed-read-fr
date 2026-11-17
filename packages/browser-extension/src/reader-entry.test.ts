@@ -18,10 +18,10 @@ const PAGE = `
   <footer><p>Footer words</p></footer>`;
 
 function fakeApi(stored: Record<string, unknown> = {}) {
-  const listeners: ((m: unknown, s: unknown) => unknown)[] = [];
+  const listeners: ((m: unknown, s: unknown, reply?: (r: unknown) => void) => unknown)[] = [];
   const data = { ...stored };
   const api = {
-    runtime: { onMessage: { addListener: vi.fn((fn: (m: unknown, s: unknown) => unknown) => listeners.push(fn)) } },
+    runtime: { onMessage: { addListener: vi.fn((fn: (m: unknown, s: unknown, reply?: (r: unknown) => void) => unknown) => listeners.push(fn)) } },
     storage: {
       local: {
         get: vi.fn(async (key: string) => (key in data ? { [key]: data[key] } : {})),
@@ -628,5 +628,122 @@ describe('dock and fixed page elements (p3-r16)', () => {
     const { reader } = make();
     await reader.open('auto');
     expect(fab.getAttribute('style')).toBe(before);
+  });
+});
+
+describe('a reader that cannot open (l-errors-r2)', () => {
+  const notice = () => document.querySelector('[data-speed-read-notice]');
+
+  it('a failure resolving the new content keeps the open reader open; the handler shows a notice and replies with the cause', async () => {
+    const fake = fakeApi();
+    const s: Record<PropertyKey, unknown> = { chrome: fake.api, [BRIDGE_KEY]: bridge };
+    install(s, window);
+    const first = vi.fn();
+    fake.listeners[0]({ mode: 'auto' }, {}, first);
+    await vi.waitFor(() => expect(first).toHaveBeenCalledWith({ ok: true }));
+    const open = (s[READER_KEY] as Reader).current;
+    expect(open).not.toBeNull();
+    // Extraction of the new content throws.
+    const spy = vi.spyOn(window, 'getSelection').mockImplementation(() => {
+      throw new Error('extraction exploded');
+    });
+    const second = vi.fn();
+    expect(fake.listeners[0]({ mode: 'auto' }, {}, second)).toBe(true);
+    await vi.waitFor(() => expect(second).toHaveBeenCalled());
+    spy.mockRestore();
+    expect(second.mock.calls[0][0]).toEqual({ ok: false, error: 'extraction exploded' });
+    expect((s[READER_KEY] as Reader).current).toBe(open);
+    expect(hostEl()).not.toBeNull();
+    expect(notice()?.textContent).toBe('Speed Read could not read this page');
+    (s[READER_KEY] as Reader).close();
+  });
+
+  it('the notice dismisses itself', async () => {
+    vi.useFakeTimers();
+    const fake = fakeApi();
+    const s: Record<PropertyKey, unknown> = { chrome: fake.api, [BRIDGE_KEY]: bridge };
+    install(s, window);
+    const spy = vi.spyOn(window, 'getSelection').mockImplementation(() => {
+      throw new Error('extraction exploded');
+    });
+    const reply = vi.fn();
+    fake.listeners[0]({ mode: 'auto' }, {}, reply);
+    await vi.waitFor(() => expect(reply).toHaveBeenCalled());
+    spy.mockRestore();
+    expect(notice()).not.toBeNull();
+    vi.advanceTimersByTime(4000);
+    expect(notice()).toBeNull();
+  });
+
+  it('a document with no body is a reported failure, not an unhandled rejection', async () => {
+    const fake = fakeApi();
+    const s: Record<PropertyKey, unknown> = { chrome: fake.api, [BRIDGE_KEY]: bridge };
+    install(s, window);
+    const body = document.body;
+    body.remove();
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    const reply = vi.fn();
+    try {
+      fake.listeners[0]({ mode: 'auto' }, {}, reply);
+      await vi.waitFor(() => expect(reply).toHaveBeenCalled());
+    } finally {
+      document.documentElement.append(body);
+    }
+    await flush();
+    process.off('unhandledRejection', unhandled);
+    expect(reply.mock.calls[0][0]).toEqual({ ok: false, error: 'Nothing to read was found on this page' });
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
+  it('a mount that throws leaves nothing on the page and is reported', async () => {
+    const fake = fakeApi();
+    const s: Record<PropertyKey, unknown> = { chrome: fake.api, [BRIDGE_KEY]: bridge };
+    install(s, window);
+    const spy = vi.spyOn(HTMLElement.prototype, 'attachShadow').mockImplementation(() => {
+      throw new Error('no shadow');
+    });
+    const reply = vi.fn();
+    fake.listeners[0]({ mode: 'auto' }, {}, reply);
+    await vi.waitFor(() => expect(reply).toHaveBeenCalled());
+    spy.mockRestore();
+    expect(reply.mock.calls[0][0]).toEqual({ ok: false, error: 'no shadow' });
+    expect(hostEl()).toBeNull();
+    expect((s[READER_KEY] as Reader).current).toBeNull();
+  });
+
+  it('opening again does not read the open reader’s own copies', async () => {
+    const { reader } = make();
+    await reader.open('auto');
+    const before = words(reader.current!.doc);
+    await reader.open('auto');
+    expect(words(reader.current!.doc)).toBe(before);
+  });
+});
+
+describe('a refused settings write (l-errors-r3)', () => {
+  it('still re-mounts on a display change and shows "Settings not saved"', async () => {
+    const { reader, raw } = make();
+    await reader.open('auto');
+    raw.storage.local.set.mockRejectedValue(new Error('Extension context invalidated.'));
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    (hostEl()!.shadowRoot!.querySelector('.sr-settings-button') as HTMLElement).click();
+    const control = hostEl()!.shadowRoot!.querySelector('.sr-settings [name="display"]') as HTMLSelectElement;
+    control.value = 'dock';
+    control.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => expect(hostEl()?.dataset.display).toBe('dock'));
+    await flush();
+    process.off('unhandledRejection', unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
+  it('a refused speed change shows the note in the status line', async () => {
+    const { reader, raw } = make();
+    await reader.open('auto');
+    await reader.current!.handle.ready;
+    raw.storage.local.set.mockRejectedValue(new Error('QUOTA_BYTES quota exceeded'));
+    reader.current!.handle.player.speed(25);
+    await vi.waitFor(() => expect(shadow().querySelector('.sr-status [data-note="host"]')?.textContent).toBe('Settings not saved'));
   });
 });

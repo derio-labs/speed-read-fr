@@ -6,7 +6,7 @@ import { blockWords, DEFAULT_SETTINGS, extract, extractRange, mountReader, norma
 import { findContainer } from './adapters/index';
 import { ext, type ExtApi } from './ext';
 import { createBrowserHost } from './host';
-import { bridgeOf, isReadMessage, ownValue, READER_KEY, type ReadMode } from './shared';
+import { bridgeOf, isReadMessage, ownValue, READER_KEY, type ReadMode, type ReadReply } from './shared';
 import { extensionStore } from './storage';
 
 export const DOCK_WIDTH_PX = 420;
@@ -46,6 +46,14 @@ const DARK_VEIL: [number, number, number] = [22, 24, 29];
 const LIGHT_VEIL: [number, number, number] = [255, 255, 255];
 /** Keys handled by the reader stay in it: they do not reach the page's own shortcuts. */
 const CONTAINED_EVENTS = ['keydown', 'keyup', 'keypress'];
+const READER_HOST = '[data-speed-read-host]';
+/** The in-page notice shown when the reader cannot open, and how long it stays. */
+export const OPEN_FAILED_TEXT = 'Speed Read could not read this page';
+export const NOTICE_MS = 4000;
+const NOTICE_STYLE =
+  `all: initial !important; position: fixed !important; z-index: ${Z_TOP} !important; top: 16px !important; right: 16px !important; ` +
+  'max-width: 360px !important; padding: 10px 14px !important; border-radius: 8px !important; background: #1f2937 !important; color: #f9fafb !important; ' +
+  'font: 600 14px/1.4 system-ui, sans-serif !important; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important; pointer-events: none !important;';
 
 export interface OpenReader {
   mode: Settings['display'];
@@ -244,7 +252,23 @@ function scrollerOf(el: Element, doc: Document, win: Window): Element {
 export function createReader({ api, win, scope, trustedEventsOnly = true, frame: frames = defaultFrames(win) }: ReaderDeps): Reader {
   const doc = win.document;
   const baseStore = extensionStore(api.storage.local);
-  let current: (OpenReader & { teardown(): void; lastRef: SourceRef | null }) | null = null;
+  let current: (OpenReader & { teardown(): void; lastRef: SourceRef | null; hostElement: HTMLElement }) | null = null;
+
+  /**
+   * What to read for `mode`, resolved while the open reader (if any) stays open: its host is marked
+   * `hidden` meanwhile (its inline style keeps it shown) so extraction never reads the reader's own copies.
+   */
+  function resolveBeside(mode: ReadMode): { doc: Doc; container: Element } | null {
+    const hostElement = current?.hostElement;
+    const had = hostElement?.hasAttribute('hidden') ?? true;
+    if (!had) hostElement!.setAttribute('hidden', '');
+    try {
+      const content = resolve(mode);
+      return content && !content.container.closest(READER_HOST) ? content : null;
+    } finally {
+      if (!had) hostElement!.removeAttribute('hidden');
+    }
+  }
 
   /** What to read for `mode`: the document and the container it comes from. */
   function resolve(mode: ReadMode): { doc: Doc; container: Element } | null {
@@ -483,13 +507,39 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
     shadow.append(frame);
     doc.body.append(hostElement);
     const unmakeRoom = makeRoom(mode, hostElement);
+    try {
+      mountInto(hostElement, frame, overlay, unmakeRoom, mode, content, settings, at);
+    } catch (error) {
+      // A reader that failed to build leaves nothing on the page.
+      overlay?.destroy();
+      hostElement.remove();
+      unmakeRoom();
+      if (current?.hostElement === hostElement) current = null;
+      throw error;
+    }
+  }
+
+  function mountInto(
+    hostElement: HTMLElement,
+    frame: HTMLElement,
+    overlay: ReturnType<typeof createVeil> | null,
+    unmakeRoom: () => void,
+    mode: Settings['display'],
+    content: { doc: Doc; container: Element },
+    settings: Settings,
+    at: SourceRef | null,
+  ) {
 
     const store = {
       load: baseStore.load,
       async save(next: Settings) {
         overlay?.fade(next.pageFade);
-        await baseStore.save(next);
-        if (current && current.handle === handle && next.display !== mode) win.setTimeout(() => remount(next));
+        // A refused write (a gone extension context, the quota) still re-mounts; the reader shows the failure.
+        try {
+          await baseStore.save(next);
+        } finally {
+          if (current && current.handle === handle && next.display !== mode) win.setTimeout(() => remount(next));
+        }
       },
     };
     const host = createBrowserHost(hostElement, content.container, {
@@ -525,6 +575,7 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       mode,
       ...content,
       handle,
+      hostElement,
       lastRef: at,
       teardown() {
         removal.disconnect();
@@ -563,9 +614,9 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       return current;
     },
     async open(mode) {
-      close();
-      const content = resolve(mode);
-      if (!content) return;
+      // The new content first: a page with nothing to read keeps the reader that is open.
+      const content = resolveBeside(mode);
+      if (!content) throw new Error('Nothing to read was found on this page');
       const settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(await baseStore.load()) });
       close();
       mount(settings.display, content, settings, null);
@@ -581,10 +632,40 @@ export function install(scope: object, win: Window): boolean {
   if (!api) return false;
   const reader = createReader({ api, win, scope });
   (scope as Record<PropertyKey, unknown>)[READER_KEY] = reader;
-  api.runtime.onMessage.addListener((message) => {
-    if (isReadMessage(message)) void reader.open(message.mode);
+  api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!isReadMessage(message)) return undefined;
+    const reply = (r: ReadReply) => {
+      try {
+        sendResponse?.(r);
+      } catch {
+        // The background no longer listens: nothing to report to.
+      }
+    };
+    reader.open(message.mode).then(
+      () => reply({ ok: true }),
+      (error: unknown) => {
+        showNotice(win, OPEN_FAILED_TEXT);
+        reply({ ok: false, error: error instanceof Error ? error.message : String(error) });
+      },
+    );
+    // Keeps the channel open for the asynchronous reply (Chrome and Firefox).
+    return true;
   });
   return true;
+}
+
+/** A small notice at the top right of the page that removes itself after `NOTICE_MS`. */
+export function showNotice(win: Window, text: string): HTMLElement {
+  const doc = win.document;
+  doc.querySelector('[data-speed-read-notice]')?.remove();
+  const el = doc.createElement('div');
+  el.setAttribute('data-speed-read-notice', '');
+  el.setAttribute('role', 'status');
+  el.style.cssText = NOTICE_STYLE;
+  el.textContent = text;
+  (doc.body ?? doc.documentElement).append(el);
+  win.setTimeout(() => el.remove(), NOTICE_MS);
+  return el;
 }
 
 if (typeof window !== 'undefined') install(globalThis, window);
