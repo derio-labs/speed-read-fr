@@ -147,6 +147,71 @@ describe('exhibit', () => {
   });
 });
 
+describe('clones are inert and add nothing to the page', () => {
+  it('the outer wrapper is an sr-clone element with its layout set important; shells keep tags with important neutral layout', () => {
+    const { hostElement, host } = setup('<pre id="code">x</pre>');
+    const wrapper = placed(hostElement, host.exhibit(block(document.getElementById('code')), 'pane'));
+    expect(wrapper.localName).toBe('sr-clone');
+    for (const prop of ['display', 'max-width', 'margin', 'padding', 'box-sizing', 'overflow', 'opacity', 'transform']) {
+      expect(wrapper.style.getPropertyPriority(prop), prop).toBe('important');
+    }
+    const shell = wrapper.firstElementChild as HTMLElement;
+    expect(shell.localName).toBe('div');
+    for (const prop of ['display', 'width', 'margin', 'padding', 'position', 'opacity', 'transform']) {
+      expect(shell.style.getPropertyPriority(prop), prop).toBe('important');
+    }
+  });
+
+  it('strips ids and names inside clones, and references to the stripped ids', () => {
+    const { hostElement, host } = setup(`
+      <form id="f" action="https://example.invalid/post"><label for="r1">One</label><input type="radio" id="r1" name="g" checked autofocus>
+      <p id="q" aria-describedby="r1 elsewhere" aria-labelledby="r1">t</p><button formaction="/x" onclick="alert(1)">Go</button></form>`);
+    const wrapper = placed(hostElement, host.exhibit(block(document.getElementById('f'), 'table'), 'pane'));
+    expect(wrapper.querySelectorAll('[id], [name], [for], [aria-labelledby], [autofocus], [action], [formaction], [onclick]')).toHaveLength(0);
+    expect(wrapper.querySelector('p')!.getAttribute('aria-describedby')).toBe('elsewhere');
+    expect((document.getElementById('r1') as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('strips javascript: URLs and event handler attributes', () => {
+    const { hostElement, host } = setup('<p id="p"><a href="javascript:alert(1)" onmouseover="x()">bad</a> <a href="https://example.com/">good</a> <img src="data:image/png;base64,AAAA" onerror="x()"></p>');
+    const wrapper = placed(hostElement, host.exhibit(block(document.getElementById('p')), 'pane'));
+    const [bad, good] = wrapper.querySelectorAll('a');
+    expect(bad.hasAttribute('href')).toBe(false);
+    expect(bad.hasAttribute('onmouseover')).toBe(false);
+    expect(good.getAttribute('href')).toBe('https://example.com/');
+    expect(wrapper.querySelector('img')!.hasAttribute('onerror')).toBe(false);
+  });
+
+  it('a press on a link, button or form control in a clone does not act, but still reaches the reader', () => {
+    const { hostElement, host } = setup('<p id="p">Text <a href="#go">link</a> <button type="submit">b</button></p>');
+    const docView = host.document();
+    const wrapper = placed(hostElement, docView.node);
+    const reached = vi.fn();
+    hostElement.addEventListener('click', reached);
+    const link = wrapper.querySelector('a')!;
+    for (const type of ['click', 'auxclick']) {
+      const e = new MouseEvent(type, { bubbles: true, cancelable: true });
+      link.dispatchEvent(e);
+      expect(e.defaultPrevented, type).toBe(true);
+    }
+    const press = new MouseEvent('click', { bubbles: true, cancelable: true });
+    wrapper.querySelector('button')!.dispatchEvent(press);
+    expect(press.defaultPrevented).toBe(true);
+    const plain = new MouseEvent('click', { bubbles: true, cancelable: true });
+    wrapper.querySelector('p')!.dispatchEvent(plain);
+    expect(plain.defaultPrevented).toBe(false);
+    expect(reached).toHaveBeenCalledTimes(3);
+  });
+
+  it('a submit inside a clone is prevented', () => {
+    const { hostElement, host } = setup('<form id="f"><input value="x"></form>');
+    const wrapper = placed(hostElement, host.exhibit(block(document.getElementById('f'), 'table'), 'pane'));
+    const e = new Event('submit', { bubbles: true, cancelable: true });
+    wrapper.querySelector('form')!.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(true);
+  });
+});
+
 describe('document', () => {
   it('returns a slot with the container cloned in the light DOM, and maps elements both ways', () => {
     const { hostElement, host } = setup('<p id="p1">One <em>two</em>.</p><ul><li id="l1">Item</li></ul>');

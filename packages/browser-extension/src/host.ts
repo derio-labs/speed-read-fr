@@ -1,18 +1,38 @@
-import type { Host, HostDocument, SourceRef } from '@speed-read/core';
+import { createCloneMap, type CloneMap, type Host, type HostDocument, type SourceRef } from '@speed-read/core';
 
 /** What an element that cannot be cloned safely is replaced by (spec section 7 Mount and styling). */
 export const PLACEHOLDER_TEXT = 'Shown on the page';
+/** The outer wrapper of every clone: a custom element name no page rule targets. */
+export const CLONE_TAG = 'sr-clone';
 
 /** Elements that would reload or request something when cloned. */
 const EMBEDDED = new Set(['iframe', 'video', 'audio', 'object', 'embed', 'frame']);
 const SHELL_ATTRIBUTES = new Set(['class', 'dir', 'lang']);
 const INHERITED = ['color', 'font-family', 'font-size', 'line-height', 'text-align', 'direction'] as const;
-/** Shell copies keep their classes for ancestor-dependent rules, but not their page layout or box. */
-const SHELL_LAYOUT =
-  'display:block;position:static;float:none;margin:0;padding:0;border:0;width:auto;min-width:0;max-width:none;height:auto;min-height:0;max-height:none;inset:auto;transform:none;overflow:visible';
-const WRAPPER_STYLE = 'display:block;box-sizing:border-box;max-width:100%;margin:0;padding:12px 16px;overflow:auto;border-radius:8px';
+/** Attributes that would act (navigate, submit, focus) or collide with the page's ids and form groups. */
+const STRIPPED_ATTRIBUTES = new Set(['id', 'name', 'autofocus', 'action', 'formaction']);
+const URL_ATTRIBUTES = ['href', 'src', 'xlink:href'];
+/** Attributes holding id references, dropped when their target id was stripped from the clone. */
+const IDREF_ATTRIBUTES = ['for', 'aria-labelledby', 'aria-describedby', 'aria-controls', 'aria-owns', 'aria-activedescendant', 'aria-details', 'aria-errormessage', 'aria-flowto', 'headers', 'list', 'form'];
+/** A press on these inside a clone would navigate or submit: it is prevented (it still moves the reader). */
+const ACTIVE = 'a[href], area[href], button, input, select, textarea, label, summary, form';
+
+const important = (declarations: string) =>
+  declarations
+    .split(';')
+    .filter(Boolean)
+    .map((d) => `${d} !important`)
+    .join(';');
+/** Shell copies keep their tags and classes for ancestor-dependent rules, but not their page layout or box. */
+const SHELL_LAYOUT = important(
+  'display:block;position:static;float:none;margin:0;padding:0;border:0;width:auto;min-width:0;max-width:none;height:auto;min-height:0;max-height:none;inset:auto;transform:none;opacity:1;overflow:visible',
+);
+const WRAPPER_STYLE = important(
+  'display:block;position:static;box-sizing:border-box;width:auto;max-width:100%;margin:0;padding:12px 16px;border:0;overflow:auto;border-radius:8px;transform:none;opacity:1',
+);
 const PLACEHOLDER_STYLE =
   'display:block;box-sizing:border-box;padding:12px;border:1px dashed currentColor;border-radius:6px;opacity:0.7;font:italic 14px/1.4 system-ui,sans-serif;text-align:center';
+const PRESS_EVENTS = ['click', 'auxclick', 'submit'];
 
 export interface BrowserHostOptions {
   onPosition?(ref: SourceRef): void;
@@ -23,15 +43,36 @@ let hostCount = 0;
 
 const isTransparent = (color: string) => !color || color === 'transparent' || /^rgba\(.*,\s*0\)$/.test(color);
 
-function refOf(el: Element): SourceRef {
-  const line = Number.parseInt(el.getAttribute('data-line') ?? '', 10);
-  return Number.isInteger(line) ? { element: el, line } : { element: el };
+/** Remove what would act or collide from a copied element; returns the id it had, if any. */
+function neutralise(copy: Element): string | null {
+  const id = copy.getAttribute('id');
+  for (const attr of [...copy.attributes]) {
+    const name = attr.name.toLowerCase();
+    if (STRIPPED_ATTRIBUTES.has(name) || name.startsWith('on')) copy.removeAttribute(attr.name);
+    else if (URL_ATTRIBUTES.includes(name) && /^\s*javascript:/i.test(attr.value)) copy.removeAttribute(attr.name);
+  }
+  return id;
+}
+
+/** Drop references to ids that were stripped from the clone. */
+function dropStrippedRefs(root: Element, stripped: Set<string>) {
+  if (stripped.size === 0) return;
+  for (const el of [root, ...root.querySelectorAll('*')]) {
+    for (const attr of IDREF_ATTRIBUTES) {
+      const value = el.getAttribute(attr);
+      if (value === null) continue;
+      const kept = value.split(/\s+/).filter((token) => token && !stripped.has(token));
+      if (kept.length === 0) el.removeAttribute(attr);
+      else el.setAttribute(attr, kept.join(' '));
+    }
+  }
 }
 
 /**
  * The browser `Host` (R16): every exhibit or document view is a uniquely named `<slot>` returned to
  * the core, with a clone of the page content placed in `hostElement`'s light DOM under that slot
- * name, where the page's stylesheet rules still match it.
+ * name, where the page's stylesheet rules still match it. Clones are inert: they carry no ids,
+ * names, handlers or script URLs, and a press on a link, button or form in them does nothing.
  */
 export function createBrowserHost(hostElement: Element, container: Element, opts: BrowserHostOptions = {}): Host {
   const doc = hostElement.ownerDocument;
@@ -39,6 +80,17 @@ export function createBrowserHost(hostElement: Element, container: Element, opts
   const prefix = `sr-${++hostCount}-${Math.random().toString(36).slice(2, 8)}`;
   let slotCount = 0;
   const placed = new Map<Node, Element>();
+
+  for (const type of PRESS_EVENTS) {
+    hostElement.addEventListener(
+      type,
+      (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (target?.closest(CLONE_TAG) && target.closest(ACTIVE)) e.preventDefault();
+      },
+      true,
+    );
+  }
 
   const computed = (el: Element) => win?.getComputedStyle(el);
 
@@ -68,24 +120,29 @@ export function createBrowserHost(hostElement: Element, container: Element, opts
     return img;
   }
 
-  /** A deep copy of `el`, made safe to show, with every copied element paired to its original. */
-  function cloneSafe(el: Element, pairs?: { toCopy: Map<Element, Element>; toOriginal: WeakMap<Element, Element> }): Element {
-    const tag = el.localName;
-    let copy: Element;
-    if (EMBEDDED.has(tag) || el.shadowRoot) copy = placeholder();
-    else if (tag === 'canvas') copy = canvasImage(el as HTMLCanvasElement);
-    else {
-      copy = el.cloneNode(false) as Element;
-      for (const child of el.childNodes) {
-        copy.appendChild(child.nodeType === 1 ? cloneSafe(child as Element, pairs) : child.cloneNode(true));
+  /** A deep copy of `el`, made safe to show, with every copied element paired to its original in `map`. */
+  function cloneSafe(el: Element, map?: CloneMap): Element {
+    const stripped = new Set<string>();
+    const walk = (orig: Element): Element => {
+      const tag = orig.localName;
+      let copy: Element;
+      if (EMBEDDED.has(tag) || orig.shadowRoot) copy = placeholder();
+      else if (tag === 'canvas') copy = canvasImage(orig as HTMLCanvasElement);
+      else {
+        copy = orig.cloneNode(false) as Element;
+        const id = neutralise(copy);
+        if (id) stripped.add(id);
+        for (const child of orig.childNodes) copy.appendChild(child.nodeType === 1 ? walk(child as Element) : child.cloneNode(true));
+        if (tag === 'img' || tag === 'svg') {
+          (copy as HTMLElement).style.maxWidth = '100%';
+          if (tag === 'img') (copy as HTMLElement).style.height = 'auto';
+        }
       }
-      if (tag === 'img' || tag === 'svg') {
-        (copy as HTMLElement).style.maxWidth = '100%';
-        if (tag === 'img') (copy as HTMLElement).style.height = 'auto';
-      }
-    }
-    pairs?.toCopy.set(el, copy);
-    pairs?.toOriginal.set(copy, el);
+      map?.pair(orig, copy);
+      return copy;
+    };
+    const copy = walk(el);
+    dropStrippedRefs(copy, stripped);
     return copy;
   }
 
@@ -109,7 +166,7 @@ export function createBrowserHost(hostElement: Element, container: Element, opts
 
   /** The outer wrapper with the container's inherited look, shells of `source`'s ancestors, then `content`. */
   function wrap(source: Element | null, content: Element | null): HTMLElement {
-    const wrapper = doc.createElement('div');
+    const wrapper = doc.createElement(CLONE_TAG);
     wrapper.setAttribute('data-sr-clone', '');
     wrapper.style.cssText = WRAPPER_STYLE;
     const style = computed(container);
@@ -117,7 +174,7 @@ export function createBrowserHost(hostElement: Element, container: Element, opts
       const value = style?.getPropertyValue(prop);
       if (value) wrapper.style.setProperty(prop, value);
     }
-    wrapper.style.backgroundColor = background();
+    wrapper.style.setProperty('background-color', background(), 'important');
     let inner: Element = wrapper;
     if (source) {
       const ancestors: Element[] = [];
@@ -144,21 +201,9 @@ export function createBrowserHost(hostElement: Element, container: Element, opts
       return place(wrap(el, el ? cloneSafe(el) : null));
     },
     document(): HostDocument {
-      const pairs = { toCopy: new Map<Element, Element>(), toOriginal: new WeakMap<Element, Element>() };
-      const copy = cloneSafe(container, pairs);
-      copy.removeAttribute('id');
-      const node = place(wrap(container, copy));
-      return {
-        node,
-        locate: (ref) => (ref.element ? (pairs.toCopy.get(ref.element) ?? null) : null),
-        refAt(target) {
-          for (let el: Element | null = target; el; el = el.parentElement) {
-            const original = pairs.toOriginal.get(el);
-            if (original && original !== container) return refOf(original);
-          }
-          return null;
-        },
-      };
+      const map = createCloneMap([container]);
+      const node = place(wrap(container, cloneSafe(container, map)));
+      return { node, locate: map.locate, refAt: map.refAt };
     },
     release(node) {
       placed.get(node)?.remove();
