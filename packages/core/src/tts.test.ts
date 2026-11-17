@@ -197,6 +197,7 @@ describe('review p5b: robustness of the speech driver', () => {
     const { driver, speech, clock } = setup();
     const h = quiet();
     driver.speak([words(3)], 180, h); // about 1 s at rate 1
+    speech.spoken[0].start();
     clock.advance(4999);
     expect(h.onEnd).not.toHaveBeenCalled();
     clock.advance(1);
@@ -208,6 +209,39 @@ describe('review p5b: robustness of the speech driver', () => {
     driver.speak([words(60)], 180, long); // 60 words at 180 wpm: 20 s, watchdog 60 s
     clock.advance(59_000);
     expect(long.onEnd).not.toHaveBeenCalled();
+  });
+
+  it('a watchdog firing on an utterance that never started and had no boundary is an error, not an end (l-errors-r5)', () => {
+    const { driver, speech, clock } = setup();
+    const a = quiet();
+    driver.speak([words(3)], 180, a);
+    clock.advance(5000);
+    expect(a.onEnd).not.toHaveBeenCalled();
+    expect(a.onError).toHaveBeenCalledTimes(1);
+    expect(driver.failed).toBe(false);
+    expect(driver.inFlight).toBe(false);
+    speech.spoken[0].end(); // a late end of the cancelled utterance changes nothing
+    expect(a.onEnd).not.toHaveBeenCalled();
+    const b = quiet();
+    driver.speak([words(3)], 180, b);
+    clock.advance(5000);
+    expect(b.onError).toHaveBeenCalledTimes(1);
+    expect(driver.failed).toBe(true);
+  });
+
+  it('a watchdog firing after a boundary (no start event) still counts as an end', () => {
+    const { driver, speech, clock } = setup();
+    const a = quiet();
+    driver.speak([words(3)], 180, a);
+    speech.spoken[0].boundary(0);
+    clock.advance(5000);
+    expect(a.onEnd).toHaveBeenCalledTimes(1);
+    expect(a.onError).not.toHaveBeenCalled();
+    // and resets the failure count: one silent sentence after it is not yet a failure
+    const b = quiet();
+    driver.speak([words(3)], 180, b);
+    clock.advance(5000);
+    expect(driver.failed).toBe(false);
   });
 
   it('splits a sentence over 200 characters into utterances at chunk boundaries, ending after the last (p5b-r2)', () => {

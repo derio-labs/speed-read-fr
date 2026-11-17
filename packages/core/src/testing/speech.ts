@@ -13,6 +13,8 @@ export const voice = (name: string, lang: string, localService: boolean): Speech
 export interface FakeUtterance extends UtteranceLike {
   /** Fire a word boundary at `charIndex`. */
   boundary(charIndex: number, name?: string): void;
+  /** Fire the start event (the voice began speaking). */
+  start(): void;
   end(): void;
   /** Fire an error event of kind `error` (e.g. 'network', 'interrupted'). */
   fail(error: string): void;
@@ -28,6 +30,7 @@ export function fakeSpeech(initial: SpeechVoiceLike[] = []) {
     lang = '';
     voice: SpeechVoiceLike | null = null;
     onboundary: ((e: { charIndex: number; name?: string }) => void) | null = null;
+    onstart: (() => void) | null = null;
     onend: (() => void) | null = null;
     onerror: ((e: { error: string }) => void) | null = null;
     constructor(text: string) {
@@ -35,6 +38,9 @@ export function fakeSpeech(initial: SpeechVoiceLike[] = []) {
     }
     boundary(charIndex: number, name = 'word') {
       this.onboundary?.({ charIndex, name });
+    }
+    start() {
+      this.onstart?.();
     }
     end() {
       this.onend?.();

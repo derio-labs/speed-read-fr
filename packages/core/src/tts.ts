@@ -19,6 +19,8 @@ export interface UtteranceLike {
   lang: string;
   voice: SpeechVoiceLike | null;
   onboundary: ((event: { charIndex: number; name?: string }) => void) | null;
+  /** Fired when the voice starts speaking the utterance. */
+  onstart?: (() => void) | null;
   onend: (() => void) | null;
   onerror: ((event: { error: string }) => void) | null;
 }
@@ -259,7 +261,13 @@ export function createSpeechDriver(
         u.rate = rate;
         u.voice = voice;
         if (voice) u.lang = voice.lang;
+        /** Whether this utterance gave any sign of being spoken: its start or a boundary. */
+        let spoke = false;
+        u.onstart = () => {
+          spoke = true;
+        };
         u.onboundary = (e) => {
+          spoke = true;
           if (gen !== generation || whole || (e.name && e.name !== 'word')) return;
           if (!heard) {
             heard = true;
@@ -286,9 +294,8 @@ export function createSpeechDriver(
           handlers.onEnd();
         };
         u.onend = done;
-        u.onerror = (e) => {
-          if (gen !== generation || finished || e.error === 'interrupted' || e.error === 'canceled') return;
-          // Never advance on an error (p5b-r3): stop, report, and give up speech after two in a row.
+        /** Never advance on an error (p5b-r3): stop, report, and give up speech after two in a row. */
+        const fail = () => {
           cancel();
           errorsInRow++;
           if (errorsInRow >= FAILED_AFTER_ERRORS && !failed) {
@@ -297,11 +304,17 @@ export function createSpeechDriver(
           }
           handlers.onError?.();
         };
-        // The end may never come (a cut-off long utterance, a dropped speak): treat it as ended.
+        u.onerror = (e) => {
+          if (gen !== generation || finished || e.error === 'interrupted' || e.error === 'canceled') return;
+          fail();
+        };
+        // The end may never come (a cut-off long utterance, a dropped speak): treat it as ended, unless
+        // the voice never started at all (no start, no boundary): that is a voice that does not speak.
         const estimate = (words / (180 * rate)) * 60_000;
         watchdog = timers.setTimeout(() => {
           watchdog = null;
           if (gen !== generation) return;
+          if (!spoke) return fail();
           if (available) synth!.cancel();
           done();
         }, Math.max(WATCHDOG_MIN_MS, WATCHDOG_FACTOR * estimate));
