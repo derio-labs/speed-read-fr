@@ -7,9 +7,9 @@ export const PLACEHOLDER_TEXT = 'Shown on the page';
 const EMBEDDED = new Set(['iframe', 'video', 'audio', 'object', 'embed', 'frame']);
 const SHELL_ATTRIBUTES = new Set(['class', 'dir', 'lang']);
 const INHERITED = ['color', 'font-family', 'font-size', 'line-height', 'text-align', 'direction'] as const;
-/** Shell copies keep their classes for ancestor-dependent rules, but not their page layout. */
+/** Shell copies keep their classes for ancestor-dependent rules, but not their page layout or box. */
 const SHELL_LAYOUT =
-  'display:block;position:static;float:none;margin:0;width:auto;min-width:0;max-width:none;height:auto;min-height:0;max-height:none;inset:auto;transform:none;overflow:visible';
+  'display:block;position:static;float:none;margin:0;padding:0;border:0;width:auto;min-width:0;max-width:none;height:auto;min-height:0;max-height:none;inset:auto;transform:none;overflow:visible';
 const WRAPPER_STYLE = 'display:block;box-sizing:border-box;max-width:100%;margin:0;padding:12px 16px;overflow:auto;border-radius:8px';
 const PLACEHOLDER_STYLE =
   'display:block;box-sizing:border-box;padding:12px;border:1px dashed currentColor;border-radius:6px;opacity:0.7;font:italic 14px/1.4 system-ui,sans-serif;text-align:center';

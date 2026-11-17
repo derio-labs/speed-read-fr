@@ -178,8 +178,8 @@ export const READER_CSS = `
 .sr-overall-fill { display: block; height: 100%; width: 0; background: var(--sr-progress); transition: width .2s linear; }
 
 .sr-stage {
-  position: relative; flex: 1; min-height: 220px; display: flex; flex-direction: column; justify-content: center;
-  padding: 24px clamp(16px, 4cqi, 48px); outline: none; overflow: hidden;
+  position: relative; flex: 1; min-height: 220px; display: flex; flex-direction: column; justify-content: safe center;
+  padding: 24px clamp(16px, 4cqi, 48px); outline: none; overflow: hidden auto;
 }
 .sr-display { position: relative; min-height: 120px; display: flex; align-items: center; justify-content: center; }
 .sr-display[data-kind="chunk"], .sr-display[data-kind="item-chunk"] { display: block; height: 150px; }

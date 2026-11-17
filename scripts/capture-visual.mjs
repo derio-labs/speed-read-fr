@@ -1,7 +1,11 @@
-// Visual evidence for the reader UI rows (reader-three-zone-ui, reader-keys, reader-settings).
-// Builds the demo, serves the repo on localhost, and writes one PNG per declared state or
-// interaction to the git-ignored .visual/phase-2/ at deviceScaleFactor 2.
-//   node scripts/capture-visual.mjs [outDir]
+// Visual evidence, one PNG per declared state or interaction, at deviceScaleFactor 2, into a
+// git-ignored directory. Serves the repo on localhost only.
+//   node scripts/capture-visual.mjs [outDir] [--phase 2|3]
+// Phase 2 (default; outDir .visual/phase-2): the reader UI rows (reader-three-zone-ui, reader-keys,
+// reader-settings) on the core demo page.
+// Phase 3 (outDir .visual/phase-3, or any outDir named phase-3): the browser extension rows
+// (browser-alt-hover, browser-exhibits-page-styled, browser-overlay-and-dock), with the built Chrome
+// extension loaded into the full Chromium.
 import { chromium } from '@playwright/test';
 import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
@@ -10,18 +14,28 @@ import { buildDemo } from './build-demo.mjs';
 import { startServer } from './serve.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const outDir = path.resolve(root, process.argv[2] ?? '.visual/phase-2');
+const args = process.argv.slice(2);
+const phaseFlag = args.indexOf('--phase');
+const outArg = args.find((a, i) => !a.startsWith('--') && !(phaseFlag >= 0 && i === phaseFlag + 1));
+const phase = phaseFlag >= 0 ? Number(args[phaseFlag + 1]) : Number(/phase-(\d+)/.exec(outArg ?? '')?.[1] ?? 2);
+const outDir = path.resolve(root, outArg ?? `.visual/phase-${phase}`);
 const STORE_KEY = 'speed-read-demo:settings';
 const WIDE = { width: 1280, height: 800 };
 const NARROW = { width: 700, height: 960 };
 
+await rm(outDir, { recursive: true, force: true });
+await mkdir(outDir, { recursive: true });
+const written = [];
+if (phase === 3) {
+  const { capturePhase3 } = await import('./capture-visual-extension.mjs');
+  written.push(...(await capturePhase3(outDir)));
+  console.log(written.join('\n'));
+  process.exit(0);
+}
 await buildDemo();
 const server = await startServer(0);
 const base = `http://127.0.0.1:${server.address().port}/tests/demo/index.html`;
-await rm(outDir, { recursive: true, force: true });
-await mkdir(outDir, { recursive: true });
 const browser = await chromium.launch();
-const written = [];
 
 async function open({ viewport = WIDE, colorScheme = 'light', saved } = {}) {
   const context = await browser.newContext({ viewport, deviceScaleFactor: 2, colorScheme });
