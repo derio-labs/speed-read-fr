@@ -24,9 +24,13 @@ rows:
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R4
     - spec:2026-11-17-structure-aware-speed-reader#R9
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/text/chunks.test.ts
+      - speed-read-fr:packages/core/src/pacing.test.ts
+      - speed-read-fr:packages/core/src/player.test.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
   - id: list-item-reading
     capability: reader-core
     acceptance: A list is read item by item with an item i/n counter, a pause between
