@@ -93,3 +93,101 @@ buildTimeline was written with its helpers (stopPrompt, summarise, directSubhead
 ### no-refactor-p1-t5 · discovery · no-refactor-because P1.T5 (phase 1)
 
 pacing.ts is one switch over step kinds with named constants for every factor; nothing to clean.
+
+<!-- fr:journal kind=review scope=plan id=review-p1 created=2026-11-17T15:53:16+00:00 phase=1 -->
+### review-p1 · review · Phase 1 code review: 9 findings, all in scope, all fixed (phase 1)
+
+Independent reviewer checked the phase 1 diff against spec sections 1-5 and plan 01.yaml, ran typecheck and the suite, and confirmed chunking, sentence split, ORP, step kinds, durations and ramp match the spec. Findings raised: p1-r1 to p1-r9. Fixes verified by the orchestrator: suite re-run green, 126 tests.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r1 created=2026-11-17T15:53:16+00:00 phase=1 state=open review_scope=in -->
+### p1-r1 · finding [open] (reviewer: in scope) · sentence(+/-1) after the end throws (phase 1)
+
+Raised by the phase 1 reviewer with file and line; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r2 created=2026-11-17T15:53:16+00:00 phase=1 state=open review_scope=in -->
+### p1-r2 · finding [open] (reviewer: in scope) · End-card elapsed time and words wrong when playback starts via navigation or replays (phase 1)
+
+Raised by the phase 1 reviewer with file and line; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r3 created=2026-11-17T15:53:16+00:00 phase=1 state=open review_scope=in -->
+### p1-r3 · finding [open] (reviewer: in scope) · Timer scheduled after emitting lets a listener's close or pause leave a live timer (phase 1)
+
+Raised by the phase 1 reviewer with file and line; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r4 created=2026-11-17T15:53:16+00:00 phase=1 state=open review_scope=in -->
+### p1-r4 · finding [open] (reviewer: in scope) · Navigating onto a stop while paused needed two Space presses (phase 1)
+
+Raised by the phase 1 reviewer with file and line; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r5 created=2026-11-17T15:53:16+00:00 phase=1 state=open review_scope=in -->
+### p1-r5 · finding [open] (reviewer: in scope) · All heading steps shared one source object (phase 1)
+
+Raised by the phase 1 reviewer with file and line; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r6 created=2026-11-17T15:53:16+00:00 phase=1 state=open review_scope=in -->
+### p1-r6 · finding [open] (reviewer: in scope) · Player could not take new settings or a new timeline (phase 1)
+
+Raised by the phase 1 reviewer with file and line; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r7 created=2026-11-17T15:53:16+00:00 phase=1 state=open review_scope=in -->
+### p1-r7 · finding [open] (reviewer: in scope) · Some skipped exhibits were never revealed (phase 1)
+
+Raised by the phase 1 reviewer with file and line; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r8 created=2026-11-17T15:53:16+00:00 phase=1 state=open review_scope=in -->
+### p1-r8 · finding [open] (reviewer: in scope) · .gitignore lost the acceptance report entries (phase 1)
+
+Raised by the phase 1 reviewer with file and line; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r9 created=2026-11-17T15:53:16+00:00 phase=1 state=open review_scope=in -->
+### p1-r9 · finding [open] (reviewer: in scope) · directSubheadings was quadratic (phase 1)
+
+Raised by the phase 1 reviewer with file and line; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=lens scope=plan id=lens-errors-1 created=2026-11-17T15:53:16+00:00 phase=1 lens=errors step=review-phase -->
+### lens-errors-1 · lens · Suggested by the phase 1 reviewer: the player threw or kept timers on edge-state commands (phase 1)
+
+<!-- fr:journal kind=finding scope=plan id=p1-r1-resolved created=2026-11-17T15:53:16+00:00 phase=1 state=fixed resolves=p1-r1 -->
+### p1-r1-resolved · finding [fixed] · resolves p1-r1: sentence(+/-1) after the end throws (phase 1)
+
+After the end, -1 goes to the last landing and +1 does nothing; tests added (74941cc).
+
+<!-- fr:journal kind=finding scope=plan id=p1-r2-resolved created=2026-11-17T15:53:16+00:00 phase=1 state=fixed resolves=p1-r2 -->
+### p1-r2-resolved · finding [fixed] · resolves p1-r2: End-card elapsed time and words wrong when playback starts via navigation or replays (phase 1)
+
+A reading session starts on the first play after idle whatever led there; tests for jump-then-play and replay (74941cc).
+
+<!-- fr:journal kind=finding scope=plan id=p1-r3-resolved created=2026-11-17T15:53:16+00:00 phase=1 state=fixed resolves=p1-r3 -->
+### p1-r3-resolved · finding [fixed] · resolves p1-r3: Timer scheduled after emitting lets a listener's close or pause leave a live timer (phase 1)
+
+State settled and timer scheduled before events; generation counter drops stale timers; nothing advances once closed (74941cc).
+
+<!-- fr:journal kind=finding scope=plan id=p1-r4-resolved created=2026-11-17T15:53:16+00:00 phase=1 state=fixed resolves=p1-r4 -->
+### p1-r4-resolved · finding [fixed] · resolves p1-r4: Navigating onto a stop while paused needed two Space presses (phase 1)
+
+Landing on a waiting step sets stopped; one Space continues (74941cc).
+
+<!-- fr:journal kind=finding scope=plan id=p1-r5-resolved created=2026-11-17T15:53:16+00:00 phase=1 state=fixed resolves=p1-r5 -->
+### p1-r5-resolved · finding [fixed] · resolves p1-r5: All heading steps shared one source object (phase 1)
+
+Section heading now carries its own SourceRef used by heading steps (ebf354a).
+
+<!-- fr:journal kind=finding scope=plan id=p1-r6-resolved created=2026-11-17T15:53:16+00:00 phase=1 state=fixed resolves=p1-r6 -->
+### p1-r6-resolved · finding [fixed] · resolves p1-r6: Player could not take new settings or a new timeline (phase 1)
+
+Added replaceTimeline and setSpeed, keeping position, play state, session and reveals (74941cc).
+
+<!-- fr:journal kind=finding scope=plan id=p1-r7-resolved created=2026-11-17T15:53:16+00:00 phase=1 state=fixed resolves=p1-r7 -->
+### p1-r7-resolved · finding [fixed] · resolves p1-r7: Some skipped exhibits were never revealed (phase 1)
+
+Exhibits reveal once the position passes their reveal step, including step-less sections and navigation (74941cc).
+
+<!-- fr:journal kind=finding scope=plan id=p1-r8-resolved created=2026-11-17T15:53:16+00:00 phase=1 state=fixed resolves=p1-r8 -->
+### p1-r8-resolved · finding [fixed] · resolves p1-r8: .gitignore lost the acceptance report entries (phase 1)
+
+Entries restored (b0c6e56).
+
+<!-- fr:journal kind=finding scope=plan id=p1-r9-resolved created=2026-11-17T15:53:16+00:00 phase=1 state=fixed resolves=p1-r9 -->
+### p1-r9-resolved · finding [fixed] · resolves p1-r9: directSubheadings was quadratic (phase 1)
+
+Iterates by index (ebf354a).
