@@ -1,4 +1,4 @@
-import type { SourceRef } from './model';
+import type { SourceRef, Token } from './model';
 import { isRamped, rampFactor, stepDuration } from './pacing';
 import type { Settings } from './settings';
 import type { Step, StepPosition, Timeline, TimelineExhibit, TimelineSection } from './timeline';
@@ -103,6 +103,10 @@ function sourceMatches(ref: SourceRef, source: SourceRef): boolean {
 /** Identity of an exhibit across rebuilt timelines: its DOM element, else its block. */
 const exhibitKey = (e: TimelineExhibit): unknown => e.block.source.element ?? e.block;
 
+/** A title as spoken: its tokens without math (p5b-r8), else its words. */
+const titleTokens = (step: Extract<Step, { kind: 'title' }>): Token[] =>
+  step.tokens ?? step.text.split(/\s+/).filter(Boolean).map((text) => ({ kind: 'word' as const, text }));
+
 type SpokenStep = Extract<Step, { kind: 'chunk' | 'item-chunk' }>;
 const isSentencePart = (step: Step | undefined): step is SpokenStep => step?.kind === 'chunk' || step?.kind === 'item-chunk';
 const sameSentence = (a: SpokenStep, b: Step | undefined) =>
@@ -176,7 +180,13 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
 
   /** Speech times this step: tts is on, a voice is usable, and the step is prose, a list item or a title. */
   const speaks = (step: Step) =>
-    !!speech?.available && settings.tts.enabled && speech.currentVoice() !== null && (isSentencePart(step) || step.kind === 'title');
+    !!speech?.available &&
+    !speech.failed &&
+    settings.tts.enabled &&
+    speech.currentVoice() !== null &&
+    (isSentencePart(step) || step.kind === 'title');
+  /** A sentence the voice failed on: shown with timed chunks instead (p5b-r3). */
+  let textOnly: { from: number; to: number } | null = null;
 
   /** A chunk reached by a speech boundary: shown without touching timers or speech. */
   function showSpoken(at: number) {
@@ -199,7 +209,7 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
     if (isSentencePart(step)) while (sameSentence(step, steps[last + 1])) last++;
     const chunks = isSentencePart(step)
       ? steps.slice(at, last + 1).map((s) => (s as SpokenStep).chunk)
-      : [{ tokens: (step as Extract<Step, { kind: 'title' }>).text.split(/\s+/).filter(Boolean).map((text) => ({ kind: 'word' as const, text })) }];
+      : [{ tokens: titleTokens(step as Extract<Step, { kind: 'title' }>) }];
     speaking = true;
     speech!.speak(chunks, settings.wpm, {
       onChunk(i) {
@@ -207,6 +217,12 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
       },
       onWholeSentence() {
         if (gen === generation && last > at) emit('whole', { from: at, to: last });
+      },
+      onError() {
+        if (gen !== generation) return;
+        speaking = false;
+        textOnly = { from: at, to: last };
+        show(at, true);
       },
       onEnd() {
         if (gen !== generation) return;
@@ -287,7 +303,7 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
 
     let durationMs: number | null = null;
     let next = state;
-    const spoken = timed && speaks(step);
+    const spoken = timed && speaks(step) && !(textOnly && at >= textOnly.from && at <= textOnly.to);
     if (spoken) {
       next = 'playing';
       stopFromPlayback = true;

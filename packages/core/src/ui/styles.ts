@@ -24,6 +24,8 @@ const LIGHT = `
   --sr-progress: var(--speed-read-progress, #2f63c9);
   --sr-progress-soft: var(--speed-read-progress-soft, #dde6f8);
   --sr-focus: var(--speed-read-focus, #2f63c9);
+  --sr-warning: var(--speed-read-warning, #8a4b00);
+  --sr-warning-soft: var(--speed-read-warning-soft, #fdf0dc);
   --sr-shadow: 0 1px 2px rgb(0 0 0 / 6%), 0 8px 24px rgb(0 0 0 / 8%);
   --sr-float-shadow: 0 10px 34px rgb(23 32 56 / 18%), 0 1px 3px rgb(23 32 56 / 12%);
   color-scheme: light;
@@ -41,6 +43,8 @@ const DARK = `
   --sr-progress: var(--speed-read-progress, #7aa7ff);
   --sr-progress-soft: var(--speed-read-progress-soft, #263451);
   --sr-focus: var(--speed-read-focus, #7aa7ff);
+  --sr-warning: var(--speed-read-warning, #f5b454);
+  --sr-warning-soft: var(--speed-read-warning-soft, #3a2c14);
   --sr-shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 35%);
   --sr-float-shadow: 0 10px 34px rgb(0 0 0 / 55%), 0 1px 3px rgb(0 0 0 / 50%);
   color-scheme: dark;
@@ -232,6 +236,16 @@ export const READER_CSS = `
 .sr-settings select[name="tts-voice"] { max-width: 260px; min-width: 0; }
 .sr-settings select[name="tts-voice"][size] { height: auto; padding: 4px; }
 .sr-tts-note { margin: 4px 0; }
+/* Warnings stand apart from hints: an icon and a colour of at least 4.5:1 on the panel (p5b-r5). */
+.sr-tts-note[data-kind="warning"] { color: var(--sr-warning); font-weight: 600; }
+.sr-tts-note[data-kind="warning"]::before { content: "\\26A0\\FE0E\\00a0"; }
+.sr-voice-badge {
+  flex: none; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 650;
+  background: var(--sr-progress-soft); color: var(--sr-text);
+}
+.sr-voice-badge[data-kind="network"] { background: var(--sr-warning-soft); color: var(--sr-warning); }
+.sr-settings input[type="checkbox"]:disabled { opacity: 1; cursor: not-allowed; filter: grayscale(1); outline: 1px dashed var(--sr-muted); outline-offset: 2px; }
+.sr-status-note { color: var(--sr-warning); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Cards that replace the chunk. */
 .sr-card { width: min(100%, 560px); padding: 26px 28px; border: 1px solid var(--sr-border); border-radius: 14px; background: var(--sr-surface); box-shadow: var(--sr-shadow); }

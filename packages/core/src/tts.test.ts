@@ -178,3 +178,136 @@ describe('speech driver: speaking a sentence', () => {
     expect(handlers.onEnd).toHaveBeenCalled();
   });
 });
+
+describe('review p5b: robustness of the speech driver', () => {
+  const words = (n: number, word = 'word') => ({ tokens: Array.from({ length: n }, (_, i) => w(`${word}${i}`)) });
+  const quiet = () => ({ onChunk: vi.fn(), onEnd: vi.fn(), onWholeSentence: vi.fn(), onError: vi.fn() });
+
+  it('keeps the utterance while it is in flight (p5b-r1)', () => {
+    const { driver, speech } = setup();
+    const h = quiet();
+    expect(driver.inFlight).toBe(false);
+    driver.speak([words(3)], 180, h);
+    expect(driver.inFlight).toBe(true);
+    speech.spoken[0].end();
+    expect(driver.inFlight).toBe(false);
+  });
+
+  it('a watchdog of max(5 s, 3 x the estimated duration) ends a sentence whose end never comes (p5b-r2)', () => {
+    const { driver, speech, clock } = setup();
+    const h = quiet();
+    driver.speak([words(3)], 180, h); // about 1 s at rate 1
+    clock.advance(4999);
+    expect(h.onEnd).not.toHaveBeenCalled();
+    clock.advance(1);
+    expect(h.onEnd).toHaveBeenCalledTimes(1);
+    expect(speech.synth.cancel).toHaveBeenCalled();
+    speech.spoken[0].end();
+    expect(h.onEnd).toHaveBeenCalledTimes(1);
+    const long = quiet();
+    driver.speak([words(60)], 180, long); // 60 words at 180 wpm: 20 s, watchdog 60 s
+    clock.advance(59_000);
+    expect(long.onEnd).not.toHaveBeenCalled();
+  });
+
+  it('splits a sentence over 200 characters into utterances at chunk boundaries, ending after the last (p5b-r2)', () => {
+    const { driver, speech } = setup();
+    const h = quiet();
+    const chunks = Array.from({ length: 12 }, (_, i) => ({ tokens: [w(`alpha${i}`), w(`beta${i}`), w(`gamma${i}`)] }));
+    driver.speak(chunks, 300, h);
+    expect(speech.spoken).toHaveLength(1);
+    expect(speech.spoken[0].text.length).toBeLessThanOrEqual(200);
+    const firstParts = speech.spoken[0].text.split(' ').length / 3;
+    speech.spoken[0].boundary(0);
+    speech.spoken[0].end();
+    expect(h.onEnd).not.toHaveBeenCalled();
+    expect(speech.spoken).toHaveLength(2);
+    // A boundary at the start of the second utterance is the first chunk of that part.
+    speech.spoken[1].boundary(0);
+    expect(h.onChunk).toHaveBeenLastCalledWith(firstParts);
+    speech.spoken[1].end();
+    expect(h.onEnd).toHaveBeenCalledTimes(1);
+    expect(speech.spoken.map((u) => u.text).join(' ')).toBe(chunks.flatMap((c) => c.tokens.map((t) => t.text)).join(' '));
+  });
+
+  it('an error never advances at once: it reports onError; two in a row fail speech for the session (p5b-r3)', () => {
+    const { driver, speech, clock } = setup();
+    const a = quiet();
+    driver.speak([words(3)], 300, a);
+    speech.spoken[0].fail('network');
+    expect(a.onEnd).not.toHaveBeenCalled();
+    expect(a.onError).toHaveBeenCalledTimes(1);
+    expect(driver.failed).toBe(false);
+    const b = quiet();
+    driver.speak([words(3)], 300, b);
+    speech.spoken[1].end(); // a success resets the count
+    const c = quiet();
+    driver.speak([words(3)], 300, c);
+    speech.spoken[2].fail('synthesis-failed');
+    const d = quiet();
+    driver.speak([words(3)], 300, d);
+    speech.spoken[3].fail('network');
+    expect(driver.failed).toBe(true);
+    // An interruption (our own cancel) is not an error.
+    const e = quiet();
+    const fresh = setup();
+    fresh.driver.speak([words(3)], 300, e);
+    fresh.speech.spoken[0].fail('interrupted');
+    fresh.speech.spoken[0].fail('canceled');
+    expect(e.onError).not.toHaveBeenCalled();
+    clock.advance(0);
+  });
+
+  it('cancel and destroy leave the page’s own speech alone when nothing of ours is in flight (p5b-r9)', () => {
+    const { driver, speech } = setup();
+    driver.cancel();
+    driver.destroy();
+    expect(speech.synth.cancel).not.toHaveBeenCalled();
+  });
+});
+
+describe('review p5b-r15: boundary mapping', () => {
+  function speakOne(chunks: { tokens: Token[] }[]) {
+    const r = setup();
+    const h = { onChunk: vi.fn(), onEnd: vi.fn(), onWholeSentence: vi.fn(), onError: vi.fn() };
+    r.driver.speak(chunks, 300, h);
+    return { ...r, h, u: r.speech.spoken[0] };
+  }
+
+  it('a math atom first and last in the sentence is skipped', () => {
+    const { u, h } = speakOne([{ tokens: [math('x'), w('equals')] }, { tokens: [w('two'), math('y')] }]);
+    expect(u.text).toBe('equals two');
+    u.boundary(0);
+    expect(h.onChunk).not.toHaveBeenCalled();
+    u.boundary(7);
+    expect(h.onChunk).toHaveBeenLastCalledWith(1);
+  });
+
+  it('repeated words map by position, not by text', () => {
+    const { u, h } = speakOne([{ tokens: [w('the'), w('the')] }, { tokens: [w('the')] }]);
+    u.boundary(4);
+    expect(h.onChunk).not.toHaveBeenCalled();
+    u.boundary(8);
+    expect(h.onChunk).toHaveBeenLastCalledWith(1);
+  });
+
+  it('non-ASCII and astral characters count in UTF-16 units, as charIndex does', () => {
+    const { u, h } = speakOne([{ tokens: [w('naïve'), w('😀😀')] }, { tokens: [w('über')] }]);
+    expect(u.text).toBe('naïve 😀😀 über');
+    u.boundary('naïve 😀😀 '.length);
+    expect(h.onChunk).toHaveBeenLastCalledWith(1);
+  });
+
+  it('a sentence-named boundary event is ignored', () => {
+    const { u, h } = speakOne([{ tokens: [w('aa')] }, { tokens: [w('bb')] }]);
+    u.boundary(3, 'sentence');
+    expect(h.onChunk).not.toHaveBeenCalled();
+  });
+
+  it('onerror of kind network reports the error, not an end', () => {
+    const { u, h } = speakOne([{ tokens: [w('aa')] }]);
+    u.fail('network');
+    expect(h.onError).toHaveBeenCalled();
+    expect(h.onEnd).not.toHaveBeenCalled();
+  });
+});

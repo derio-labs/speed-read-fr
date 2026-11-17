@@ -550,3 +550,27 @@ test.describe('narrow floating review fixes (p5a)', () => {
     }
   });
 });
+
+test('at 400 px a 60-character voice name still shows whether the chosen voice is local or network (p5b-r4)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const voices = [
+      { name: 'Local Voice', lang: 'en-US', voiceURI: 'local-1', localService: true, default: true },
+      { name: 'An Extremely Long Network Voice Name For Testing Truncation!', lang: 'en-GB', voiceURI: 'cloud-1', localService: false, default: false },
+    ];
+    const synth = { getVoices: () => voices, speak() {}, cancel() {}, addEventListener() {}, removeEventListener() {} };
+    Object.defineProperty(window, 'speechSynthesis', { value: synth, configurable: true });
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', { value: class { constructor(public text: string) {} }, configurable: true });
+  });
+  await page.setViewportSize({ width: 400, height: 800 });
+  await openDemo(page);
+  await page.locator('.sr-settings-button').click();
+  const select = page.locator('.sr-settings [name="tts-voice"]');
+  await expect(select.locator('optgroup')).toHaveCount(2);
+  await select.selectOption('cloud-1');
+  const badge = page.locator('.sr-settings .sr-voice-badge');
+  await badge.scrollIntoViewIfNeeded();
+  await expect(badge).toHaveText('network');
+  const b = (await badge.boundingBox())!;
+  expect(b.x + b.width).toBeLessThanOrEqual(400);
+  expect(b.width).toBeGreaterThan(30);
+});

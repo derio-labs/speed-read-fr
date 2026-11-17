@@ -1,4 +1,4 @@
-import type { Block, Doc, ExhibitBlock, ExhibitKind, ExhibitMeta, ListItem, Section, Sentence, SourceRef } from './model';
+import type { Block, Doc, ExhibitBlock, ExhibitKind, ExhibitMeta, ListItem, Section, Sentence, SourceRef, Token } from './model';
 import type { Settings } from './settings';
 import { chunkSentence, type Chunk, type ChunkOptions } from './text/chunks';
 
@@ -31,7 +31,7 @@ export interface SentencePart {
 export type Step = StepPosition &
   (
     | { kind: 'chapter'; card: ChapterCard }
-    | { kind: 'title'; text: string; level: number }
+    | { kind: 'title'; text: string; level: number; tokens?: Token[] }
     | ({ kind: 'chunk' } & SentencePart)
     | ({ kind: 'item-chunk'; index: number; of: number; depth: number } & SentencePart)
     | { kind: 'item-gap' }
@@ -153,7 +153,7 @@ export function buildTimeline(doc: Doc, settings: Settings): Timeline {
         };
         steps.push({ ...at, kind: 'chapter', card });
       } else {
-        steps.push({ ...at, kind: 'title', text: section.heading.text, level: section.heading.level });
+        steps.push({ ...at, kind: 'title', text: section.heading.text, level: section.heading.level, tokens: section.heading.tokens });
       }
     }
 

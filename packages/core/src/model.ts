@@ -6,7 +6,13 @@ export interface Doc {
 
 export interface Section {
   id: string;
-  heading?: { level: 1 | 2 | 3 | 4 | 5 | 6; text: string; source: SourceRef };
+  heading?: {
+    level: 1 | 2 | 3 | 4 | 5 | 6;
+    text: string;
+    /** The heading's words and atoms (math kept apart, so speech can leave it out). */
+    tokens?: Token[];
+    source: SourceRef;
+  };
   blocks: Block[];
   words: number;
 }

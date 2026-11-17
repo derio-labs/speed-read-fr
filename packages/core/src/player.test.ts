@@ -769,7 +769,6 @@ describe('player: text-to-speech (spec section 9)', () => {
     r.player.toggle();
     r.last().end();
     expect(r.player.state).toBe('stopped');
-    expect(r.speech.synth.cancel).toHaveBeenCalled();
     r.player.continue();
     r.player.continue();
     r.player.continue();
@@ -832,5 +831,45 @@ describe('review p5a-r10: scrubbing from a stop reached by playback', () => {
     r.player.scrub(1);
     r.clock.advance(700);
     expect(r.player.state).toBe('playing');
+  });
+});
+
+describe('review p5b: speech errors and titles', () => {
+  const spoken: Settings = { ...one, tts: { enabled: true, voiceURI: null } };
+  function speaking(d: Doc) {
+    const clock = fakeClock();
+    const speech = fakeSpeech([voice('Local', 'en-US', true)]);
+    const driver = createSpeechDriver(speech.synth, { Utterance: speech.Utterance, scheduler: clock });
+    const player = createPlayer(buildTimeline(d, spoken), spoken, clock, driver);
+    const steps: StepEvent[] = [];
+    player.on('step', (e) => steps.push(e));
+    const text = (e: StepEvent) => (e.step.kind === 'chunk' ? e.step.chunk.text : e.step.kind);
+    return { clock, speech, driver, player, steps, text, texts: () => speech.spoken.map((u) => u.text) };
+  }
+
+  it('an error shows that sentence with timed chunks, never skips it; two in a row turn speech off (p5b-r3)', () => {
+    const r = speaking(doc(section('s', undefined, prose('Aa bb. Cc dd. Ee ff.'))));
+    r.player.toggle();
+    r.speech.spoken[0].fail('network');
+    const shown = r.steps.at(-1)!;
+    expect(r.text(shown)).toBe('Aa');
+    expect(shown.durationMs).not.toBeNull();
+    r.clock.advance(shown.durationMs!);
+    expect(r.text(r.steps.at(-1)!)).toBe('bb.');
+    r.clock.advance(r.steps.at(-1)!.durationMs!);
+    expect(r.texts().at(-1)).toBe('Cc dd.');
+    r.speech.spoken.at(-1)!.fail('network');
+    expect(r.driver.failed).toBe(true);
+    r.clock.advance(5000);
+    expect(r.texts()).toEqual(['Aa bb.', 'Cc dd.']);
+    expect(r.steps.some((e) => r.text(e) === 'ff.')).toBe(true);
+  });
+
+  it('a title is spoken from its tokens, without inline math (p5b-r8)', () => {
+    const s = section('s', { level: 4, text: 'Area x^2 here' }, prose('Aa.'));
+    s.heading = { ...s.heading!, tokens: [{ kind: 'word', text: 'Area' }, { kind: 'atom', atom: 'math', text: 'x^2' }, { kind: 'word', text: 'here' }] };
+    const r = speaking(doc(s));
+    r.player.toggle();
+    expect(r.texts()).toEqual(['Area here']);
   });
 });

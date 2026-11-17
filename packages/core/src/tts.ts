@@ -48,6 +48,8 @@ export interface SpeechHandlers {
   onEnd(): void;
   /** No boundaries for this sentence: show it whole until `onEnd`. */
   onWholeSentence(): void;
+  /** The voice failed on this sentence (not a cancel): show it as text; nothing more is spoken for it. */
+  onError?(): void;
 }
 
 export interface SpeechDriver {
@@ -61,11 +63,15 @@ export interface SpeechDriver {
   setVoice(uri: string | null): void;
   /** The voice speech uses now: the picked one when it exists, else the default. */
   currentVoice(): VoiceInfo | null;
-  /** Called when the voice list changes or the wait for it ends. */
+  /** Called when the voice list changes, the wait for it ends, or speech fails. */
   onVoices(fn: () => void): () => void;
   /** Speak one sentence given as its chunks; replaces anything being spoken. */
   speak(chunks: { tokens: Token[] }[], wpm: number, handlers: SpeechHandlers): void;
   cancel(): void;
+  /** An utterance of ours is being spoken. */
+  readonly inFlight: boolean;
+  /** Two errors in a row: speech is off for the rest of the session ("Speech failed: showing text only"). */
+  readonly failed: boolean;
   /** The current voice sent no boundaries for two sentences in a row: it shows whole sentences from now on. */
   readonly boundaryless: boolean;
   destroy(): void;
@@ -84,6 +90,19 @@ export const BOUNDARY_WAIT_MS = 1000;
 export const VOICES_WAIT_MS = 2000;
 /** Sentences in a row without boundaries after which a voice counts as boundary-less. */
 const BOUNDARYLESS_AFTER = 2;
+/** Longest utterance: browsers cut off long ones (Chrome at about 15 s). */
+export const MAX_UTTERANCE_CHARS = 200;
+/** An utterance whose end has not come after max(5 s, 3 x its estimated duration) counts as ended. */
+const WATCHDOG_MIN_MS = 5000;
+const WATCHDOG_FACTOR = 3;
+/** Errors in a row after which speech is given up for the session. */
+const FAILED_AFTER_ERRORS = 2;
+
+interface Part {
+  text: string;
+  starts: { at: number; chunk: number }[];
+  words: number;
+}
 
 /** Speech rate for a reading speed: wpm / 180, clamped to 0.5-3. */
 export const speechRate = (wpm: number) => Math.min(3, Math.max(0.5, wpm / 180));
@@ -141,17 +160,29 @@ export function createSpeechDriver(
   const current = () => (picked ? raw.find((v) => v.voiceURI === picked) : undefined) ?? defaultVoice();
   const voiceKey = () => current()?.voiceURI ?? '';
 
+  /** The utterance in flight, held so the browser cannot collect it before it ends (p5b-r1). */
+  let inFlight: UtteranceLike | null = null;
+  let watchdog: unknown = null;
+  let errorsInRow = 0;
+  let failed = false;
+
   function stopWaiting() {
     if (wait !== null) timers.clearTimeout(wait);
     wait = null;
+  }
+  function stopWatchdog() {
+    if (watchdog !== null) timers.clearTimeout(watchdog);
+    watchdog = null;
   }
 
   function cancel() {
     generation++;
     stopWaiting();
-    if (available) synth!.cancel();
+    stopWatchdog();
+    // Only our own utterance: the page's speech is left alone (p5b-r9).
+    if (inFlight && available) synth!.cancel();
+    inFlight = null;
   }
-
   return {
     available,
     voices: () => raw.map(info),
@@ -176,31 +207,43 @@ export function createSpeechDriver(
     get boundaryless() {
       return (withoutBoundaries.get(voiceKey()) ?? 0) >= BOUNDARYLESS_AFTER;
     },
+    get inFlight() {
+      return inFlight !== null;
+    },
+    get failed() {
+      return failed;
+    },
     speak(chunks, wpm, handlers) {
       if (!available) return;
       cancel();
       const gen = ++generation;
       // Spoken text: words and code atoms; math atoms are left out, and their characters with them.
-      const starts: { at: number; chunk: number }[] = [];
-      let text = '';
+      // A long sentence is split at chunk boundaries into parts of at most 200 characters (p5b-r2).
+      const parts: Part[] = [];
+      let part: Part = { text: '', starts: [], words: 0 };
       chunks.forEach((c, chunk) => {
-        for (const t of c.tokens) {
-          if (t.kind === 'atom' && t.atom === 'math') continue;
-          if (text) text += ' ';
-          starts.push({ at: text.length, chunk });
-          text += t.text;
+        const spoken = c.tokens.filter((t) => !(t.kind === 'atom' && t.atom === 'math'));
+        if (spoken.length === 0) return;
+        const piece = spoken.map((t) => t.text).join(' ');
+        if (part.text && part.text.length + 1 + piece.length > MAX_UTTERANCE_CHARS) {
+          parts.push(part);
+          part = { text: '', starts: [], words: 0 };
+        }
+        for (const t of spoken) {
+          if (part.text) part.text += ' ';
+          part.starts.push({ at: part.text.length, chunk });
+          part.text += t.text;
+          part.words++;
         }
       });
-      if (!text) {
+      if (part.text) parts.push(part);
+      if (parts.length === 0) {
         timers.setTimeout(() => gen === generation && handlers.onEnd(), 0);
         return;
       }
       const voice = current();
       const key = voice?.voiceURI ?? '';
-      const u = new Utterance!(text);
-      u.rate = speechRate(wpm);
-      u.voice = voice;
-      if (voice) u.lang = voice.lang;
+      const rate = speechRate(wpm);
       let shown = 0;
       let whole = false;
       let heard = false;
@@ -209,36 +252,70 @@ export function createSpeechDriver(
         withoutBoundaries.set(key, (withoutBoundaries.get(key) ?? 0) + 1);
         handlers.onWholeSentence();
       };
-      u.onboundary = (e) => {
-        if (gen !== generation || whole || (e.name && e.name !== 'word')) return;
-        if (!heard) {
-          heard = true;
+
+      const speakPart = (n: number) => {
+        const { text, starts, words } = parts[n];
+        const u = new Utterance!(text);
+        u.rate = rate;
+        u.voice = voice;
+        if (voice) u.lang = voice.lang;
+        u.onboundary = (e) => {
+          if (gen !== generation || whole || (e.name && e.name !== 'word')) return;
+          if (!heard) {
+            heard = true;
+            stopWaiting();
+            withoutBoundaries.set(key, 0);
+          }
+          let chunk = starts[0].chunk;
+          for (const st of starts) if (st.at <= e.charIndex) chunk = st.chunk;
+          if (chunk !== shown) {
+            shown = chunk;
+            handlers.onChunk(chunk);
+          }
+        };
+        let finished = false;
+        const done = () => {
+          if (gen !== generation || finished) return;
+          finished = true;
+          stopWatchdog();
+          inFlight = null;
+          if (n + 1 < parts.length) return speakPart(n + 1);
+          generation++;
           stopWaiting();
-          withoutBoundaries.set(key, 0);
-        }
-        let chunk = 0;
-        for (const s of starts) if (s.at <= e.charIndex) chunk = s.chunk;
-        if (chunk !== shown) {
-          shown = chunk;
-          handlers.onChunk(chunk);
-        }
+          errorsInRow = 0;
+          handlers.onEnd();
+        };
+        u.onend = done;
+        u.onerror = (e) => {
+          if (gen !== generation || finished || e.error === 'interrupted' || e.error === 'canceled') return;
+          // Never advance on an error (p5b-r3): stop, report, and give up speech after two in a row.
+          cancel();
+          errorsInRow++;
+          if (errorsInRow >= FAILED_AFTER_ERRORS && !failed) {
+            failed = true;
+            notify();
+          }
+          handlers.onError?.();
+        };
+        // The end may never come (a cut-off long utterance, a dropped speak): treat it as ended.
+        const estimate = (words / (180 * rate)) * 60_000;
+        watchdog = timers.setTimeout(() => {
+          watchdog = null;
+          if (gen !== generation) return;
+          if (available) synth!.cancel();
+          done();
+        }, Math.max(WATCHDOG_MIN_MS, WATCHDOG_FACTOR * estimate));
+        inFlight = u;
+        synth!.speak(u);
       };
-      const ended = () => {
-        if (gen !== generation) return;
-        generation++;
-        stopWaiting();
-        handlers.onEnd();
-      };
-      u.onend = ended;
-      // A failed utterance moves on like an ended one, so playback never hangs on it.
-      u.onerror = ended;
+
       if ((withoutBoundaries.get(key) ?? 0) >= BOUNDARYLESS_AFTER) showWhole();
       else
         wait = timers.setTimeout(() => {
           wait = null;
           if (gen === generation && !heard) showWhole();
         }, BOUNDARY_WAIT_MS);
-      synth!.speak(u);
+      speakPart(0);
     },
     cancel,
     destroy() {

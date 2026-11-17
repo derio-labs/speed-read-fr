@@ -211,11 +211,11 @@ function atomOf(el: Element, out: InlineText): boolean {
 }
 
 /** A heading's text, read like inline content so math shows its source once. */
-function headingText(el: Element): string {
+function headingText(el: Element): { text: string; tokens: Token[] } {
   const text = new InlineText();
   gatherInline(el, text);
   text.flush();
-  return text.tokens.map((t) => t.text).join(' ');
+  return { text: text.tokens.map((t) => t.text).join(' '), tokens: text.tokens };
 }
 
 const hasBlockChild = (el: Element) => Array.from(el.children).some((c) => isBlockElement(c) && !isSkipped(c, true));
@@ -281,7 +281,7 @@ class Extractor {
     const level = headingLevel(el);
     if (level !== null) {
       this.closeSection();
-      this.current = this.newSection({ level, text: headingText(el), source: sourceOf(el) });
+      this.current = this.newSection({ level, ...headingText(el), source: sourceOf(el) });
       return;
     }
     const exhibit = exhibitOf(el);

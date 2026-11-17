@@ -53,6 +53,8 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
   const ttsToggle = h('input', { type: 'checkbox', name: 'tts' });
   const voiceSelect = h('select', { name: 'tts-voice', 'aria-label': 'Voice' });
   const ttsNotes = h('div', { class: 'sr-tts-notes' });
+  const voiceBadge = h('span', { class: 'sr-voice-badge' });
+  let missingVoice = false;
   const done = h('button', { type: 'button', class: 'sr-settings-done' }, 'Done');
   const panel = h(
     'div',
@@ -90,7 +92,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       {},
       h('legend', {}, 'Speech'),
       field('Text-to-speech', 'read aloud', ttsToggle),
-      field('Voice', null, voiceSelect),
+      field('Voice', null, voiceSelect, voiceBadge),
       ttsNotes,
     ),
     h('div', { class: 'sr-settings-foot' }, done),
@@ -118,16 +120,24 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     enableSeconds();
   }
 
-  /** The voice list (each labelled local or network) with `picked` selected; '' is the automatic choice. */
+  /**
+   * The voice list, grouped local and network and each labelled (p5b-r4), with `picked` selected; ''
+   * is the automatic choice. A picked voice that is gone shows as Automatic (p5b-r7).
+   */
   function showVoices(picked: string | null) {
     const { speech } = ctx;
     const voices = speech.voices();
     const auto = speech.defaultVoice();
-    const options = [h('option', { value: '' }, auto ? `Automatic: ${auto.name}` : 'Choose a voice')];
-    for (const v of voices) options.push(h('option', { value: v.uri }, `${v.name} (${v.lang}) · ${v.local ? 'local' : 'network'}`));
-    if (picked && !voices.some((v) => v.uri === picked)) options.push(h('option', { value: picked }, 'Saved voice (not found)'));
-    voiceSelect.replaceChildren(...options);
-    voiceSelect.value = picked ?? '';
+    const option = (v: (typeof voices)[number]) => h('option', { value: v.uri }, `${v.name} (${v.lang}) · ${v.local ? 'local' : 'network'}`);
+    const local = voices.filter((v) => v.local);
+    const network = voices.filter((v) => !v.local);
+    voiceSelect.replaceChildren(
+      h('option', { value: '' }, auto ? `Automatic: ${auto.name}` : 'Choose a voice'),
+      ...(local.length ? [h('optgroup', { label: 'Local (works offline)' }, ...local.map(option))] : []),
+      ...(network.length ? [h('optgroup', { label: 'Network' }, ...network.map(option))] : []),
+    );
+    missingVoice = !!picked && voices.length > 0 && !voices.some((v) => v.uri === picked);
+    voiceSelect.value = picked && !missingVoice && voices.some((v) => v.uri === picked) ? picked : '';
     showSpeechState();
   }
 
@@ -138,12 +148,17 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     const voice = picked ? speech.voices().find((v) => v.uri === picked) : speech.defaultVoice();
     ttsToggle.disabled = !speech.available || !voice;
     voiceSelect.disabled = !speech.available;
-    const lines: string[] = [];
-    if (!speech.available) lines.push('Text-to-speech is not available here');
-    else if (speech.noLocalVoice && !picked) lines.push('No offline voice installed');
-    if (voice && !voice.local) lines.push('This voice needs a network connection');
-    lines.push('Offline speech uses voices installed on this device');
-    ttsNotes.replaceChildren(...lines.map((line) => h('p', { class: 'sr-tts-note sr-field-hint' }, line)));
+    voiceBadge.hidden = !voice;
+    voiceBadge.textContent = voice ? (voice.local ? 'local' : 'network') : '';
+    voiceBadge.dataset.kind = voice?.local ? 'local' : 'network';
+    const lines: [string, 'warning' | 'info'][] = [];
+    if (!speech.available) lines.push(['Text-to-speech is not available here', 'warning']);
+    else if (speech.failed) lines.push(['Speech failed: showing text only', 'warning']);
+    if (speech.available && speech.noLocalVoice && !picked) lines.push(['No offline voice installed', 'warning']);
+    if (missingVoice && !picked) lines.push(['Saved voice not found; using Automatic', 'info']);
+    if (voice && !voice.local) lines.push(['This voice needs a network connection', 'warning']);
+    lines.push(['Offline speech uses voices installed on this device', 'info']);
+    ttsNotes.replaceChildren(...lines.map(([line, kind]) => h('p', { class: 'sr-tts-note sr-field-hint', 'data-kind': kind }, line)));
   }
 
   function enableSeconds() {
@@ -173,7 +188,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       imageDwellSeconds: num('imageDwellSeconds', current.imageDwellSeconds),
       display: control('display').value as Settings['display'],
       pageFade: control('pageFade') ? num('pageFade', current.pageFade * 100) / 100 : current.pageFade,
-      tts: { enabled: ttsToggle.checked, voiceURI: voiceSelect.value || null },
+      tts: { enabled: ttsToggle.checked, voiceURI: voiceSelect.value || (missingVoice ? current.tts.voiceURI : null) },
     });
   }
 
@@ -193,6 +208,10 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
   const onCommit = (e: Event) => ctx.accepts(e) && apply(true);
   panel.addEventListener('input', onInput);
   panel.addEventListener('change', onCommit);
+  // Picking any voice, Automatic included, replaces a saved voice that is gone.
+  voiceSelect.addEventListener('change', () => {
+    missingVoice = false;
+  });
   const offVoices = ctx.speech.onVoices(() => showVoices(voiceSelect.value || null));
 
   function close() {

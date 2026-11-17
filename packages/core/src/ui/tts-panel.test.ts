@@ -118,3 +118,58 @@ describe('speech on the stage', () => {
     expect(speech.spoken).toHaveLength(2);
   });
 });
+
+describe('review p5b: voice panel', () => {
+  it('groups voices as local and network and shows the chosen voice’s kind as a badge (p5b-r4)', async () => {
+    const { t } = withSpeech();
+    await t.settle();
+    const { field, panel } = openPanel(t);
+    expect([...field('tts-voice').querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Local (works offline)', 'Network']);
+    const badge = () => panel.querySelector('.sr-voice-badge')!;
+    expect(badge().textContent).toBe('local');
+    field('tts-voice').value = 'voice:Cloud';
+    field('tts-voice').dispatchEvent(new Event('change', { bubbles: true }));
+    expect(badge().textContent).toBe('network');
+    expect(badge().getAttribute('data-kind')).toBe('network');
+  });
+
+  it('marks the warnings as warnings (p5b-r5)', async () => {
+    const { t } = withSpeech();
+    await t.settle();
+    const { field, panel } = openPanel(t);
+    field('tts-voice').value = 'voice:Cloud';
+    field('tts-voice').dispatchEvent(new Event('change', { bubbles: true }));
+    const warnings = [...panel.querySelectorAll('.sr-tts-note[data-kind="warning"]')].map((n) => n.textContent);
+    expect(warnings).toEqual(['This voice needs a network connection']);
+  });
+
+  it('a saved voice that is gone falls back to Automatic, and says so (p5b-r7)', async () => {
+    const { t } = withSpeech(undefined, { saved: { tts: { enabled: true, voiceURI: 'voice:Gone' } } });
+    await t.settle();
+    const { field, notes } = openPanel(t);
+    expect(field('tts').disabled).toBe(false);
+    expect(notes()).toContain('Saved voice not found; using Automatic');
+  });
+
+  it('after speech fails the status line and the panel say so (p5b-r3)', async () => {
+    const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], { saved: { tts: { enabled: true, voiceURI: null } } });
+    await t.settle();
+    t.handle.player.toggle();
+    speech.spoken[0].fail('network');
+    t.clock.advance(t.clock.nextIn() ?? 0);
+    for (let i = 0; i < 20 && speech.spoken.length < 2; i++) t.clock.advance(t.clock.nextIn() ?? 0);
+    speech.spoken.at(-1)!.fail('network');
+    expect(t.q('.sr-status')!.textContent).toContain('Speech failed: showing text only');
+    expect(openPanel(t).notes()).toContain('Speech failed: showing text only');
+  });
+
+  it('hides the sentence line while the whole sentence is on the stage (p5b-r6)', async () => {
+    const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], { saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1 } });
+    await t.settle();
+    t.handle.player.toggle();
+    t.clock.advance(1000);
+    expect(t.q('.sr-display')!.dataset.kind).toBe('whole');
+    expect(t.q('.sr-sentence')!.textContent).toBe('');
+    speech.spoken[0].end();
+  });
+});

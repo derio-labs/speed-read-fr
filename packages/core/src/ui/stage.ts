@@ -268,6 +268,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
       h('span', { class: 'sr-status-state' }, STATE_LABELS[player.state]),
       h('span', { class: 'sr-status-sep' }, ' · '),
       h('span', { class: 'sr-status-progress' }, `${pct}%`),
+      ctx.speech.failed ? h('span', { class: 'sr-status-note' }, 'Speech failed: showing text only') : null,
     );
     overallFill.style.width = `${pct}%`;
   }
@@ -278,6 +279,8 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
     aligned = null;
     setDisplay('whole', h('div', { class: 'sr-chunk sr-chunk-whole' }, ...tokenNodes(tokens)));
     display.dataset.wrap = 'true';
+    // The stage already shows the whole sentence: no second copy below it (p5b-r6).
+    replaceChildren(sentence);
   }
 
   let shown = false;
@@ -291,6 +294,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
     }),
     player.on('state', renderStatus),
     player.on('settings', renderStatus),
+    ctx.speech.onVoices(renderStatus),
   ];
   showReady();
   renderStatus();
