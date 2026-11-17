@@ -229,6 +229,16 @@ rows:
       states:
       - floating cards over faded page with current block at full strength
       - narrow window exhibit card pushes stage down
+  - id: browser-floating-overlay-on-sites
+    capability: browser-extension
+    acceptance: On real sites the faded page, the full-strength current block and the
+      scroll follow behave as on the test pages.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R17
+    levels: {}
+    status: not-implemented
+    notes: ''
+    verify: live
   - id: vscode-entry-points
     capability: vscode-extension
     acceptance: VS Code offers commands to read the file, the selection and from the
