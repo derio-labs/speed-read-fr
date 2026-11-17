@@ -1441,3 +1441,8 @@ Only an own global whose runtime has sendMessage and getURL functions is accepte
 ### l-security-r7-resolved · finding [fixed] · resolves l-security-r7: Untrusted paths and webview text in notifications could form command links
 
 One helper neutralises link syntax in every interpolated notification value (5f25fd8).
+
+<!-- fr:journal kind=finding scope=plan id=p3-r16-resolved-2 created=2026-11-17T20:41:26+00:00 state=fixed resolves=p3-r16 answered_by=operator -->
+### p3-r16-resolved-2 · finding [fixed] · resolves p3-r16: Dock margin does not move position:fixed page elements
+
+Operator decided to fix it in this run. The dock now moves fixed elements out from under the panel and restores them on close (phase 5 task 7); confirmed fixed by the phase 5 reviewer.
