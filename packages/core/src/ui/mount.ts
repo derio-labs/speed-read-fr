@@ -5,6 +5,7 @@ import { buildTimeline, type Timeline } from '../timeline';
 import type { ReaderContext, Zone } from './context';
 import { builder, icon, ICONS } from './dom';
 import type { Host } from './host';
+import { createStage } from './stage';
 import { READER_CSS, SENTINEL_PROPERTY } from './styles';
 
 export interface MountOptions {
@@ -103,8 +104,9 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     h,
     reader,
   };
-  const zones: Zone[] = [];
-  void ctx;
+  const zones: Zone[] = [
+    createStage(ctx, { stage, status, overallFill: overall.firstElementChild as HTMLElement }),
+  ];
 
   const unsubscribe = [
     player.on('position', (e) => host.onPosition(e.source)),
