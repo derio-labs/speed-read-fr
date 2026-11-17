@@ -79,7 +79,7 @@ export function createReading(ctx: ReaderContext, { reading, layout }: ReadingEl
 
   /** Move the position to the innermost block holding the pressed element. */
   function onPress(event: Event) {
-    if (!open) return;
+    if (!ctx.accepts(event) || !open) return;
     for (let el = event.target as Element | null; el && el !== reading; el = el.parentElement) {
       const ref = open.doc.refAt(el);
       if (ref?.element && open.sources.has(ref.element)) return player.jumpToBlock(ref);

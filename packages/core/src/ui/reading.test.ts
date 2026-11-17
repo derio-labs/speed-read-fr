@@ -87,4 +87,16 @@ describe('normal reading', () => {
     t.handle.destroy();
     expect(t.live.size).toBe(0);
   });
+
+  it('with trustedEventsOnly, a synthetic press on a block does not move the position (l-security-r3)', () => {
+    const t = mountHarness(ARTICLE, { trustedEventsOnly: true });
+    t.handle.player.toggleReading();
+    expect(t.handle.player.state).toBe('reading');
+    const reading = t.q('.sr-reading')!;
+    const before = t.qa('[data-sr-current]');
+    const calls = t.host.onPosition.mock.calls.length;
+    reading.querySelector('pre code')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(t.host.onPosition.mock.calls.length).toBe(calls);
+    expect(t.qa('[data-sr-current]')).toEqual(before);
+  });
 });
