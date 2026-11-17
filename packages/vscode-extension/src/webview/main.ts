@@ -44,6 +44,8 @@ body.vscode-light .sr-reader, body.vscode-high-contrast-light .sr-reader { color
 .sr-md img, .sr-md svg { max-width: 100%; height: auto; }
 /* A tall diagram fits the pane, scaled down within its box (E expands it to full size). */
 .sr-exhibit-body .sr-md .mermaid svg { display: block; margin: 0 auto; max-height: 45vh; }
+/* Under 900 px the pane sits below the stage at 42% of the height. */
+@container sr-reader (max-width: 899px) { .sr-exhibit-body .sr-md .mermaid svg { max-height: 24vh; } }
 .sr-md .katex-display { margin: .4em 0; overflow-x: auto; overflow-y: hidden; }
 .sr-md .katex { font-size: 1.15em; }
 .sr-md blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--vscode-textBlockQuote-border, #8888); }
