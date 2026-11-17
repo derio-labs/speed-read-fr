@@ -349,6 +349,67 @@ test('page scripts cannot drive the reader: synthetic keys change nothing in sto
   expect(await worker.evaluate(async () => (await chrome.storage.local.get('settings')).settings)).toBeUndefined();
 });
 
+test('a page script cannot outline a block or open the reader by dispatching Alt-hover events (l-security-r2)', async () => {
+  const page = await openPage(ARTICLE);
+  // Synthetic Alt move, key and press on the second paragraph, dispatched by the page.
+  const prevented = await page.evaluate(() => {
+    const p = document.querySelectorAll('#content > p')[1] as HTMLElement;
+    const r = p.getBoundingClientRect();
+    const at = { clientX: r.left + 10, clientY: r.top + 5, bubbles: true, cancelable: true, composed: true, altKey: true };
+    p.dispatchEvent(new MouseEvent('mousemove', at));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Alt', altKey: true, bubbles: true }));
+    const outlined = document.querySelectorAll('[data-speed-read-hover]').length;
+    const pressed = ['mousedown', 'mouseup', 'click'].map((type) => !p.dispatchEvent(new MouseEvent(type, at)));
+    return { outlined, pressed };
+  });
+  expect(prevented).toEqual({ outlined: 0, pressed: [false, false, false] });
+  await expect(page.locator('[data-speed-read-hover]')).toHaveCount(0);
+  // A real Alt+press still works, and the reader that opens reads the block the user pressed (the
+  // first paragraph), not the one the page picked: a positive event before asserting nothing else opened.
+  const first = page.locator('#content > p').first();
+  const box = (await first.boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 8);
+  await page.keyboard.down('Alt');
+  await page.mouse.move(box.x + 24, box.y + 8);
+  await expect(first).toHaveAttribute('data-speed-read-hover', '');
+  await page.mouse.click(box.x + 24, box.y + 8);
+  await page.keyboard.up('Alt');
+  await expect(reader(page)).toBeFocused();
+  await expect(host(page)).toHaveCount(1);
+  await page.keyboard.press('Space');
+  await expect(sentence(page)).toContainText('So you can read it all in one go');
+});
+
+test('Tab moves through the settings panel control by control with the real keyboard, and wraps (l-tests-r1)', async () => {
+  const page = await openPage(ARTICLE);
+  await openReader(page, 'auto');
+  await page.keyboard.press(',');
+  await expect(page.locator('[data-speed-read-host] .sr-settings')).toBeVisible();
+  /** The panel's Tab stops in order, and the index of the focused one (focus as seen inside the shadow root). */
+  const where = () =>
+    page.evaluate(() => {
+      const root = document.querySelector('[data-speed-read-host]')!.shadowRoot!;
+      const panel = root.querySelector('.sr-settings')!;
+      const stops = [...panel.querySelectorAll<HTMLElement>('button, input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(
+        (el) => !(el as HTMLButtonElement).disabled && !el.closest('[hidden]') && el.getClientRects().length > 0,
+      );
+      return { count: stops.length, at: stops.indexOf(root.activeElement as HTMLElement) };
+    });
+  const start = await where();
+  expect(start.count).toBeGreaterThan(3);
+  expect(start.at).toBe(0);
+  await page.keyboard.press('Tab');
+  expect((await where()).at).toBe(1);
+  await page.keyboard.press('Tab');
+  expect((await where()).at).toBe(2);
+  for (let i = 2; i < start.count - 1; i++) await page.keyboard.press('Tab');
+  expect((await where()).at).toBe(start.count - 1);
+  await page.keyboard.press('Tab');
+  expect((await where()).at).toBe(0);
+  await page.keyboard.press('Shift+Tab');
+  expect((await where()).at).toBe(start.count - 1);
+});
+
 test('the packaged build has a closed shadow root and no test hook', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'speed-read-packaged-'));
   const packaged = await chromium.launchPersistentContext(dir, {
@@ -380,8 +441,52 @@ test('the packaged build has a closed shadow root and no test hook', async () =>
       return host.shadowRoot;
     });
     expect(reach).toBeNull();
-    await page.waitForTimeout(200);
-    expect(await sw.evaluate(async () => (await chrome.storage.local.get('settings')).settings)).toBeUndefined();
+    const storedWpm = () => sw.evaluate(async () => ((await chrome.storage.local.get('settings')).settings as { wpm?: number } | undefined)?.wpm);
+    // Positive control (l-tests-r2): a real ArrowUp raises the stored speed by one step, so the five
+    // synthetic ones before it were ignored, not merely slow to land.
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(storedWpm).toBe(325);
+    // A real Space plays and the chunks advance: the overlay's page follow scrolls the page to the
+    // first paragraph, then, once reading reaches the second, by about the distance between them.
+    const gap = await page.evaluate(() => {
+      const [a, b] = [...document.querySelectorAll('#content > p')].map((p) => p.getBoundingClientRect().top);
+      return b - a;
+    });
+    expect(gap).toBeGreaterThan(40);
+    const settled = async () => {
+      let last = -1;
+      await expect
+        .poll(async () => {
+          const now = await page.evaluate(() => scrollY);
+          const same = now === last;
+          last = now;
+          return same;
+        })
+        .toBe(true);
+      return last;
+    };
+    const before = await settled();
+    await page.keyboard.press('Space');
+    // The first chunk: the page follows the first paragraph to the top of the free band.
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before + 20);
+    const atFirst = await settled();
+    // Later chunks: reading moves on to the second paragraph, and the page follows it.
+    await expect.poll(() => page.evaluate(() => scrollY), { timeout: 30_000 }).toBeGreaterThan(atFirst + gap * 0.8);
+    await page.keyboard.press('Space');
+    // The settings survive a reload: the reader opened again starts at 325 WPM, so ArrowUp stores 350.
+    await page.reload();
+    const again = page.locator('#content > p').first();
+    const againBox = (await again.boundingBox())!;
+    await page.mouse.move(againBox.x + 20, againBox.y + 8);
+    await page.keyboard.down('Alt');
+    await page.mouse.move(againBox.x + 24, againBox.y + 8);
+    await expect(again).toHaveAttribute('data-speed-read-hover', '');
+    await page.mouse.click(againBox.x + 24, againBox.y + 8);
+    await page.keyboard.up('Alt');
+    await expect(page.locator('[data-speed-read-host]')).toHaveCount(1);
+    await expect.poll(storedWpm).toBe(325);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(storedWpm).toBe(350);
   } finally {
     await packaged.close();
     rmSync(dir, { recursive: true, force: true });
@@ -395,9 +500,9 @@ test('a link pressed in the reading view moves the position and does not navigat
   const clone = page.locator('[data-speed-read-host] > [data-sr-clone]');
   const link = clone.locator('a', { hasText: 'the demo' });
   await link.click();
-  await page.waitForTimeout(300);
-  expect(page.url()).toBe(baseURL + ARTICLE);
+  // The press has been handled once the mark moved; only then is "did not navigate" meaningful.
   await expect(clone.locator('[data-sr-current]')).toContainText('This page is the demo the tests drive.');
+  expect(page.url()).toBe(baseURL + ARTICLE);
   await expect(clone.locator('[id], [name]')).toHaveCount(0);
 });
 
@@ -483,7 +588,12 @@ test('a remote picture shown in the reader is not fetched again', async () => {
   await page.keyboard.press('Escape');
   await page.keyboard.press('Tab');
   await expect(page.locator('[data-speed-read-host] .sr-reading')).toBeVisible();
-  await page.waitForTimeout(500);
+  // A positive event first: every copied picture of the reading view has loaded (from the cache).
+  const copies = page.locator('[data-speed-read-host] > [data-sr-clone] img');
+  await expect.poll(() => copies.count()).toBeGreaterThan(0);
+  await expect
+    .poll(() => copies.evaluateAll((imgs) => imgs.every((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0)))
+    .toBe(true);
   expect(remoteRequests.slice(onLoad)).toEqual([]);
 });
 
@@ -519,7 +629,8 @@ test.describe('floating overlay over the faded page (R17, R29)', () => {
     const block = await framed(page);
     expect(block, 'the window frames a block of the page').not.toBeNull();
     const words = (await sentence(page).textContent())!.trim().split(/\s+/).slice(0, 2).join(' ');
-    if (words) expect(block!.text).toContain(words);
+    expect(words, 'the sentence line shows the sentence being read').not.toBe('');
+    expect(block!.text).toContain(words);
     expect(Math.abs(block!.top - 800 * 0.1)).toBeLessThanOrEqual(3);
     // Playing keeps the window on the block being read.
     await page.keyboard.press('Space');
