@@ -1466,3 +1466,8 @@ Filed at deliver as https://github.com/derio-net/speed-read-fr/issues/2.
 ### p5a-r12-resolved-2 · finding [deferred → https://github.com/derio-net/speed-read-fr/issues/3] · resolves p5a-r12: Overlay host blocks pointer input to the faded page (phase 5)
 
 Filed at deliver as https://github.com/derio-net/speed-read-fr/issues/3.
+
+<!-- fr:journal kind=finding scope=plan id=p5a-r13-resolved-2 created=2026-11-17T20:41:47+00:00 phase=5 state=open resolves=p5a-r13 tracked_by=https://github.com/derio-net/speed-read-fr/issues/4 -->
+### p5a-r13-resolved-2 · finding [deferred → https://github.com/derio-net/speed-read-fr/issues/4] · resolves p5a-r13: Dock restore overwrites page changes made while docked (phase 5)
+
+Filed at deliver as https://github.com/derio-net/speed-read-fr/issues/4.
