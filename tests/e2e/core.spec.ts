@@ -233,3 +233,37 @@ test('a paused chunk stays inside the stage after resizing from wide to 360 px',
   await expect.poll(() => insideStage(page, '.sr-chunk')).toBe(true);
   expect(await insideStage(page, '.sr-sentence')).toBe(true);
 });
+
+/** WCAG contrast ratio of an element's text colour on its background colour. */
+async function contrast(page: Page, selector: string) {
+  return page.locator(selector).evaluate((el) => {
+    const rgb = (value: string) => (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+    const lum = ([r, g, b]: number[]) => {
+      const c = [r, g, b].map((v) => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    };
+    const style = getComputedStyle(el);
+    const [a, b] = [lum(rgb(style.color)), lum(rgb(style.backgroundColor))].sort((x, y) => y - x);
+    return (a + 0.05) / (b + 0.05);
+  });
+}
+
+for (const colorScheme of ['light', 'dark'] as const) {
+  test(`the Done button text reaches 4.5:1 in the ${colorScheme} scheme, and reader buttons keep their own colours`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme });
+    await openDemo(page);
+    await page.keyboard.press(',');
+    await expect(page.locator('.sr-settings-done')).toBeVisible();
+    expect(await contrast(page, '.sr-settings-done')).toBeGreaterThanOrEqual(4.5);
+    const colours = await page.evaluate(() => ({
+      icon: getComputedStyle(document.querySelector('.sr-icon-button')!).color,
+      row: getComputedStyle(document.querySelector('.sr-outline-row:not([aria-current])')!).color,
+      text: getComputedStyle(document.querySelector('.sr-reader')!).color,
+    }));
+    expect(colours.icon).not.toBe(colours.text);
+    expect(colours.row).not.toBe(colours.text);
+  });
+}

@@ -102,7 +102,8 @@ export const READER_CSS = `
 }
 .sr-reader *, .sr-reader *::before, .sr-reader *::after { box-sizing: border-box; }
 .sr-reader [hidden] { display: none !important; }
-.sr-reader button, .sr-reader input, .sr-reader select {
+/* Zero specificity, so every class rule below sets its own colours over this reset. */
+:where(.sr-reader) :where(button, input, select) {
   font: inherit; color: inherit; letter-spacing: inherit; text-transform: none; margin: 0;
 }
 .sr-reader :focus-visible { outline: 2px solid var(--sr-focus); outline-offset: 2px; }
