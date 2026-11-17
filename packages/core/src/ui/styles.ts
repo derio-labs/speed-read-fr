@@ -229,7 +229,7 @@ export const READER_CSS = `
 /* Speech without word boundaries shows the whole sentence. */
 .sr-chunk.sr-chunk-whole { font-size: 28px; }
 .sr-tts-notes { padding: 2px 0 6px; }
-.sr-settings select[name="tts-voice"] { max-width: 240px; min-width: 0; }
+.sr-settings select[name="tts-voice"] { max-width: 260px; min-width: 0; }
 .sr-settings select[name="tts-voice"][size] { height: auto; padding: 4px; }
 .sr-tts-note { margin: 4px 0; }
 

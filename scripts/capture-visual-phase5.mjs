@@ -19,7 +19,7 @@ function fakeSpeech() {
   const voices = [
     { name: 'Samantha', lang: 'en-US', voiceURI: 'local-samantha', localService: true, default: true },
     { name: 'Daniel', lang: 'en-GB', voiceURI: 'local-daniel', localService: true, default: false },
-    { name: 'Google UK English Female', lang: 'en-GB', voiceURI: 'net-google-uk', localService: false, default: false },
+    { name: 'Google UK English', lang: 'en-GB', voiceURI: 'net-google-uk', localService: false, default: false },
   ];
   class FakeUtterance {
     constructor(text) {
