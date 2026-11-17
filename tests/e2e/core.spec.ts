@@ -218,7 +218,10 @@ test.describe('at 360 px', () => {
     expect(Math.round(icon.width)).toBe(20);
     const box = (await text.boundingBox())!;
     expect(box.x + box.width).toBeLessThanOrEqual(toggle.x + toggle.width);
-    expect(await text.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    // Truncated with an ellipsis, by more than a rounding pixel (the heading is far wider than the bar).
+    const clipped = await text.evaluate((el) => ({ over: el.scrollWidth - el.clientWidth, ellipsis: getComputedStyle(el).textOverflow }));
+    expect(clipped.ellipsis).toBe('ellipsis');
+    expect(clipped.over).toBeGreaterThan(1);
   });
 
   test('a nested list item stays inside the stage', async ({ page }) => {
