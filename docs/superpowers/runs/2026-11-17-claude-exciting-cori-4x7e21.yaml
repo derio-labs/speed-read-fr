@@ -228,5 +228,13 @@ steps:
           findings: l-errors-r1,l-errors-r2,l-errors-r3,l-errors-r4,l-errors-r5,l-errors-r6,l-errors-r7,l-errors-r8,l-errors-r9,l-errors-r10,l-errors-r11,l-security-r1,l-security-r2,l-security-r3,l-security-r4,l-security-r5,l-tests-r1,l-tests-r2,l-tests-r3,l-tests-r4,l-tests-r5,l-tests-r6,l-tests-r7,l-tests-r8,l-security-r6,l-security-r7
           lenses: errors=27:l-errors-r1,l-errors-r2,l-errors-r3,l-errors-r4,l-errors-r5,l-errors-r6,l-errors-r7,l-errors-r8,l-errors-r9,l-errors-r10,l-errors-r11;security=32:l-security-r6,l-security-r7;tests=36:l-tests-r1,l-tests-r2,l-tests-r3,l-tests-r4,l-tests-r5,l-tests-r6,l-tests-r7,l-tests-r8
   deliver:
-    state: pending
+    state: running
+    at: '2026-11-17T20:28:43+00:00'
+    units:
+      step/deliver:
+        attempts:
+        - dispatched: '2026-11-17T20:28:43+00:00'
+          harness: claude-code
+          model: claude-fable-5-2
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
 fr_version: 8.1.3
