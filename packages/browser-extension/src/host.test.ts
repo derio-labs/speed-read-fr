@@ -93,27 +93,24 @@ describe('exhibit', () => {
     expect(hostElement.children).toHaveLength(0);
   });
 
-  it('replaces a canvas by an image of its pixels', () => {
+  it.each([
+    ['a canvas', () => 'data:image/png;base64,AAAA'],
+    ['a tainted canvas', () => {
+      throw new Error('SecurityError');
+    }],
+  ])('shows a placeholder for %s and never reads its pixels (l-security-r1)', (_name, toDataURL) => {
     const { hostElement, host } = setup('<figure id="fig"><canvas width="40" height="20" class="chart"></canvas></figure>');
     const canvas = document.querySelector('canvas')!;
-    canvas.toDataURL = () => 'data:image/png;base64,AAAA';
+    const read = vi.fn(toDataURL);
+    canvas.toDataURL = read as unknown as HTMLCanvasElement['toDataURL'];
+    const getContext = vi.fn(() => null);
+    canvas.getContext = getContext as unknown as HTMLCanvasElement['getContext'];
     const wrapper = placed(hostElement, host.exhibit(block(document.getElementById('fig'), 'image'), 'pane'));
-    expect(wrapper.querySelector('canvas')).toBeNull();
-    const img = wrapper.querySelector('img')!;
-    expect(img.getAttribute('src')).toBe('data:image/png;base64,AAAA');
-    expect(img.className).toBe('chart');
-    expect(img.getAttribute('width')).toBe('40');
-  });
-
-  it('shows a placeholder for a tainted canvas', () => {
-    const { hostElement, host } = setup('<canvas id="c"></canvas>');
-    const canvas = document.getElementById('c') as HTMLCanvasElement;
-    canvas.toDataURL = () => {
-      throw new Error('SecurityError');
-    };
-    const wrapper = placed(hostElement, host.exhibit(block(canvas, 'image'), 'pane'));
     expect(wrapper.querySelector('canvas, img')).toBeNull();
     expect(wrapper.textContent).toContain(PLACEHOLDER_TEXT);
+    expect(read).not.toHaveBeenCalled();
+    expect(getContext).not.toHaveBeenCalled();
+    expect(wrapper.innerHTML).not.toContain('data:');
   });
 
   it.each(['iframe', 'video', 'audio', 'object', 'embed'])('replaces %s inside a clone by a placeholder', (tag) => {

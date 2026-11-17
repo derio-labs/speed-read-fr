@@ -181,6 +181,9 @@ Text-to-speech uses the voices of the browser or the system (the Web Speech API)
   original on the page.
 - **Inline math is shown as source** in the chunks and the sentence line (display math is an
   exhibit). Headings that contain inline math show their TeX source in the outline and on cards.
+- **Canvas drawings in the browser** (charts and diagrams drawn on a `<canvas>`) are shown as a
+  placeholder, "Shown on the page": the reader never reads a canvas's pixels, which may come
+  from another site.
 - **Unrendered Mermaid or TeX on web pages** is shown as the page shows it, as source; the browser
   reader renders nothing itself.
 - **Browser pages cannot be read**: no extension may run on `chrome://` and `about:` pages, the

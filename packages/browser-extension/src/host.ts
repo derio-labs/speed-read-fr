@@ -102,32 +102,15 @@ export function createBrowserHost(hostElement: Element, container: Element, opts
     return el;
   }
 
-  function canvasImage(canvas: HTMLCanvasElement): Element {
-    let src: string | undefined;
-    try {
-      src = canvas.toDataURL();
-    } catch {
-      src = undefined;
-    }
-    if (!src || !src.startsWith('data:')) return placeholder();
-    const img = doc.createElement('img');
-    for (const attr of ['class', 'width', 'height', 'style']) {
-      const value = canvas.getAttribute(attr);
-      if (value !== null) img.setAttribute(attr, value);
-    }
-    img.setAttribute('src', src);
-    img.setAttribute('alt', canvas.getAttribute('aria-label') ?? '');
-    return img;
-  }
-
   /** A deep copy of `el`, made safe to show, with every copied element paired to its original in `map`. */
   function cloneSafe(el: Element, map?: CloneMap): Element {
     const stripped = new Set<string>();
     const walk = (orig: Element): Element => {
       const tag = orig.localName;
       let copy: Element;
-      if (EMBEDDED.has(tag) || orig.shadowRoot) copy = placeholder();
-      else if (tag === 'canvas') copy = canvasImage(orig as HTMLCanvasElement);
+      // A canvas is never read (l-security-r1): its pixels may be cross-origin, which an extension
+      // with host permission can read in Firefox, and the copy lives in page-readable light DOM.
+      if (EMBEDDED.has(tag) || tag === 'canvas' || orig.shadowRoot) copy = placeholder();
       else {
         copy = orig.cloneNode(false) as Element;
         const id = neutralise(copy);
