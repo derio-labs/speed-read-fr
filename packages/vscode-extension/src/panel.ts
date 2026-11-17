@@ -12,6 +12,16 @@ export interface ReadRequest {
   settings: Settings;
 }
 
+/** How long a read waits for the reloaded webview's `ready` before it is posted anyway (l-tests-r6). */
+export const RELOAD_READY_MS = 1500;
+export const SOURCE_CLOSED = 'Source document is closed';
+
+/** A path for messages: the file path, else the URI. */
+export const displayPath = (uri: vscode.Uri) => (uri.scheme === 'file' ? uri.fsPath : uri.toString());
+export const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
+/** The message shown when a document named by a lens, hover or Re-read cannot be opened. */
+export const couldNotOpen = (path: string, error: unknown) => `Speed Read: couldn't open ${path}: ${messageOf(error)}`;
+
 const dirname = (uri: vscode.Uri) => uri.with({ path: uri.path.replace(/\/[^/]*$/, '') || '/' });
 
 /**
@@ -32,6 +42,12 @@ export class ReaderPanel implements vscode.Disposable {
   private writes: Promise<void> = Promise.resolve();
   private pendingWrites = 0;
   private sentSettings: Settings | null = null;
+  /** A settings write failed and no write has succeeded since: the warning is shown once per burst. */
+  private writeFailing = false;
+  /** The reload fallback's timer, and the read it posted without a `ready` (posted again on a late one). */
+  private reloadTimer: ReturnType<typeof setTimeout> | null = null;
+  private unconfirmed: ReadMessage | null = null;
+  private reads = 0;
 
   constructor(private readonly extensionUri: vscode.Uri) {
     this.watchEdits = vscode.workspace.onDidChangeTextDocument((e) => {
@@ -48,9 +64,12 @@ export class ReaderPanel implements vscode.Disposable {
     else {
       const current = this.panel.webview.options.localResourceRoots ?? [];
       if (roots.map(String).join('\n') !== current.map(String).join('\n')) {
-        // New options reload the webview: the read waits for the reloaded page's `ready`.
+        // New options reload the webview: the read waits for the reloaded page's `ready`. Should no
+        // `ready` come (a host that does not reload), the read is posted anyway after a while.
+        const wasReady = this.ready;
         this.ready = false;
         this.panel.webview.options = { ...this.panel.webview.options, localResourceRoots: roots };
+        if (wasReady) this.armReloadFallback();
       }
       this.panel.reveal(undefined, false);
     }
@@ -63,6 +82,7 @@ export class ReaderPanel implements vscode.Disposable {
       startLine: range.startLine,
       ...(range.endLine === undefined ? {} : { endLine: range.endLine }),
       settings,
+      id: ++this.reads,
       format: document.languageId === 'markdown' ? 'markdown' : 'plain',
       ...(document.uri.scheme === 'untitled' ? {} : { baseUri: `${this.panel.webview.asWebviewUri(dirname(document.uri)).toString()}/` }),
     };
@@ -83,7 +103,10 @@ export class ReaderPanel implements vscode.Disposable {
     this.sentSettings = normalizeSettings(settings);
     this.writes = this.writes
       .then(() => writeSettings(settings))
-      .catch(() => {})
+      .then(
+        () => this.writeDone(true),
+        (error: unknown) => this.writeDone(false, error),
+      )
       .then(() => {
         if (--this.pendingWrites > 0) return;
         const now = readSettings();
@@ -91,7 +114,41 @@ export class ReaderPanel implements vscode.Disposable {
       });
   }
 
+  /**
+   * A refused write (a read-only settings file, a policy) is reported: a warning once per run of
+   * failures, and the webview's "Settings not saved" note; the next good write clears the note.
+   */
+  private writeDone(ok: boolean, error?: unknown) {
+    if (ok) {
+      if (!this.writeFailing) return;
+      this.writeFailing = false;
+      this.post({ type: 'save-status', ok: true });
+      return;
+    }
+    if (!this.writeFailing) void vscode.window.showWarningMessage(`Speed Read: couldn't save settings: ${messageOf(error)}`);
+    this.writeFailing = true;
+    this.post({ type: 'save-status', ok: false });
+  }
+
+  private armReloadFallback() {
+    if (this.reloadTimer !== null) clearTimeout(this.reloadTimer);
+    this.reloadTimer = setTimeout(() => {
+      this.reloadTimer = null;
+      if (this.ready || !this.panel) return;
+      // No reload came: the page that was ready still is. A late `ready` posts the read again,
+      // which the webview ignores when it already shows it (same `id`).
+      this.ready = true;
+      const pending = this.pending;
+      this.pending = null;
+      if (pending?.type === 'read') {
+        this.unconfirmed = pending;
+        this.post(pending);
+      }
+    }, RELOAD_READY_MS);
+  }
+
   dispose(): void {
+    if (this.reloadTimer !== null) clearTimeout(this.reloadTimer);
     this.watchEdits.dispose();
     this.panel?.dispose();
   }
@@ -101,6 +158,8 @@ export class ReaderPanel implements vscode.Disposable {
    * settings, so a settings push before it only updates the held read, and a notice is dropped.
    */
   private post(message: ToWebview) {
+    if (message.type === 'read' && message !== this.unconfirmed) this.unconfirmed = null;
+    else if (message.type === 'settings' && this.unconfirmed) this.unconfirmed = { ...this.unconfirmed, settings: message.settings };
     if (this.ready) void this.panel?.webview.postMessage(message);
     else if (message.type === 'read') this.pending = message;
     else if (message.type === 'settings' && this.pending?.type === 'read') this.pending = { ...this.pending, settings: message.settings };
@@ -110,9 +169,21 @@ export class ReaderPanel implements vscode.Disposable {
    * Re-read the edited source from the block at the current position: the source editor's cursor,
    * which VS Code moved along with the edits, else the line the webview last read.
    */
-  private reread(line: unknown) {
-    const document = this.source;
-    if (!document || document.isClosed) return;
+  private async reread(line: unknown) {
+    let document = this.source;
+    if (!document) return;
+    if (document.isClosed) {
+      // Closed since the read: reopen it by its URI.
+      const uri = document.uri;
+      try {
+        document = await vscode.workspace.openTextDocument(uri);
+      } catch (error) {
+        void vscode.window.showErrorMessage(couldNotOpen(displayPath(uri), error));
+        this.post({ type: 'notice', text: SOURCE_CLOSED });
+        return;
+      }
+      if (!this.panel) return;
+    }
     const editor = vscode.window.visibleTextEditors.find((e) => e.document.uri.toString() === document.uri.toString());
     const at = editor ? editor.selection.active.line : Number.isInteger(line) && (line as number) >= 0 ? (line as number) : 0;
     this.show({ document, range: { startLine: blockStart(document.getText(), at) }, settings: readSettings() });
@@ -145,6 +216,9 @@ export class ReaderPanel implements vscode.Disposable {
       this.panel = null;
       this.ready = false;
       this.pending = null;
+      this.unconfirmed = null;
+      if (this.reloadTimer !== null) clearTimeout(this.reloadTimer);
+      this.reloadTimer = null;
       this.source = null;
       this.lastLine = null;
     });
@@ -169,14 +243,16 @@ export class ReaderPanel implements vscode.Disposable {
 
   private receive(message: FromWebview) {
     switch (message?.type) {
-      case 'ready':
+      case 'ready': {
         this.ready = true;
-        if (this.pending) {
-          const pending = this.pending;
-          this.pending = null;
-          this.post(pending);
-        }
+        if (this.reloadTimer !== null) clearTimeout(this.reloadTimer);
+        this.reloadTimer = null;
+        const pending = this.pending ?? this.unconfirmed;
+        this.pending = null;
+        this.unconfirmed = null;
+        if (pending) this.post(pending);
         break;
+      }
       case 'settings':
         if (message.settings && typeof message.settings === 'object' && !Array.isArray(message.settings)) this.queueWrite(message.settings);
         break;
@@ -184,7 +260,10 @@ export class ReaderPanel implements vscode.Disposable {
         this.follow(message.line);
         break;
       case 'reread':
-        this.reread(message.line);
+        void this.reread(message.line);
+        break;
+      case 'error':
+        void vscode.window.showErrorMessage(`Speed Read could not render this document: ${typeof message.message === 'string' ? message.message : 'unknown error'}`);
         break;
       case 'close':
         this.panel?.dispose();

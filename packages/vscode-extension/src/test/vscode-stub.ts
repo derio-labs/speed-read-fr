@@ -181,6 +181,15 @@ function createState() {
     activeEditorChanged: new EventEmitter<StubEditor | undefined>(),
     documentChanged: new EventEmitter<{ document: StubDocument; contentChanges: unknown[] }>(),
     infoMessages: [] as string[],
+    warningMessages: [] as string[],
+    errorMessages: [] as string[],
+    /** When set, `config.update` rejects with it (a read-only settings file, a policy). */
+    updateError: undefined as undefined | Error,
+    /**
+     * Whether a webview options change reloads the page (modelled: `reloads` counts it and the test
+     * sends the reloaded page's `ready`). Off models a host that keeps the page as it is.
+     */
+    webviewReloadsOnOptions: true,
     focusCalls: 0,
   };
 }
@@ -214,8 +223,8 @@ export const window = {
           return webviewOptions;
         },
         set options(next) {
-          // Real VS Code reloads the webview when its options change.
-          if (JSON.stringify(next) !== JSON.stringify(webviewOptions)) panel.webview.reloads++;
+          // VS Code is expected to reload the webview when its options change (see webviewReloadsOnOptions).
+          if (state.webviewReloadsOnOptions && JSON.stringify(next) !== JSON.stringify(webviewOptions)) panel.webview.reloads++;
           webviewOptions = next;
         },
         reloads: 0,
@@ -252,6 +261,14 @@ export const window = {
     state.infoMessages.push(message);
     return undefined;
   },
+  async showWarningMessage(message: string) {
+    state.warningMessages.push(message);
+    return undefined;
+  },
+  async showErrorMessage(message: string) {
+    state.errorMessages.push(message);
+    return undefined;
+  },
 };
 
 export const workspace = {
@@ -278,8 +295,9 @@ export const workspace = {
         return { key: prefix + key, [`${scope}Value`]: value };
       },
       async update(key: string, value: unknown, target?: unknown) {
-        state.configWrites.push({ key: prefix + key, value, target });
         await Promise.resolve();
+        if (state.updateError) throw state.updateError;
+        state.configWrites.push({ key: prefix + key, value, target });
         // Like VS Code: each write fires a configuration change event.
         fireConfigChange({ [prefix + key]: value });
         state.onUpdate?.(prefix + key, value);

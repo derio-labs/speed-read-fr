@@ -89,7 +89,7 @@ describe('commands', () => {
   it('readFile: the whole file, in a panel beside the editor', async () => {
     __stub.editor(doc());
     const msg = await run('speedRead.readFile');
-    expect(msg).toEqual({ ...base, startLine: 0, baseUri: 'https://stub.vscode-cdn.net/work/notes/' });
+    expect(msg).toEqual({ ...base, startLine: 0, baseUri: 'https://stub.vscode-cdn.net/work/notes/', id: expect.any(Number) });
     expect(panel().showOptions).toMatchObject({ viewColumn: vscode.ViewColumn.Beside });
     expect(panel().options).toMatchObject({ enableScripts: true });
   });
@@ -162,6 +162,14 @@ describe('commands', () => {
   it('opens a named document that is not open yet', async () => {
     const closed = __stub.document('para', { path: '/work/notes/closed.md', open: false });
     expect(await run('speedRead.readFromLine', closed.uri.toString(), 0)).toMatchObject({ markdown: 'para', startLine: 0 });
+  });
+
+  it('a named document that cannot be opened (deleted or moved) says so, with its path and the cause (l-errors-r7)', async () => {
+    await vscode.commands.executeCommand('speedRead.readFromLine', 'file:///work/notes/gone.md', 0);
+    await tick();
+    expect(__stub.state.infoMessages).toEqual([]);
+    expect(__stub.state.errorMessages).toEqual(["Speed Read: couldn't open /work/notes/gone.md: cannot open file:///work/notes/gone.md"]);
+    expect(__stub.state.panels).toHaveLength(0);
   });
 
   it('palette commands fall back to the last source editor while the reader has focus', async () => {

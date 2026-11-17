@@ -11,6 +11,8 @@ export interface ReadMessage {
   format: 'markdown' | 'plain';
   /** The document's folder through `asWebviewUri`, ending in `/`; relative images resolve against it. */
   baseUri?: string;
+  /** Identifies the read: a second delivery of the same read (the reload fallback) is ignored. */
+  id?: number;
 }
 
 /** Extension -> webview: the `speedRead.*` configuration changed. */
@@ -24,7 +26,19 @@ export interface StaleMessage {
   type: 'stale';
 }
 
-export type ToWebview = ReadMessage | SettingsMessage | StaleMessage;
+/** Extension -> webview: whether the last settings write reached the configuration ("Settings not saved"). */
+export interface SaveStatusMessage {
+  type: 'save-status';
+  ok: boolean;
+}
+
+/** Extension -> webview: replace the stale notice's text (e.g. "Source document is closed"). */
+export interface NoticeMessage {
+  type: 'notice';
+  text: string;
+}
+
+export type ToWebview = ReadMessage | SettingsMessage | StaleMessage | SaveStatusMessage | NoticeMessage;
 
 /** Webview -> extension. */
 export type FromWebview =
@@ -33,4 +47,6 @@ export type FromWebview =
   | { type: 'settings'; settings: Settings }
   | { type: 'close' }
   /** Re-read the edited source from the current position (`line`: the last line the webview read). */
-  | { type: 'reread'; line: number | null };
+  | { type: 'reread'; line: number | null }
+  /** The webview could not render the document (shown with `showErrorMessage`). */
+  | { type: 'error'; message: string };

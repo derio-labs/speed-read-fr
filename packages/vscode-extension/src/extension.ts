@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { onSettingsChange, readSettings } from './config';
-import { ReaderPanel } from './panel';
+import { couldNotOpen, ReaderPanel } from './panel';
 import { blockStart, findHeadings, hoverable, sectionRange, selectionRange } from './ranges';
 
 const MARKDOWN: vscode.DocumentSelector = { language: 'markdown' };
@@ -54,14 +54,21 @@ export function activate(context: vscode.ExtensionContext): void {
     return editor && !editor.document.isClosed ? editor : undefined;
   }
 
-  /** The document named by a lens or hover argument, opened when needed. */
-  async function namedDocument(uri: string): Promise<vscode.TextDocument | undefined> {
+  /**
+   * The document named by a lens or hover argument, opened when needed. One that cannot be opened
+   * (deleted or moved since the lens or hover was shown) is reported with its path and the cause.
+   */
+  async function namedDocument(uri: string): Promise<vscode.TextDocument | null> {
     const open = vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri);
     if (open) return open;
+    let path = uri;
     try {
-      return await vscode.workspace.openTextDocument(vscode.Uri.parse(uri));
-    } catch {
-      return undefined;
+      const parsed = vscode.Uri.parse(uri);
+      path = parsed.scheme === 'file' ? parsed.fsPath : uri;
+      return await vscode.workspace.openTextDocument(parsed);
+    } catch (error) {
+      void vscode.window.showErrorMessage(couldNotOpen(path, error));
+      return null;
     }
   }
 
@@ -90,7 +97,8 @@ export function activate(context: vscode.ExtensionContext): void {
       let line: number | undefined;
       if (typeof first === 'string') {
         const document = await namedDocument(first);
-        source = document && { document };
+        if (!document) return;
+        source = { document };
         line = isLine(second) ? second : undefined;
       } else {
         const editor = sourceEditor();

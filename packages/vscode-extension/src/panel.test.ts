@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import { DEFAULT_SETTINGS } from '@speed-read/core';
 import { ReaderPanel } from './panel';
@@ -41,6 +41,46 @@ describe('panel reuse', () => {
     reader.pushSettings({ ...DEFAULT_SETTINGS, wpm: 410 });
     panel.webview.receive({ type: 'ready' });
     expect(panel.webview.posted.at(-1)).toMatchObject({ type: 'read', markdown: 'x', settings: { wpm: 410 } });
+  });
+
+  it('a host that does not reload on the options change: the held read is posted anyway after 1.5 s (l-tests-r6)', () => {
+    vi.useFakeTimers();
+    try {
+      __stub.state.webviewReloadsOnOptions = false;
+      const other = __stub.document('x', { path: '/elsewhere/b.md' });
+      reader.show({ document: other as unknown as vscode.TextDocument, range: { startLine: 0 }, settings: DEFAULT_SETTINGS });
+      expect(panel.webview.reloads).toBe(0);
+      vi.advanceTimersByTime(1499);
+      expect(reads()).toHaveLength(1);
+      vi.advanceTimersByTime(1);
+      expect(reads()).toHaveLength(2);
+      expect(reads()[1].markdown).toBe('x');
+      // A late ready (a slow reload after all) posts the same read again, with the same id.
+      panel.webview.receive({ type: 'ready' });
+      expect(reads()).toHaveLength(3);
+      expect(reads()[2].id).toBe(reads()[1].id);
+      // Later messages go straight through.
+      panel.webview.receive({ type: 'ready' });
+      expect(reads()).toHaveLength(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a host that reloads: the ready within 1.5 s posts the read once, and the fallback stays quiet', () => {
+    vi.useFakeTimers();
+    try {
+      const other = __stub.document('x', { path: '/elsewhere/b.md' });
+      reader.show({ document: other as unknown as vscode.TextDocument, range: { startLine: 0 }, settings: DEFAULT_SETTINGS });
+      expect(panel.webview.reloads).toBe(1);
+      vi.advanceTimersByTime(300);
+      panel.webview.receive({ type: 'ready' });
+      expect(reads()).toHaveLength(2);
+      vi.advanceTimersByTime(5000);
+      expect(reads()).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('a document in the same folder is posted at once, without a reload', () => {
@@ -146,5 +186,68 @@ describe('document edited after the read (snapshot)', () => {
     __stub.state.visibleTextEditors.length = 0;
     panel.webview.receive({ type: 'reread', line: 5 });
     expect(posted().filter((m) => m.type === 'read').at(-1)).toMatchObject({ startLine: 6 });
+  });
+});
+
+describe('re-read of a closed source (l-errors-r8)', () => {
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+
+  it('reopens the document by its URI and reads it', async () => {
+    const doc = editor.document;
+    doc.isClosed = true;
+    __stub.state.visibleTextEditors.length = 0;
+    const reopened = { ...doc, isClosed: false, getText: () => TEXT + '\n\nmore' };
+    __stub.state.files.set(doc.uri.toString(), reopened);
+    __stub.state.textDocuments.length = 0;
+    panel.webview.receive({ type: 'reread', line: 4 });
+    await settle();
+    expect(panel.webview.posted.filter((m) => m.type === 'read').at(-1)).toMatchObject({ markdown: TEXT + '\n\nmore', startLine: 4 });
+    expect(__stub.state.errorMessages).toEqual([]);
+  });
+
+  it('when it cannot be reopened, says why and tells the webview the source is closed', async () => {
+    editor.document.isClosed = true;
+    __stub.state.textDocuments.length = 0;
+    panel.webview.receive({ type: 'reread', line: 4 });
+    await settle();
+    expect(__stub.state.errorMessages).toEqual(["Speed Read: couldn't open /work/notes/doc.md: cannot open file:///work/notes/doc.md"]);
+    expect(panel.webview.posted.at(-1)).toEqual({ type: 'notice', text: 'Source document is closed' });
+  });
+});
+
+describe('a refused settings write (l-errors-r4)', () => {
+  const settle = async () => {
+    for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+  };
+  afterEach(() => {
+    __stub.state.updateError = undefined;
+  });
+
+  it('warns once per run of failures, tells the webview, and clears the note after the next good write', async () => {
+    __stub.state.updateError = new Error('Unable to write into user settings');
+    panel.webview.receive({ type: 'settings', settings: { ...DEFAULT_SETTINGS, wpm: 410 } });
+    await settle();
+    panel.webview.receive({ type: 'settings', settings: { ...DEFAULT_SETTINGS, wpm: 420 } });
+    await settle();
+    expect(__stub.state.warningMessages).toEqual(["Speed Read: couldn't save settings: Unable to write into user settings"]);
+    expect(panel.webview.posted.filter((m) => m.type === 'save-status')).toEqual([
+      { type: 'save-status', ok: false },
+      { type: 'save-status', ok: false },
+    ]);
+    __stub.state.updateError = undefined;
+    panel.webview.receive({ type: 'settings', settings: { ...DEFAULT_SETTINGS, wpm: 430 } });
+    await settle();
+    expect(panel.webview.posted.filter((m) => m.type === 'save-status').at(-1)).toEqual({ type: 'save-status', ok: true });
+    __stub.state.updateError = new Error('again');
+    panel.webview.receive({ type: 'settings', settings: { ...DEFAULT_SETTINGS, wpm: 440 } });
+    await settle();
+    expect(__stub.state.warningMessages).toHaveLength(2);
+  });
+});
+
+describe('a webview that could not render', () => {
+  it('shows its error with showErrorMessage', () => {
+    panel.webview.receive({ type: 'error', message: 'boom' });
+    expect(__stub.state.errorMessages).toEqual(['Speed Read could not render this document: boom']);
   });
 });
