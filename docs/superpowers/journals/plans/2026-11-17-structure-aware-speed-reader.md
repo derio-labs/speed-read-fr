@@ -191,3 +191,84 @@ Entries restored (b0c6e56).
 ### p1-r9-resolved · finding [fixed] · resolves p1-r9: directSubheadings was quadratic (phase 1)
 
 Iterates by index (ebf354a).
+
+<!-- fr:journal kind=decision scope=plan id=p2-extract-inline-and-blocks created=2026-11-17T16:23:56+00:00 phase=2 -->
+### p2-extract-inline-and-blocks · decision · Extraction choices where spec section 2 is silent (phase 2) (phase 2)
+
+- Inline runs between block children (loose text in a div) become prose with the parent as source.
+- img, picture, svg and canvas break an inline run, so `<p>a <img> b</p>` yields prose, image, prose.
+- Inside a list item, paragraphs are flattened into the item text; exhibits (pre, table, display math,
+  images, diagrams) inside an item are emitted as blocks right after the list.
+- aria-hidden is honoured at block level only (as the spec says); `hidden`, display:none and
+  visibility:hidden are skipped inline too. getComputedStyle is wrapped in try/catch because jsdom
+  throws on MathML elements.
+- Section ids are `s<n>` (prefix configurable through `ExtractOptions.idPrefix`); an untitled first
+  section exists only when there is content before the first heading; an empty root yields no sections.
+- A heading's text is read like inline content, so KaTeX in a heading shows its TeX source once.
+- extractRange: a range inside one inline-only block becomes one prose block from the range's cloned
+  contents (atoms kept); otherwise the common ancestor is extracted and blocks filtered by
+  `range.intersectsNode`; a heading the range does not touch is dropped.
+
+<!-- fr:journal kind=decision scope=plan id=p2-clone-host created=2026-11-17T16:23:56+00:00 phase=2 -->
+### p2-clone-host · decision · createCloneHost is a core helper for hosts that show clones (phase 2) (phase 2)
+
+`createCloneHost(source, { wrapperClass, onPosition, onClose })` implements `Host` by deep-cloning:
+exhibits are clones of the block element, the normal-reading document is a clone of the roots with a
+parallel-walk element map for `locate`/`refAt`. The demo page and the unit tests use it; the VS Code
+webview (phase 4) can too. The core UI itself still never clones: only the host does.
+
+<!-- fr:journal kind=decision scope=plan id=p2-ui-choices created=2026-11-17T16:23:56+00:00 phase=2 -->
+### p2-ui-choices · decision · Reader UI choices where spec section 6 is silent (phase 2) (phase 2)
+
+- `mountReader` options also take an optional `scheduler`; the handle also exposes `ready` (resolves
+  once `store.load()` values are applied). Settings are normalized; speed-only changes go to
+  `player.setSpeed`, any other change rebuilds the timeline and calls `replaceTimeline`.
+- `destroy()` releases every host node still shown and does not call `host.onClose`; `onClose` fires
+  when the player closes (Esc or the close button). Esc closes, in order: the expanded exhibit, the
+  narrow outline drawer, the reader.
+- Styles adopt into the root's scope (`getRootNode()` of an element root, or the shadow root); the
+  sentinel is `--sr-sentinel: 1` on `.sr-reader`. Hosts theme through `--speed-read-*` properties.
+- The 900 px breakpoint is a container query on the reader width (`container-type: inline-size`).
+- Outline rows show remaining time (`done` when read) and progress from the step estimates; untitled
+  sections have no row. A ready card shows before the first play.
+- Clicking a block in normal reading walks up from the pressed element to the innermost element that
+  is a step source, then calls `jumpToBlock` (refAt alone would return an inline child such as `code`).
+- Tab and Shift+Tab both toggle normal reading on the root/stage; Tab from a reader button cycles focus
+  inside the reader. Keys with Ctrl, Meta or Alt are ignored.
+- Settings panel: number inputs apply on `input`, and on `change` the clamped value is written back;
+  the TTS row is a disabled checkbox labelled "Text-to-speech" until phase 5.
+- The demo mounts into a light-DOM element (not a shadow root) so page styles reach the clones
+  wrapped in `.doc`; the demo's localStorage store key is `speed-read-demo:settings`.
+
+<!-- fr:journal kind=discovery scope=plan id=p2-chunk-chars-caps-words created=2026-11-17T16:23:56+00:00 phase=2 -->
+### p2-chunk-chars-caps-words · discovery · Words per chunk 8 is capped by the 20-character default (phase 2) (phase 2)
+
+With the default `chunkChars` 20, raising words per chunk to 8 shows at most what fits in 20
+characters ("So you can read it", five words, on the fixture). The e2e test and the visual shot assert
+that chunk; the row's "change words per chunk to 1 and to 8" is shown with the character limit in force.
+
+<!-- fr:journal kind=finding scope=plan id=p2-v1-wide-outline-hidden created=2026-11-17T16:23:56+00:00 phase=2 state=fixed review_scope=in -->
+### p2-v1-wide-outline-hidden · finding [fixed] (reviewer: in scope) · Outline rail hidden in the wide layout (found by e2e) (phase 2)
+
+The container-query overrides preceded the base .sr-outline display-none rule, so the rail never showed at 900 px and up. Moved the wide-layout block to the end of the stylesheet.
+
+<!-- fr:journal kind=finding scope=plan id=p2-v2-visual-fixes created=2026-11-17T16:23:56+00:00 phase=2 state=fixed review_scope=in -->
+### p2-v2-visual-fixes · finding [fixed] (reviewer: in scope) · Visual review fixes before recording the shots (phase 2)
+
+Opening the screenshots showed: the item counter overlapping the top axis tick (moved above the
+display); nested-item indent overriding the pivot shift (one combined margin, axis ticks move with the
+depth); the narrow pane scrolling the active exhibit's caption out of view (the pane now scrolls its
+own list to the item's top, never an ancestor); legends with a large gap and an unstyled Done button in
+the settings panel; compositing artefacts under the translucent settings backdrop (backdrop made
+transparent, the panel keeps its border and shadow); a double frame on code in the pane (demo page
+styles lowered to `:where` specificity).
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p2-t2 created=2026-11-17T16:23:56+00:00 phase=2 -->
+### no-refactor-p2-t2 · discovery · no-refactor-because P2.T2 (phase 2)
+
+The shell was built with its helpers (builder, applyStyles, defaultScheduler) factored out; the refactor step only fixed a readonly icon-path type, so no duplication or unclear names were left.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p2-t6 created=2026-11-17T16:23:56+00:00 phase=2 -->
+### no-refactor-p2-t6 · discovery · no-refactor-because P2.T6 (phase 2)
+
+No refactor step: the task adds the fixture, demo page, scripts and browser tests; the visual review led to CSS fixes recorded as findings below, not to restructuring.
