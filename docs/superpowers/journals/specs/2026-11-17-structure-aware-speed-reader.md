@@ -540,3 +540,6 @@ run_kind: none
 
 <!-- fr:journal kind=decision scope=spec id=phase-split-2026-11-17-structure-aware-speed-reader-p5 created=2026-11-17T15:30:49+00:00 -->
 ### phase-split-2026-11-17-structure-aware-speed-reader-p5 · decision · ask: text-to-speech (R22) is the bonus built last per D4, shipped with the install docs and packaging (R23, R25) that need every target to exist
+
+<!-- fr:journal kind=decision scope=spec id=d10-floating-overlay-dial created=2026-11-17T18:22:07+00:00 decided_by=operator -->
+### d10-floating-overlay-dial · decision · Operator, after a working mockup: floating cards over the faded scrolling page, a position dial with acceleration in both directions, exhibit card pushes the stage down in narrow windows
