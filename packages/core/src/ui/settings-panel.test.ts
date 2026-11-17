@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
+import { extract } from '../extract/extract';
+import { DEFAULT_SETTINGS, memoryStore } from '../settings';
 import { ARTICLE, mountHarness } from '../testing/reader';
+import { createCloneHost } from './clone-host';
+import { focusables } from './dom';
+import { mountReader } from './mount';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -134,5 +139,48 @@ describe('page fade setting (R29)', () => {
     field('pageFade').dispatchEvent(new Event('change', { bubbles: true }));
     expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ pageFade: 0.8 }));
     expect(field('pageFade').value).toBe('80');
+  });
+});
+
+describe('focus inside a shadow root (the browser extension; l-tests-r1)', () => {
+  function mountInShadow() {
+    document.body.innerHTML = '<div id="src"><h1>Title</h1><p>Some words to read here.</p></div><div id="host"></div>';
+    const shadow = document.getElementById('host')!.attachShadow({ mode: 'open' });
+    const doc = extract(document.getElementById('src')!);
+    const host = { ...createCloneHost(document.getElementById('src')!), onPosition() {}, onClose() {} };
+    const handle = mountReader(shadow, doc, { settings: DEFAULT_SETTINGS, store: memoryStore(), host });
+    return { shadow, handle };
+  }
+  const tab = (shadow: ShadowRoot, shiftKey = false) =>
+    (shadow.activeElement ?? shadow.querySelector('.sr-reader'))!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true, composed: true }));
+
+  it('Tab moves from control 1 to 2 to 3 of the settings panel, and wraps', () => {
+    const { shadow, handle } = mountInShadow();
+    (shadow.querySelector('.sr-settings-button') as HTMLButtonElement).click();
+    const controls = focusables(shadow.querySelector<HTMLElement>('.sr-settings')!);
+    expect(controls.length).toBeGreaterThan(3);
+    expect(shadow.activeElement).toBe(controls[0]);
+    tab(shadow);
+    expect(shadow.activeElement).toBe(controls[1]);
+    tab(shadow);
+    expect(shadow.activeElement).toBe(controls[2]);
+    for (let i = 3; i < controls.length; i++) tab(shadow);
+    expect(shadow.activeElement).toBe(controls[controls.length - 1]);
+    tab(shadow);
+    expect(shadow.activeElement).toBe(controls[0]);
+    tab(shadow, true);
+    expect(shadow.activeElement).toBe(controls[controls.length - 1]);
+    handle.destroy();
+  });
+
+  it('Tab cycles the reader buttons too', () => {
+    const { shadow, handle } = mountInShadow();
+    const reader = shadow.querySelector<HTMLElement>('.sr-reader')!;
+    const list = focusables(reader);
+    expect(list.length).toBeGreaterThan(2);
+    list[1].focus();
+    tab(shadow);
+    expect(shadow.activeElement).toBe(list[2]);
+    handle.destroy();
   });
 });

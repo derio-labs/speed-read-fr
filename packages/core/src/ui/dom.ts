@@ -72,11 +72,20 @@ export function focusables(container: HTMLElement): HTMLElement[] {
   return laidOut ? all.filter((el) => el.getClientRects().length > 0) : all;
 }
 
+/**
+ * The focused element as seen from `container`'s tree: inside a shadow root the document's
+ * `activeElement` is the shadow host, so the root node's own `activeElement` is read instead.
+ */
+export function activeIn(container: Node): Element | null {
+  const root = container.getRootNode() as Document | ShadowRoot;
+  return ('activeElement' in root ? root.activeElement : null) ?? container.ownerDocument?.activeElement ?? null;
+}
+
 /** Move focus to the next (or previous) focusable in `container`, wrapping. */
 export function cycleFocus(container: HTMLElement, backwards: boolean) {
   const list = focusables(container);
   if (list.length === 0) return;
-  const at = list.indexOf(container.ownerDocument.activeElement as HTMLElement);
+  const at = list.indexOf(activeIn(container) as HTMLElement);
   const next = at < 0 ? (backwards ? list.length - 1 : 0) : (at + (backwards ? -1 : 1) + list.length) % list.length;
   list[next].focus();
 }
