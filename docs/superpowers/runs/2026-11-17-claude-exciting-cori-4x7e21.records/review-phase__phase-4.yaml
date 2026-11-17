@@ -1,0 +1,145 @@
+schema_version: 12
+run: 2026-11-17-claude-exciting-cori-4x7e21
+step: review-phase
+item: phase/4
+outcome: done
+journal:
+- kind: review
+  id: review-p4
+  phase: 4
+  title: 'Phase 4 code and visual review: 10 in-scope findings fixed, 1 out of scope'
+  body: 'Independent reviewer read the extension-host code against the real VS Code API (the unit tests
+    see only a stub), checked manifest, CSP, hover link, handshake, rendering hardening and ranges against
+    spec section 8, ran typecheck, unit, build, browser and package gates, and stressed the webview with
+    its own Markdown in dark, light and high-contrast themes at wide and 450 px widths, opening its own
+    screenshots. No path from file content to script or remote request was found. Findings raised: p4-r1
+    to p4-r11. Fixes verified by the orchestrator: full gate re-run green.'
+- kind: finding
+  id: p4-r1
+  phase: 4
+  title: 'KaTeX SVGs collapsed: radicals and vector arrows vanished'
+  body: 'Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p4-r2
+  phase: 4
+  title: Commands resolved the document from activeTextEditor
+  body: 'Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p4-r3
+  phase: 4
+  title: Command titles repeated the category
+  body: 'Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p4-r4
+  phase: 4
+  title: Settings write-back not serialised
+  body: 'Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p4-r5
+  phase: 4
+  title: Changing localResourceRoots reloads the webview while ready stayed true
+  body: 'Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p4-r6
+  phase: 4
+  title: Wide display equation clipped with no cue
+  body: 'Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p4-r7
+  phase: 4
+  title: Large flowchart illegible in the pane
+  body: 'Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p4-r8
+  phase: 4
+  title: Relative image in an untitled document tripped the CSP
+  body: 'Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p4-r9
+  phase: 4
+  title: Edits while reading made cursor follow use stale lines
+  body: 'Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p4-r10
+  phase: 4
+  title: Reveal moved an open reader to another column
+  body: 'Raised by the phase 4 reviewer with file and line or screenshot; in scope: caused by this phase''s
+    code.'
+  review_scope: in
+- kind: finding
+  id: p4-r11
+  phase: 4
+  title: Headings with inline math show TeX source in outline and section cards
+  body: Raised by the phase 4 reviewer and tagged out of scope. The outline and section cards show a heading's
+    inline math as TeX source. This follows from the core's heading text and the spec's stated limit that
+    inline math is shown as source outside normal reading; not caused by this phase.
+  review_scope: out
+resolves:
+- id: p4-r1
+  state: fixed
+  body: Image rule limited to images and Mermaid SVGs, also in the core sheet; e2e checks SVG heights
+    (6a38d72).
+- id: p4-r2
+  state: fixed
+  body: Lens and hover pass the URI; palette commands fall back to the last source editor (e0cd935).
+- id: p4-r3
+  state: fixed
+  body: Titles shortened; line-argument commands hidden from the palette (16410d8).
+- id: p4-r4
+  state: fixed
+  body: Writes queued, pushes held while pending, each key written to its effective scope (7912692).
+- id: p4-r5
+  state: fixed
+  body: Ready reset and the read held until the new ready (144cb1c).
+- id: p4-r6
+  state: fixed
+  body: Scales to 0.6 then scrolls with an edge fade (5357581).
+- id: p4-r7
+  state: fixed
+  body: Not scaled below half size; scrolls and shows E to expand (5357581).
+- id: p4-r8
+  state: fixed
+  body: Placeholder when no resolver (76c4545).
+- id: p4-r9
+  state: fixed
+  body: Follow stops and a Document changed notice offers Re-read (110fec1).
+- id: p4-r10
+  state: fixed
+  body: reveal(undefined, false) (fe3fdda).
+- id: p4-r11
+  state: out-of-scope
+  body: The outline and section cards show a heading's inline math as TeX source. This follows from the
+    core's heading text and the spec's stated limit that inline math is shown as source outside normal
+    reading; not caused by this phase.
+evidence:
+  review: review-p4
+  reviewer: a197b53b216167eb6
+  model: claude-fable-5-2
+visual:
+- row: vscode-webview-renders
+  script: scripts/capture-visual.mjs
+  shots:
+  - path: .visual/review-4/webview-dark.png
+    shows:
+    - webview reader with rendered math and mermaid exhibits
+  - path: .visual/review-4/webview-light.png
+    shows:
+    - webview reader with rendered math and mermaid exhibits

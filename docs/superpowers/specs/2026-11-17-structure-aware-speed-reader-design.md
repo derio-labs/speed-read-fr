@@ -23,6 +23,8 @@ and a VS Code extension. Everything works offline; every library is bundled.
 | D7 | License | MIT |
 | D8 | Verification | Automated suite before merge; `live` operator walk after merge for real-host rows; tester gate |
 | D9 | Model tiers | mechanical: sonnet, standard: opus, hard: opus |
+| D10 | Overlay layout and dial (operator, after a working mockup, during implementation) | Floating cards over the faded page, which scrolls behind; a position dial with acceleration in both directions; in narrow windows the exhibit card pushes the stage down |
+| D11 | Review findings p3-r16, p3-r17, p3-r18 | Fixed in this run on the operator's decision |
 
 ## Requirements
 
@@ -42,7 +44,7 @@ R13. Browser entry points: the toolbar button reads the selection, else the main
 R14. Browser hover mode: while Alt is held the block under the pointer is outlined, and a click reads from that block to the end of its container; without Alt nothing is outlined or intercepted.
 R15. On claude.ai, ChatGPT and Gemini the container is one assistant reply; on any other site, and when no reply matches, the container is the page's main content (not navigation, sidebars or footers), found by a generic heuristic.
 R16. Browser exhibits and the normal-reading view are clones of the page's rendered DOM to which the page's stylesheet rules still apply, so rendered math, highlighted code and diagrams keep their appearance; the reader's own interface is not affected by page styles. Known limits (section 7) are listed in the README.
-R17. The browser reader opens as a full-page overlay over a dimmed page by default; a setting docks it as a side panel beside the page instead.
+R17. The browser reader opens by default as three floating cards (outline, stage, exhibits) over the page, which stays visible but faded, with the block being read at full strength, and scrolls to keep that block in view above the stage; a setting docks the reader as a side panel beside the page instead, and the dock moves page elements fixed to the right edge out from under it.
 R18. The Chrome build and the Firefox build come from one source tree with one manifest each, both Manifest V3.
 R19. VS Code entry points: commands to read the file, the selection, and from the cursor; a CodeLens "▶ Read section" above each Markdown heading; a hover on Markdown headings and paragraphs with a "▶ Speed read from here" link.
 R20. The VS Code reader is a webview panel beside the editor that renders Markdown with bundled markdown-it, KaTeX and Mermaid, including `$…$`, `$$…$$`, `\(…\)` and `\[…\]` math and `mermaid` fenced blocks.
@@ -52,6 +54,9 @@ R23. The README has installation and usage instructions for Chrome, Firefox and 
 R24. Automated tests are written test-first and cover the core, the DOM extraction, the UI, the browser extension loaded in Chromium, and the VS Code extension's providers and webview.
 R25. CI runs the tests and the build on every pull request and on pushes to main, and uploads the Chrome package, the Firefox package and the VS Code `.vsix`.
 R26. The repository and every package carry the MIT license.
+R27. A position dial moves the reading position in both directions: a strip under the stage that can be dragged, and the mouse wheel, turn it; a slow turn moves one chunk at a time, faster turns accelerate up to fourteen-fold, and it coasts briefly when released; playback pauses while it turns and resumes afterwards if it was playing.
+R28. When the reader is narrow the exhibit card sits above the stage and takes the height its content needs, up to the room available; the stage moves down to make room and returns when the card empties, both as smooth movements. An expanded exhibit uses the full width of the reader.
+R29. How faded the page is behind the floating reader is a setting (default 32 % strength).
 
 ## Design
 
@@ -470,6 +475,60 @@ CSP has no remote source. Mermaid and KaTeX are bundled from npm at build time.
   VS Code: `code --install-extension`), usage, keys, settings, offline notes including TTS
   voices, known limits.
 
+### 13. Floating overlay, position dial, exhibit push (D10, D11)
+
+Reference: the working mockup the operator approved (floating cards, dial, narrow push). The
+constants below are the mockup's.
+
+- **Core layout variant.** `mountReader` takes `layout: 'panel' | 'floating'` (default
+  `panel`). `floating` has no opaque reader background: the outline, the stage and the exhibit
+  pane are separate cards (own background, border, shadow) placed left, centre and right of
+  the root, and everything between them is transparent and lets pointer events through to
+  nothing (the host decides what is behind). The stage card is at most 600 px wide and sits
+  slightly below the vertical centre so the band above it is free. Under 1180 px root width
+  the outline card collapses to the existing bar and drawer inside the stage header. Under
+  900 px the exhibit card moves above the stage (R28). The browser overlay uses `floating`;
+  the dock and the VS Code webview keep `panel`.
+- **Narrow exhibit push (R28), both layouts when narrow.** The exhibit card's maximum height
+  is the room between the top of the reader and the stage at its lowest allowed position;
+  inside that it is as tall as its content. The stage's top is `max(resting position,
+  exhibit card bottom + 12 px)`, clamped so the stage stays inside the reader, and changes
+  with a 400 ms ease; with no exhibit shown the card is hidden and the stage returns to its
+  resting position. Reduced-motion disables the animation.
+- **Expanded exhibit (p3-r18).** `E` opens the exhibit over the whole reader root (up to
+  92 % of its width and 88 % of its height), not only over the stage.
+- **Position dial (R27), in the core stage, all hosts.** A tick strip under the sentence line
+  with a centre needle and a readout of the current multiplier. Input: pointer drag on the
+  strip (horizontal movement, 2.2 px of turn per pixel dragged, dragging left moves forward)
+  and `wheel` events. A turn of `delta` px at time `now`: `dt = clamp(now - last, 8, 250)`;
+  `speed = 0.6 × speed + 0.4 × |delta| / dt`; `gain = min(14, 1 + (speed / 1.2)^1.6)`;
+  the position advances by `delta × gain / 120` steps (fractions accumulate). Coast: after
+  40 ms without input the position keeps moving at half the last rate (capped at 60 steps
+  per second), decaying with a 190 ms time constant. Scrubbing pauses playback; 700 ms after
+  the last movement playback resumes with a fresh ramp if it was playing and the position is
+  on a timed step. While scrubbing, stops and chapter cards are shown as they are passed and
+  do not hold. The dial uses the injected scheduler and a frame callback the host can fake
+  in tests. The wheel acts as the dial when it happens over the stage card; the browser
+  overlay additionally routes every wheel event on the page to the dial while it is open,
+  except over the exhibit pane, the settings panel and the normal-reading view, which scroll
+  their own content. `trustedEventsOnly` applies to wheel and pointer input too.
+- **Browser overlay (R17, R29).** No dimmed backdrop and no scroll lock. A veil covers the
+  viewport under the cards in the page's effective background colour at `1 - pageFade`
+  opacity (setting `pageFade`, 0.10-0.80, default 0.32), with a clear window over the block
+  being read (a positioned element over that block's rectangle whose outside is painted by
+  a very large spread shadow), so that block shows at full strength. The page is scrolled by
+  the host, eased with a 140 ms time constant, so the top of the block being read sits 10 %
+  below the top of the viewport; the wheel does not scroll the page directly (it is the
+  dial). Closing leaves the page at that block, as before.
+- **Dock and fixed elements (p3-r16).** When the dock opens, elements with computed
+  `position: fixed` whose box reaches into the 420 px strip (searched to depth 6 below
+  `body`, at most 3000 elements examined) get their `right` moved in by 420 px, or their
+  width reduced by it when they span the viewport; the previous inline values are restored
+  on close. Elements added later are not tracked (known limit).
+- **Permission request (p3-r17).** `permissions.request` is called only in Firefox (the
+  extension URL scheme is `moz-extension:`), still as the handler's first statement. In
+  Chrome the toolbar press already grants the tab through `activeTab`, so no prompt appears.
+
 ### Out of scope
 
 Store publishing and signing. The herdr plugin. Reading the VS Code chat panels. Rendering
@@ -479,6 +538,7 @@ unrendered Mermaid or TeX source found on web pages. Translation of the UI.
 
 gate: tester
 
+- browser-floating-overlay-on-sites: live — how the faded page, the clear window over the current block and the scroll follow behave on real, heavily styled sites can only be seen there
 - chat-site-adapters: live — the three chat sites are login-walled and their markup can only be observed on the real pages
 - chrome-entry-points-in-browser: live — a toolbar click, a context-menu click and a browser-level shortcut cannot be produced by the test driver; only a person in Chrome can
 - firefox-extension-runs: live — no Firefox binary runs in the build environment; only an installed build in Firefox shows it
@@ -497,6 +557,7 @@ core, and R24 and R26 are properties of the repository; none of the three has a 
 
 Post-merge, operator-driven, on an installed build:
 
+0. Floating overlay: on a long article and on one chat site, open the reader; the page stays visible and faded behind the three cards, the block being read is at full strength in the band above the stage, the page follows as you play, and the wheel and the dial strip move the position in both directions, faster when turned faster.
 1. Chat sites: on claude.ai, ChatGPT and Gemini, open a long reply with code, a list and a table. Toolbar button reads the last reply only; Alt-hover then click inside an earlier reply reads from that block to the end of that reply; exhibits look as they do on the page.
 2. Chrome: load `dist/chrome` unpacked; on an article page the toolbar button reads the selection when there is one and the main content otherwise; both context-menu items and Alt+Shift+R open the reader on the expected content.
 3. Firefox: load `dist/firefox` as a temporary add-on; toolbar button, both context-menu items, Alt+Shift+R and Alt-hover work on an article page; settings persist after reloading the add-on and the tab (a temporary add-on is removed when Firefox restarts).
