@@ -313,9 +313,13 @@ rows:
       here hover link on headings and paragraphs.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R19
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/vscode-extension/src/providers.test.ts
+      - speed-read-fr:packages/vscode-extension/src/manifest.test.ts
+      - speed-read-fr:packages/vscode-extension/src/ranges.test.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
   - id: vscode-webview-renders
     capability: vscode-extension
     acceptance: The VS Code reader renders Markdown including dollar and bracket math
