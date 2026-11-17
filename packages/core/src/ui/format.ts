@@ -5,3 +5,6 @@ export function formatDuration(ms: number): string {
 }
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** What each exhibit kind is called in the UI. */
+export const EXHIBIT_LABELS = { code: 'Code', table: 'Table', math: 'Formula', image: 'Image', diagram: 'Diagram' } as const;

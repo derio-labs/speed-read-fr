@@ -6,7 +6,7 @@ import { orp } from '../text/orp';
 import type { Step } from '../timeline';
 import type { ReaderContext, Zone } from './context';
 import { replaceChildren, type Child } from './dom';
-import { formatDuration, plural } from './format';
+import { EXHIBIT_LABELS, formatDuration, plural } from './format';
 
 type ChunkStep = Extract<Step, { kind: 'chunk' | 'item-chunk' }>;
 
@@ -18,8 +18,6 @@ const STATE_LABELS: Record<PlayerState, string> = {
   reading: 'Reading',
   closed: 'Closed',
 };
-
-const EXHIBIT_LABELS = { code: 'Code', table: 'Table', math: 'Formula', image: 'Image', diagram: 'Diagram' } as const;
 
 /** Fraction of the stage width where the pivot axis sits (matches `--sr-axis`). */
 const AXIS = 0.45;

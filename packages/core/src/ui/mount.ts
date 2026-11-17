@@ -5,6 +5,8 @@ import { buildTimeline, type Timeline } from '../timeline';
 import type { ReaderContext, Zone } from './context';
 import { builder, icon, ICONS } from './dom';
 import type { Host } from './host';
+import { createExhibits } from './exhibits';
+import { createOutline } from './outline';
 import { createStage } from './stage';
 import { READER_CSS, SENTINEL_PROPERTY } from './styles';
 
@@ -104,8 +106,12 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     h,
     reader,
   };
+  const outlineZone = createOutline(ctx, { outline, bar: outlineBar, layout });
+  const exhibitZone = createExhibits(ctx, { pane: exhibits, main });
   const zones: Zone[] = [
     createStage(ctx, { stage, status, overallFill: overall.firstElementChild as HTMLElement }),
+    outlineZone,
+    exhibitZone,
   ];
 
   const unsubscribe = [
