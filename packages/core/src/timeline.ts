@@ -20,7 +20,7 @@ export interface StepPosition {
   source: SourceRef;
 }
 
-interface SentencePart {
+export interface SentencePart {
   chunk: Chunk;
   /** Index of the sentence within its prose block or list item. */
   sentenceIndex: number;
