@@ -35,7 +35,10 @@ export interface ExtApi {
   };
   scripting: { executeScript(options: { target: { tabId: number }; files: string[] }): Promise<unknown> };
   storage: { local: { get(key: string): Promise<Record<string, unknown>>; set(items: Record<string, unknown>): Promise<void> } };
-  tabs: { sendMessage(tabId: number, message: unknown): Promise<unknown> };
+  tabs: {
+    sendMessage(tabId: number, message: unknown): Promise<unknown>;
+    query(q: { active: boolean; currentWindow: boolean }): Promise<Tab[]>;
+  };
 }
 
 type ExtScope = { browser?: ExtApi; chrome?: ExtApi };
