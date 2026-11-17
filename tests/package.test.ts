@@ -174,6 +174,12 @@ describe('CI workflow (R25)', () => {
     expect(ci).toMatch(/push:\s*\n\s+branches:\s*\[\s*main\s*\]/);
   });
 
+  it('pins every action to a full commit SHA, with its version in a trailing comment (l-security-r5)', () => {
+    const uses = [...ci.matchAll(/^\s*-?\s*uses:\s*(.+)$/gm)].map((m) => m[1].trim());
+    expect(uses.length).toBe(3);
+    for (const use of uses) expect(use).toMatch(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+$/);
+  });
+
   it('fails when Playwright discovers no tests (l-tests-r8)', () => {
     const scripts = JSON.parse(readFileSync(new URL('package.json', root), 'utf8')).scripts as Record<string, string>;
     expect(scripts['test:e2e']).toMatch(/^playwright test\b/);
