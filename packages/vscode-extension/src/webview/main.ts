@@ -1,0 +1,123 @@
+/**
+ * The webview reader (spec section 8, R20): render the requested lines of Markdown into an attached
+ * container kept out of view, render the Mermaid fences, then extract and mount the core reader with
+ * a host that shows clones. Reports the reading position (R21) and settings changes to the extension.
+ */
+import mermaid from 'mermaid';
+import { createCloneHost, extract, mountReader, type ReaderHandle, type Settings, type SettingsStore } from '@speed-read/core';
+import type { FromWebview, ReadMessage, ToWebview } from '../messages';
+import { renderDiagrams, renderMarkdown, renderPlain } from './render';
+
+declare function acquireVsCodeApi(): { postMessage(message: FromWebview): void };
+
+const vscode = acquireVsCodeApi();
+
+/** VS Code theme colours onto the reader's custom properties, and styles for the rendered document. */
+const WEBVIEW_CSS = `
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); }
+#sr-reader-root {
+  position: fixed; inset: 0;
+  --speed-read-bg: var(--vscode-editor-background);
+  --speed-read-surface: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  --speed-read-surface-2: var(--vscode-editorWidget-background);
+  --speed-read-text: var(--vscode-editor-foreground);
+  --speed-read-muted: var(--vscode-descriptionForeground);
+  --speed-read-faint: var(--vscode-disabledForeground);
+  --speed-read-border: var(--vscode-panel-border, var(--vscode-widget-border));
+  --speed-read-accent: var(--vscode-editorError-foreground);
+  --speed-read-progress: var(--vscode-progressBar-background);
+  --speed-read-progress-soft: var(--vscode-editor-inactiveSelectionBackground);
+  --speed-read-focus: var(--vscode-focusBorder);
+  --speed-read-font: var(--vscode-font-family);
+  --speed-read-mono: var(--vscode-editor-font-family);
+}
+body.vscode-dark .sr-reader, body.vscode-high-contrast:not(.vscode-high-contrast-light) .sr-reader { color-scheme: dark; }
+body.vscode-light .sr-reader, body.vscode-high-contrast-light .sr-reader { color-scheme: light; }
+#sr-render { position: absolute; left: -10000px; top: 0; width: 760px; visibility: hidden; pointer-events: none; }
+.sr-md { color: var(--vscode-editor-foreground); font-family: var(--vscode-font-family); line-height: 1.6; }
+.sr-md pre { margin: 0; padding: 10px 12px; border-radius: 6px; overflow: auto; background: var(--vscode-textCodeBlock-background); font: 13px/1.5 var(--vscode-editor-font-family, ui-monospace, monospace); }
+.sr-exhibit-body .sr-md pre, .sr-expanded-body .sr-md pre { padding: 0; background: transparent; }
+.sr-md code { font-family: var(--vscode-editor-font-family, ui-monospace, monospace); font-size: .92em; }
+.sr-md table { border-collapse: collapse; }
+.sr-md th, .sr-md td { border: 1px solid var(--vscode-panel-border, var(--vscode-widget-border, #8884)); padding: 5px 9px; text-align: left; }
+.sr-md th { background: var(--vscode-textCodeBlock-background); }
+.sr-md img, .sr-md svg { max-width: 100%; height: auto; }
+.sr-md .katex-display { margin: .4em 0; overflow-x: auto; overflow-y: hidden; }
+.sr-md .katex { font-size: 1.15em; }
+.sr-md blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--vscode-textBlockQuote-border, #8888); }
+.sr-md a { color: var(--vscode-textLink-foreground); text-decoration: none; }
+`;
+
+const style = document.createElement('style');
+style.textContent = WEBVIEW_CSS;
+document.head.append(style);
+
+const readerRoot = document.getElementById('sr-reader-root') ?? document.body.appendChild(document.createElement('div'));
+readerRoot.id = 'sr-reader-root';
+/** The rendered document: attached (Mermaid measures text) but kept out of view. */
+const renderRoot = document.createElement('div');
+renderRoot.id = 'sr-render';
+renderRoot.setAttribute('aria-hidden', 'true');
+document.body.append(renderRoot);
+
+const isDark = () => document.body.classList.contains('vscode-dark') || (document.body.classList.contains('vscode-high-contrast') && !document.body.classList.contains('vscode-high-contrast-light'));
+
+let handle: ReaderHandle | null = null;
+let settings: Settings | null = null;
+let generation = 0;
+let lastLine: number | null = null;
+
+const store: SettingsStore = {
+  async load() {
+    return settings ?? {};
+  },
+  async save(next) {
+    settings = next;
+    vscode.postMessage({ type: 'settings', settings: next });
+  },
+};
+
+function close() {
+  handle?.destroy();
+  handle = null;
+  vscode.postMessage({ type: 'close' });
+}
+
+async function read(message: ReadMessage) {
+  const current = ++generation;
+  handle?.destroy();
+  handle = null;
+  lastLine = null;
+  settings = message.settings;
+  const base = message.baseUri;
+  const range = { startLine: message.startLine, endLine: message.endLine };
+  renderRoot.innerHTML =
+    message.format === 'plain'
+      ? renderPlain(message.markdown, range)
+      : renderMarkdown(message.markdown, { ...range, resolveUri: base ? (src) => new URL(src, base).toString() : undefined });
+  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: isDark() ? 'dark' : 'default', suppressErrorRendering: true });
+  await renderDiagrams(renderRoot, (id, source) => mermaid.render(id, source, renderRoot));
+  if (current !== generation) return;
+  const host = createCloneHost(renderRoot, {
+    wrapperClass: 'sr-md',
+    onPosition(ref) {
+      if (typeof ref.line !== 'number' || ref.line === lastLine) return;
+      lastLine = ref.line;
+      vscode.postMessage({ type: 'position', line: ref.line });
+    },
+    onClose: close,
+  });
+  handle = mountReader(readerRoot, extract(renderRoot), { settings: message.settings, store, host });
+}
+
+window.addEventListener('message', (event: MessageEvent<ToWebview>) => {
+  const message = event.data;
+  if (message?.type === 'read') void read(message);
+  else if (message?.type === 'settings') {
+    if (JSON.stringify(message.settings) === JSON.stringify(settings)) return;
+    settings = message.settings;
+    handle?.applySettings(message.settings);
+  }
+});
+
+vscode.postMessage({ type: 'ready' });

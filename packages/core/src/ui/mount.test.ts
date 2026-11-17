@@ -26,6 +26,18 @@ describe('mountReader', () => {
     expect(t.handle.player.settings.chunkWords).toBe(1);
   });
 
+  it('applySettings applies settings pushed by the host without saving them', async () => {
+    const t = mountHarness(ARTICLE);
+    await t.settle();
+    const save = vi.mocked(t.store.save);
+    t.handle.applySettings({ ...DEFAULT_SETTINGS, chunkWords: 1, code: { mode: 'skip', dwellSeconds: 5 } });
+    expect(t.handle.player.settings.chunkWords).toBe(1);
+    expect(t.handle.player.settings.code.mode).toBe('skip');
+    t.handle.applySettings({ ...DEFAULT_SETTINGS, chunkWords: 1, code: { mode: 'skip', dwellSeconds: 5 }, wpm: 600 });
+    expect(t.handle.player.settings.wpm).toBe(600);
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it('builds outline, stage and exhibit regions with roles and labels', () => {
     const t = mountHarness(ARTICLE);
     expect(t.reader.getAttribute('aria-label')).toBe('Speed reader');

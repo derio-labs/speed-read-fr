@@ -102,6 +102,13 @@ describe('prose', () => {
     const root = html('<p data-line="12">x</p>');
     expect(extract(root).sections[0].blocks[0].source).toEqual({ element: root.querySelector('p'), line: 12 });
   });
+
+  it('gives a block without its own data-line the line of the nearest data-line ancestor (a wrapped fence)', () => {
+    const root = html('<div data-line="30"><pre><code>x = 1</code></pre></div><div data-line="34"><span class="katex-display"><span class="katex">y</span></span></div>');
+    const [code, math] = extract(root).sections[0].blocks;
+    expect(code.source).toEqual({ element: root.querySelector('pre'), line: 30 });
+    expect(math.source).toEqual({ element: root.querySelector('.katex-display'), line: 34 });
+  });
 });
 
 describe('lists', () => {

@@ -112,16 +112,13 @@ function isHidden(el: Element, blockLevel: boolean): boolean {
 const isSkipped = (el: Element, blockLevel: boolean) => SKIPPED.has(tag(el)) || isHidden(el, blockLevel);
 
 /**
- * Source of a bare prose run between blocks: the parent container (the core never wraps or mutates
- * page text, so several runs can share it) with the line of the nearest `data-line` ancestor.
+ * The source of a block: the element, with the line of the element's own `data-line` or else of
+ * its nearest `data-line` ancestor (VS Code wraps fences and display math in an element carrying
+ * it). A bare prose run between blocks has its parent container as element (the core never wraps
+ * or mutates page text, so several runs can share it).
  */
-function runSource(el: Element): SourceRef {
-  const line = Number.parseInt(el.closest('[data-line]')?.getAttribute('data-line') ?? '', 10);
-  return Number.isInteger(line) ? { element: el, line } : { element: el };
-}
-
 function sourceOf(el: Element): SourceRef {
-  const line = Number.parseInt(el.getAttribute('data-line') ?? '', 10);
+  const line = Number.parseInt(el.closest('[data-line]')?.getAttribute('data-line') ?? '', 10);
   return Number.isInteger(line) ? { element: el, line } : { element: el };
 }
 
@@ -308,7 +305,7 @@ class Extractor {
     }
     let run = new InlineText();
     const flushRun = () => {
-      this.prose(run.sentences(), runSource(el));
+      this.prose(run.sentences(), sourceOf(el));
       run = new InlineText();
     };
     for (const child of Array.from(el.childNodes)) {

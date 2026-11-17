@@ -30,6 +30,8 @@ export interface ReaderHandle {
   player: Player;
   /** Resolves once the settings from `store.load()` are applied. */
   ready: Promise<void>;
+  /** Apply settings that changed outside the reader (a host's configuration); they are not saved back. */
+  applySettings(settings: Settings): void;
   destroy(): void;
 }
 
@@ -139,7 +141,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     player.on('position', (e) => host.onPosition(e.source)),
     player.on('settings', (next) => {
       settings = next;
-      void store.save(next);
+      if (saving) void store.save(next);
     }),
     player.on('state', (state) => {
       reader.dataset.state = state;
@@ -151,7 +153,12 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   function applySettings(next: Settings, save = true) {
     next = normalizeSettings(next);
     if (sameExceptSpeed(next, settings)) {
-      if (next.wpm !== settings.wpm) player.setSpeed(next.wpm);
+      saving = save;
+      try {
+        if (next.wpm !== settings.wpm) player.setSpeed(next.wpm);
+      } finally {
+        saving = true;
+      }
       return;
     }
     settings = next;
@@ -162,6 +169,8 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   }
 
   let destroyed = false;
+  /** False while settings from outside (load, applySettings) are applied: they are not saved back. */
+  let saving = true;
   const ready = store
     .load()
     .then((loaded) => {
@@ -176,6 +185,9 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   return {
     player,
     ready,
+    applySettings(next) {
+      if (!destroyed) applySettings(next, false);
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;
