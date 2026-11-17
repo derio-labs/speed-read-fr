@@ -41,7 +41,8 @@ body.vscode-light .sr-reader, body.vscode-high-contrast-light .sr-reader { color
 .sr-md table { border-collapse: collapse; }
 .sr-md th, .sr-md td { border: 1px solid var(--vscode-panel-border, var(--vscode-widget-border, #8884)); padding: 5px 9px; text-align: left; }
 .sr-md th { background: var(--vscode-textCodeBlock-background); }
-.sr-md img, .sr-md svg { max-width: 100%; height: auto; }
+/* Images and diagrams fit their box; KaTeX's own SVGs (radicals, arrows) keep KaTeX's sizing. */
+.sr-md img, .sr-md .mermaid svg { max-width: 100%; height: auto; }
 /* A tall diagram fits the pane, scaled down within its box (E expands it to full size). */
 .sr-exhibit-body .sr-md .mermaid svg { display: block; margin: 0 auto; max-height: 45vh; }
 /* Under 900 px the pane sits below the stage at 42% of the height. */

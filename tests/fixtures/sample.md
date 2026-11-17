@@ -20,7 +20,7 @@ The reader streams prose in chunks and stops at everything else.
 Inline math reads as one unit: the area is $A = \pi r^2$ and the bracket form \(e^{i\pi} + 1 = 0\) works too.
 
 $$
-\sum_{k=1}^{n} k = \frac{n(n+1)}{2}
+\sum_{k=1}^{n} k = \frac{n(n+1)}{2}, \qquad \lVert \overrightarrow{v} \rVert = \sqrt{x^2 + y^2}
 $$
 
 \[

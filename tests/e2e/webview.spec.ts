@@ -152,3 +152,21 @@ test('an edited source shows a "Document changed" notice whose Re-read asks the 
   await sendRead(page, serverOrigin(), { markdown: await readFixture('sample.md'), settings: FAST, startLine: 17 });
   await expect(notice).toBeHidden();
 });
+
+test("KaTeX's own SVGs (radicals, arrows) keep their height in exhibits and in normal reading", async ({ page }) => {
+  await open(page);
+  const svgHeights = (scope: string) =>
+    page.locator(`${scope} .katex svg`).evaluateAll((svgs) => svgs.map((svg) => svg.getBoundingClientRect().height));
+  // The rendered document: one radical and one arrow in the first display equation.
+  expect((await svgHeights('#sr-render')).length).toBeGreaterThanOrEqual(2);
+  await page.keyboard.press('Space');
+  await expect(page.locator('.sr-exhibits .sr-exhibit[data-kind="math"]')).toHaveCount(2, { timeout: 20_000 });
+  await page.keyboard.press('Space');
+  const pane = await svgHeights('.sr-exhibits');
+  expect(pane.length).toBeGreaterThanOrEqual(2);
+  for (const h of pane) expect(h).toBeGreaterThan(2);
+  await page.keyboard.press('Tab');
+  const reading = await svgHeights('.sr-reading');
+  expect(reading.length).toBeGreaterThanOrEqual(2);
+  for (const h of reading) expect(h).toBeGreaterThan(2);
+});
