@@ -42,6 +42,8 @@ export interface StageElements {
 export interface StageZone extends Zone {
   /** The position dial's wheel input (for a host that routes page wheel events to it). */
   wheel: DialStrip['wheel'];
+  /** Show `text` as a note in the status line ("Settings not saved"), or clear it with null. */
+  note(text: string | null): void;
 }
 
 export function createStage(ctx: ReaderContext, { stage, status, overallFill }: StageElements): StageZone {
@@ -50,6 +52,8 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
   const sentence = h('div', { class: 'sr-sentence', 'aria-hidden': 'true' });
   stage.append(display, sentence);
   const dial = createDialStrip(ctx, stage);
+  /** A note set through `note()`: a host's message, such as a failed settings save. */
+  let hostNote: string | null = null;
 
   const kbd = (key: string) => h('span', { class: 'sr-kbd' }, key);
   const eyebrow = (text: string) => h('div', { class: 'sr-card-eyebrow' }, text);
@@ -269,6 +273,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
       h('span', { class: 'sr-status-sep' }, ' · '),
       h('span', { class: 'sr-status-progress' }, `${pct}%`),
       ctx.speech.failed ? h('span', { class: 'sr-status-note' }, 'Speech failed: showing text only') : null,
+      hostNote ? h('span', { class: 'sr-status-note', 'data-note': 'host', role: 'status' }, hostNote) : null,
     );
     overallFill.style.width = `${pct}%`;
   }
@@ -304,6 +309,11 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
 
   return {
     wheel: dial.wheel,
+    note(text) {
+      if (text === hostNote) return;
+      hostNote = text;
+      renderStatus();
+    },
     refresh() {
       if (!shown) showReady();
       renderStatus();

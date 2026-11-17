@@ -54,8 +54,16 @@ export interface ReaderHandle {
    * the stage), and the stage's bottom: where a host can show the block being read (p5a-r8).
    */
   freeBand(): FreeBand;
+  /**
+   * Show a note in the status line, or clear it with null: a host reports a failure the reader
+   * cannot see itself (VS Code's configuration refusing a write: "Settings not saved").
+   */
+  setStatusNote(text: string | null): void;
   destroy(): void;
 }
+
+/** The status note shown when the store refuses a save. */
+export const SETTINGS_NOT_SAVED = 'Settings not saved';
 
 type StyleScope = (Document | ShadowRoot) & { adoptedStyleSheets?: CSSStyleSheet[] };
 
@@ -194,7 +202,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     player.on('settings', (next) => {
       settings = next;
       speech.setVoice(next.tts.voiceURI);
-      if (saving) void store.save(next);
+      if (saving) saveSettings(next);
     }),
     player.on('state', (state) => {
       reader.dataset.state = state;
@@ -219,8 +227,32 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     timeline = buildTimeline(doc, next);
     player.replaceTimeline(timeline, next);
     for (const zone of zones) zone.refresh?.();
-    if (save) void store.save(next);
+    if (save) saveSettings(next);
   }
+
+  /** Save through the store; a refused save (storage quota, a gone extension context) shows a note. */
+  function saveSettings(next: Settings) {
+    let pending: Promise<void>;
+    try {
+      pending = Promise.resolve(store.save(next));
+    } catch (error) {
+      pending = Promise.reject(error);
+    }
+    pending.then(
+      () => {
+        if (!destroyed && noteIsSave) {
+          noteIsSave = false;
+          stageZone.note(null);
+        }
+      },
+      () => {
+        if (destroyed) return;
+        noteIsSave = true;
+        stageZone.note(SETTINGS_NOT_SAVED);
+      },
+    );
+  }
+  let noteIsSave = false;
 
   let destroyed = false;
   /** False while settings from outside (load, applySettings) are applied: they are not saved back. */
@@ -249,6 +281,11 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       if (!destroyed) push.update();
     },
     freeBand: () => push.freeBand(),
+    setStatusNote(text) {
+      if (destroyed) return;
+      noteIsSave = false;
+      stageZone.note(text);
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;

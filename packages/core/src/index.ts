@@ -7,7 +7,7 @@ export * from './timeline';
 export * from './pacing';
 export * from './player';
 export { blockWords, extract, extractRange, type ExtractOptions } from './extract/extract';
-export { mountReader, type MountOptions, type ReaderHandle } from './ui/mount';
+export { mountReader, SETTINGS_NOT_SAVED, type MountOptions, type ReaderHandle } from './ui/mount';
 export type { Host, HostDocument, ExhibitUse } from './ui/host';
 export { createCloneHost, type CloneHostOptions } from './ui/clone-host';
 export { createCloneMap, sourceRefOf, type CloneMap } from './ui/clone-map';

@@ -181,3 +181,46 @@ describe('host bridge', () => {
     expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ wpm: 325 }));
   });
 });
+
+describe('a store that refuses a save (l-errors-r3)', () => {
+  const note = (t: ReturnType<typeof mountHarness>) => t.q('.sr-status [data-note="host"]')?.textContent ?? null;
+
+  it('catches the rejection and shows "Settings not saved" in the status line; a later good save clears it', async () => {
+    const t = mountHarness(ARTICLE);
+    await t.settle();
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    vi.mocked(t.store.save).mockRejectedValueOnce(new Error('QUOTA_BYTES quota exceeded'));
+    t.handle.player.speed(25);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(note(t)).toBe('Settings not saved');
+    t.handle.player.speed(25);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(note(t)).toBeNull();
+    process.off('unhandledRejection', unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
+  it('a store whose save throws synchronously is caught too, for a timeline-changing setting', async () => {
+    const t = mountHarness(ARTICLE);
+    await t.settle();
+    vi.mocked(t.store.save).mockImplementationOnce(() => {
+      throw new Error('Extension context invalidated.');
+    });
+    t.qa<HTMLButtonElement>('.sr-settings-button')[0].click();
+    const words = t.q<HTMLInputElement>('.sr-settings [name="chunkWords"]')!;
+    words.value = '2';
+    words.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(t.handle.player.settings.chunkWords).toBe(2);
+    expect(note(t)).toBe('Settings not saved');
+  });
+
+  it('setStatusNote shows and clears a host note', () => {
+    const t = mountHarness(ARTICLE);
+    t.handle.setStatusNote('Settings not saved');
+    expect(note(t)).toBe('Settings not saved');
+    t.handle.setStatusNote(null);
+    expect(note(t)).toBeNull();
+  });
+});
