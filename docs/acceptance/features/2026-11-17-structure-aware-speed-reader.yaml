@@ -104,6 +104,17 @@ rows:
       - settings panel open with defaults
       interactions:
       - change words per chunk to 1 and to 8
+  - id: reader-position-dial
+    capability: reader-ui
+    acceptance: A dial under the stage, also turned by the mouse wheel, moves the reading
+      position forwards and backwards, one chunk at a time when turned slowly and faster
+      when turned faster, coasting briefly on release, and playback resumes afterwards
+      if it was playing.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R27
+    levels: {}
+    status: not-implemented
+    notes: ''
   - id: browser-entry-points
     capability: browser-extension
     acceptance: The extension declares a toolbar action, the context-menu items Speed
