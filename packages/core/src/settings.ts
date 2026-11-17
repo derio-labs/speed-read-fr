@@ -37,3 +37,76 @@ export const DEFAULT_SETTINGS: Settings = {
   display: 'overlay',
   tts: { enabled: false, voiceURI: null },
 };
+
+export interface SettingsStore {
+  load(): Promise<Partial<Settings>>;
+  save(settings: Settings): Promise<void>;
+}
+
+const EXHIBIT_MODES: readonly ExhibitMode[] = ['stop', 'skip', 'dwell'];
+const DISPLAY_MODES: readonly DisplayMode[] = ['overlay', 'dock'];
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(value as T) ? (value as T) : fallback;
+}
+
+function normalizeExhibit(value: unknown, fallback: ExhibitBehaviour): ExhibitBehaviour {
+  const v = (value ?? {}) as Partial<Record<keyof ExhibitBehaviour, unknown>>;
+  return {
+    mode: oneOf(v.mode, EXHIBIT_MODES, fallback.mode),
+    dwellSeconds: clampNumber(v.dwellSeconds, 1, 60, fallback.dwellSeconds),
+  };
+}
+
+function normalizeStopLevels(value: unknown): number[] {
+  if (!Array.isArray(value)) return [...DEFAULT_SETTINGS.stopLevels];
+  const levels: number[] = [];
+  for (const level of value) {
+    if (Number.isInteger(level) && level >= 1 && level <= 6 && !levels.includes(level)) levels.push(level);
+  }
+  return levels;
+}
+
+function normalizeTts(value: unknown): TtsSettings {
+  const v = (value ?? {}) as Partial<Record<keyof TtsSettings, unknown>>;
+  return {
+    enabled: typeof v.enabled === 'boolean' ? v.enabled : DEFAULT_SETTINGS.tts.enabled,
+    voiceURI: typeof v.voiceURI === 'string' ? v.voiceURI : DEFAULT_SETTINGS.tts.voiceURI,
+  };
+}
+
+/** A complete, valid `Settings` from any partial input: unknown keys dropped, values clamped, gaps defaulted. */
+export function normalizeSettings(partial: Partial<Settings>): Settings {
+  const d = DEFAULT_SETTINGS;
+  const p = (partial ?? {}) as Partial<Record<keyof Settings, unknown>>;
+  return {
+    wpm: clampNumber(p.wpm, 100, 1000, d.wpm),
+    chunkWords: clampNumber(p.chunkWords, 1, 10, d.chunkWords),
+    chunkChars: clampNumber(p.chunkChars, 5, 80, d.chunkChars),
+    stopLevels: normalizeStopLevels(p.stopLevels),
+    code: normalizeExhibit(p.code, d.code),
+    table: normalizeExhibit(p.table, d.table),
+    math: normalizeExhibit(p.math, d.math),
+    imageDwellSeconds: clampNumber(p.imageDwellSeconds, 1, 60, d.imageDwellSeconds),
+    display: oneOf(p.display, DISPLAY_MODES, d.display),
+    tts: normalizeTts(p.tts),
+  };
+}
+
+/** An in-memory `SettingsStore`, for tests and hosts without persistence. */
+export function memoryStore(initial: Partial<Settings> = {}): SettingsStore {
+  let saved: Partial<Settings> = structuredClone(initial);
+  return {
+    async load() {
+      return structuredClone(saved);
+    },
+    async save(settings) {
+      saved = structuredClone(settings);
+    },
+  };
+}
