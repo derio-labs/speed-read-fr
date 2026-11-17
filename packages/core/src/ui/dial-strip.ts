@@ -58,6 +58,11 @@ export function createDialStrip(ctx: ReaderContext, stage: HTMLElement): DialStr
 
   function wheel(event: WheelEvent) {
     if (!ctx.accepts(event)) return;
+    // Zoom and pinch (ctrl/meta+wheel) stay the browser's; so does a horizontal swipe (back/forward)
+    // anywhere but on the strip itself, which turns sideways.
+    if (event.ctrlKey || event.metaKey) return;
+    const onStrip = event.target instanceof Node && strip.contains(event.target);
+    if (!onStrip && Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
     event.preventDefault();
     const pageHeight = ctx.document.defaultView?.innerHeight ?? 800;
     dial.turn(wheelDelta(event, pageHeight));

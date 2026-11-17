@@ -821,3 +821,16 @@ describe('player: text-to-speech (spec section 9)', () => {
     expect(speech.spoken).toHaveLength(0);
   });
 });
+
+describe('review p5a-r10: scrubbing from a stop reached by playback', () => {
+  it('resumes afterwards like any playing state', () => {
+    const d = doc(section('s', undefined, prose('Aa bb.'), exhibit('code'), prose('Cc dd ee ff gg.')));
+    const r = setup(d);
+    r.player.toggle();
+    for (let i = 0; i < 10 && r.player.state !== 'stopped'; i++) r.clock.advance(r.clock.nextIn() ?? 0);
+    expect(r.player.state).toBe('stopped');
+    r.player.scrub(1);
+    r.clock.advance(700);
+    expect(r.player.state).toBe('playing');
+  });
+});

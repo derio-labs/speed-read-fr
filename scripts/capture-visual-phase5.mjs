@@ -84,7 +84,8 @@ export async function capturePhase5(outDir) {
 
     /** Turn the dial by slow wheel notches over the faded page, then let the page follow settle. */
     async function scrub(page, notches) {
-      await page.mouse.move(40, 300);
+      // Over the faded page above the cards (the outline card scrolls its own list).
+      await page.mouse.move(640, 40);
       for (let i = 0; i < notches; i++) {
         await page.mouse.wheel(0, 130);
         await page.waitForTimeout(420);

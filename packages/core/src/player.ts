@@ -227,7 +227,7 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
     const from = Math.min(index, steps.length);
     const to = Math.max(0, Math.min(steps.length - 1, from + whole));
     if (to === from) return 0;
-    const wasPlaying = resumeTimer !== null ? scrubWasPlaying : state === 'playing';
+    const wasPlaying = resumeTimer !== null ? scrubWasPlaying : state === 'playing' || (state === 'stopped' && stopFromPlayback);
     show(to, false);
     // A listener may have closed the player.
     if ((state as PlayerState) === 'closed') return 0;

@@ -45,8 +45,26 @@ describe('dial strip in the stage (spec section 13)', () => {
     t.q('.sr-stage')!.dispatchEvent(wheel(8, { deltaMode: 1 }));
     expect(t.handle.player.index).toBe(1);
     t.clock.advance(1000);
-    t.q('.sr-stage')!.dispatchEvent(wheel(1, { deltaX: 130 }));
+    // A horizontal turn counts on the strip itself.
+    t.q('.sr-dial')!.dispatchEvent(wheel(1, { deltaX: 130 }));
     expect(t.handle.player.index).toBe(2);
+  });
+
+  it('leaves ctrl/meta+wheel (zoom, pinch) and horizontal swipes off the strip to the browser (p5a-r4)', () => {
+    const t = mountHarness(LONG);
+    const stage = t.q('.sr-stage')!;
+    for (const init of [{ ctrlKey: true }, { metaKey: true }]) {
+      const e = wheel(130, init);
+      stage.dispatchEvent(e);
+      expect(e.defaultPrevented).toBe(false);
+    }
+    const swipe = wheel(5, { deltaX: 130 });
+    stage.dispatchEvent(swipe);
+    expect(swipe.defaultPrevented).toBe(false);
+    const routed = wheel(5, { deltaX: 130 });
+    t.handle.wheel(routed);
+    expect(routed.defaultPrevented).toBe(false);
+    expect(t.handle.player.index).toBe(0);
   });
 
   it('a fast burst travels further per notch than slow notches, and the readout shows the multiplier', () => {

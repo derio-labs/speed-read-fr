@@ -510,7 +510,7 @@ test.describe('floating overlay over the faded page (R17, R29)', () => {
     const shadow = await veilWindow(page).evaluate((el) => getComputedStyle(el).boxShadow);
     expect(shadow).toContain('rgba(255, 255, 255, 0.68)');
     // Into the second section by the wheel over the faded page (the dial), then let the page follow.
-    await page.mouse.move(60, 400);
+    await page.mouse.move(640, 40);
     for (let i = 0; i < 6; i++) {
       await page.mouse.wheel(0, 130);
       await page.waitForTimeout(450);
@@ -533,7 +533,7 @@ test.describe('floating overlay over the faded page (R17, R29)', () => {
   test('a wheel over the page turns the dial and never scrolls the page itself; over the exhibit pane it does not turn the dial', async () => {
     const page = await openPage(ARTICLE);
     await openReader(page, 'auto');
-    await page.mouse.move(60, 400);
+    await page.mouse.move(640, 40);
     // At the start a turn back moves nothing, so nothing may scroll.
     await page.mouse.wheel(0, -400);
     await page.waitForTimeout(400);
@@ -544,7 +544,7 @@ test.describe('floating overlay over the faded page (R17, R29)', () => {
     await page.mouse.wheel(0, 130);
     await page.waitForTimeout(300);
     await expect(page.locator('[data-speed-read-host] .sr-display')).toHaveAttribute('data-kind', 'ready');
-    await page.mouse.move(60, 400);
+    await page.mouse.move(640, 40);
     await page.mouse.wheel(0, 130);
     await expect(page.locator('[data-speed-read-host] .sr-display')).not.toHaveAttribute('data-kind', 'ready');
   });
@@ -563,7 +563,7 @@ test.describe('floating overlay over the faded page (R17, R29)', () => {
   test('closing removes the veil and leaves the page at the block', async () => {
     const page = await openPage(ARTICLE);
     await openReader(page, 'auto');
-    await page.mouse.move(60, 400);
+    await page.mouse.move(640, 40);
     for (let i = 0; i < 8; i++) {
       await page.mouse.wheel(0, 130);
       await page.waitForTimeout(450);
@@ -597,4 +597,79 @@ test('the dock moves a header fixed across the top and a button fixed at the rig
   expect(await styles()).toEqual(before);
   const after = (await page.locator('#help').boundingBox())!;
   expect(after.x + after.width).toBeGreaterThan(1280 - 30);
+});
+
+test.describe('overlay review fixes (p5a)', () => {
+  const windowBox = (page: Page) =>
+    page.evaluate(() => {
+      const r = document.querySelector('[data-speed-read-host]')!.shadowRoot!.querySelector('.sr-window')!.getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom, height: r.height };
+    });
+
+  async function scrub(page: Page, notches: number) {
+    await page.mouse.move(640, 40);
+    for (let i = 0; i < notches; i++) {
+      await page.mouse.wheel(0, 130);
+      await page.waitForTimeout(420);
+    }
+    await page.waitForTimeout(1500);
+  }
+
+  for (const file of ['/tests/fixtures/smooth.html', '/tests/fixtures/snap.html']) {
+    test(`the follow keeps the block in view on ${file.split('/').pop()} (p5a-r2)`, async () => {
+      const page = await openPage(file);
+      await openReader(page, 'auto');
+      await scrub(page, 10);
+      expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+      const w = await windowBox(page);
+      expect(w.height).toBeGreaterThan(12);
+      expect(w.top).toBeGreaterThanOrEqual(-1);
+      expect(w.bottom).toBeLessThanOrEqual(801);
+      if (file.includes('smooth')) expect(Math.abs(w.top + 6 - 80)).toBeLessThanOrEqual(4);
+    });
+  }
+
+  test('wheels over the settings panel and the exhibit card never scroll the page (p5a-r3)', async () => {
+    const page = await openPage(ARTICLE);
+    await openReader(page, 'auto');
+    const pane = (await page.locator('[data-speed-read-host] .sr-exhibits').boundingBox())!;
+    await page.mouse.move(pane.x + pane.width / 2, pane.y + pane.height / 2);
+    for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
+    await page.locator('[data-speed-read-host] .sr-settings-button').click();
+    const panel = (await page.locator('[data-speed-read-host] .sr-settings').boundingBox())!;
+    await page.mouse.move(panel.x + panel.width / 2, panel.y + panel.height / 2);
+    for (let i = 0; i < 8; i++) await page.mouse.wheel(0, 900);
+    await page.waitForTimeout(400);
+    expect(await page.evaluate(() => scrollY)).toBe(0);
+  });
+
+  test('ctrl+wheel and a horizontal swipe are left to the browser (p5a-r4)', async () => {
+    const page = await openPage(ARTICLE);
+    await openReader(page, 'auto');
+    await page.evaluate(() => {
+      (window as unknown as { __wheels: boolean[] }).__wheels = [];
+      window.addEventListener('wheel', (e) => (window as unknown as { __wheels: boolean[] }).__wheels.push(e.defaultPrevented));
+    });
+    await page.mouse.move(640, 40);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, 100);
+    await page.keyboard.up('Control');
+    await page.mouse.wheel(200, 0);
+    await page.mouse.wheel(0, 130);
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __wheels: boolean[] }).__wheels)).toEqual([false, false, true]);
+  });
+
+  test('in a narrow window at a code stop the block being read is not under the exhibit card (p5a-r8)', async () => {
+    const page = await openPage(ARTICLE);
+    await page.setViewportSize({ width: 744, height: 1000 });
+    await openReader(page, 'auto');
+    for (let i = 0; i < 4; i++) await page.keyboard.press('n');
+    const display = page.locator('[data-speed-read-host] .sr-display');
+    for (let i = 0; i < 30 && (await display.getAttribute('data-kind')) !== 'stop'; i++) await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(2000);
+    const card = (await page.locator('[data-speed-read-host] .sr-exhibits').boundingBox())!;
+    const w = await windowBox(page);
+    expect(w.top >= card.y + card.height || w.bottom <= card.y).toBe(true);
+    await page.setViewportSize({ width: 1280, height: 800 });
+  });
 });

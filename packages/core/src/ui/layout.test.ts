@@ -119,18 +119,41 @@ describe('push controller', () => {
   }
 
   it('floating and narrow: sets the stage top and the card maximum; wide: clears them', () => {
-    stub(700, { 'sr-main': 300, 'sr-exhibits': 140, content: 400 });
+    stub(700, { 'sr-main': 300, 'sr-exhibits': 140, 'sr-exhibits-head': 30, content: 400 });
     const t = mountHarness(ARTICLE, { layout: 'floating' });
     t.q('.sr-exhibits')!.removeAttribute('data-empty');
     t.handle.relayout();
     const style = t.reader.style;
-    // Card content = 140 - 100 + 400 = 440; resting = 800 * 0.56 - 150 = 298.
-    expect(style.getPropertyValue('--sr-stage-top')).toBe(`${8 + 440 + 12}px`);
+    // Card content = head 30 + list 400 + borders 2 = 432; resting = 800 * 0.56 - 150 = 298.
+    expect(style.getPropertyValue('--sr-stage-top')).toBe(`${8 + 432 + 12}px`);
     expect(style.getPropertyValue('--sr-exhibit-top')).toBe('8px');
     expect(style.getPropertyValue('--sr-exhibit-max')).toBe(`${800 - 12 - 300 - 12 - 8}px`);
+    // The card's height is set (and animated by the stylesheet) with the stage's top (p5a-r7).
+    expect(style.getPropertyValue('--sr-exhibit-height')).toBe('432px');
+    t.q('.sr-exhibits')!.setAttribute('data-empty', '');
+    t.handle.relayout();
+    expect(style.getPropertyValue('--sr-exhibit-height')).toBe('0px');
     vi.restoreAllMocks();
     stub(1300, { 'sr-main': 300 });
     t.handle.relayout();
     expect(style.getPropertyValue('--sr-stage-top')).toBe('');
+  });
+});
+
+describe('free band (p5a-r8)', () => {
+  it('is the room between the exhibit card (or the reader top) and the stage, in viewport px', () => {
+    const t = mountHarness(ARTICLE, { layout: 'floating' });
+    const rect = (top: number, height: number) => ({ top, bottom: top + height, height, left: 0, right: 100, width: 100, x: 0, y: top, toJSON() {} }) as DOMRect;
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this.classList.contains('sr-reader')) return rect(0, 800);
+      if (this.classList.contains('sr-main')) return rect(460, 300);
+      if (this.classList.contains('sr-exhibits')) return rect(8, 432);
+      return rect(0, 0);
+    });
+    // Wide (jsdom has no container queries: the reader is 100 px wide here, so narrow).
+    const pane = t.q('.sr-exhibits')!;
+    expect(t.handle.freeBand()).toEqual({ top: 0, bottom: 460, below: 760 });
+    pane.removeAttribute('data-empty');
+    expect(t.handle.freeBand()).toEqual({ top: 440, bottom: 460, below: 760 });
   });
 });

@@ -347,7 +347,12 @@ export const READER_CSS = `
 /* Narrow exhibit push (spec section 13, R28), both layouts: the exhibit card sits above the stage,
    as tall as its content up to --sr-exhibit-max; the stage moves down by the numbers ui/layout.ts sets. */
 @container sr-reader (max-width: ${WIDE_MIN_PX - 1}px) {
-  .sr-exhibits[data-empty] { display: none; }
+  /* The card grows from 0 and shrinks back before it hides, with the stage's 400 ms ease (p5a-r7). */
+  .sr-exhibits {
+    height: var(--sr-exhibit-height, 0px); visibility: visible;
+    transition: height .4s ease, visibility 0s linear 0s;
+  }
+  .sr-exhibits[data-empty] { visibility: hidden; transition: height .4s ease, visibility 0s linear .4s; }
   .sr-exhibit-body { max-height: none; }
   .sr-reader[data-layout="panel"] .sr-layout { grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "bar" "main"; }
   .sr-reader[data-layout="panel"] .sr-layout[data-outline="none"] { grid-template-rows: minmax(0, 1fr); grid-template-areas: "main"; }
@@ -397,8 +402,27 @@ export const READER_CSS = `
   .sr-reader[data-layout="floating"] .sr-exhibits {
     left: 16px; right: 16px; width: auto; top: var(--sr-exhibit-top, 8px); transform: none; max-height: var(--sr-exhibit-max, 40%);
   }
+  /* The stage card hugs its content, so the exhibit card above it gets the room (p5a-r6). */
+  .sr-reader[data-layout="floating"] .sr-outline-bar { padding: 6px 10px; }
+  .sr-reader[data-layout="floating"] .sr-outline-toggle { padding: 4px 10px; }
+  .sr-reader[data-layout="floating"] .sr-toolbar { padding: 4px 10px 4px 16px; }
+  .sr-reader[data-layout="floating"] .sr-stage { padding: 8px 14px 10px; }
+  .sr-reader[data-layout="floating"] .sr-display { min-height: 0; }
+  .sr-reader[data-layout="floating"] .sr-display[data-kind="chunk"], .sr-reader[data-layout="floating"] .sr-display[data-kind="item-chunk"] { height: 96px; }
+  .sr-reader[data-layout="floating"] .sr-chunk { line-height: 96px; font-size: calc(38px * var(--sr-scale, 1)); }
+  .sr-reader[data-layout="floating"] .sr-axis::before { top: 8px; }
+  .sr-reader[data-layout="floating"] .sr-axis::after { bottom: 8px; }
+  .sr-reader[data-layout="floating"] .sr-item-counter { top: 2px; }
+  .sr-reader[data-layout="floating"] .sr-sentence { min-height: 0; margin-top: 6px; font-size: 15px; }
+  .sr-reader[data-layout="floating"] .sr-sentence:empty { display: none; }
+  .sr-reader[data-layout="floating"] .sr-card { padding: 12px 16px; }
+  .sr-reader[data-layout="floating"] .sr-card-hint { margin-top: 6px; }
+  .sr-reader[data-layout="floating"] .sr-dial-row { margin-top: 8px; }
+  .sr-reader[data-layout="floating"] .sr-dial { height: 26px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sr-reader .sr-stage, .sr-reader .sr-main { transition: none !important; }
+  .sr-reader .sr-stage, .sr-reader .sr-main, .sr-reader .sr-exhibits { transition: none !important; }
 }
+/* A scroller of the reader's own never hands its wheel on to the page behind (p5a-r3). */
+.sr-exhibit-list, .sr-settings, .sr-reading, .sr-expanded-body, .sr-outline-list, .sr-exhibit-body { overscroll-behavior: contain; }
 `;

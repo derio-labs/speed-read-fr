@@ -7,7 +7,7 @@ import type { FrameSource, HostSetting, ReaderContext, Zone } from './context';
 import { builder, icon, ICONS } from './dom';
 import type { Host } from './host';
 import { createExhibits } from './exhibits';
-import { createLayout } from './layout';
+import { createLayout, type FreeBand } from './layout';
 import { attachKeys } from './keys';
 import { createOutline } from './outline';
 import { createReading } from './reading';
@@ -49,6 +49,11 @@ export interface ReaderHandle {
   wheel(event: WheelEvent): void;
   /** Recompute the narrow exhibit push now (it also follows resizes by itself). */
   relayout(): void;
+  /**
+   * The unobstructed band above the stage in viewport px (below the exhibit card when it sits above
+   * the stage), and the stage's bottom: where a host can show the block being read (p5a-r8).
+   */
+  freeBand(): FreeBand;
   destroy(): void;
 }
 
@@ -242,6 +247,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     relayout() {
       if (!destroyed) push.update();
     },
+    freeBand: () => push.freeBand(),
     destroy() {
       if (destroyed) return;
       destroyed = true;

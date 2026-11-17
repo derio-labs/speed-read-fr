@@ -501,3 +501,52 @@ test.describe('text-to-speech with an injected speechSynthesis (R22)', () => {
     await expect.poll(spoken).toHaveLength(2);
   });
 });
+
+test.describe('narrow floating review fixes (p5a)', () => {
+  test('at 744x600 the stage hugs its content and the 24-line code card gets the room (p5a-r6)', async ({ page }) => {
+    await page.setViewportSize({ width: 744, height: 600 });
+    await page.goto(`${DEMO}?layout=floating`);
+    await expect(page.locator('.sr-reader')).toBeFocused();
+    await toCodeStop(page);
+    await page.waitForTimeout(700);
+    const card = await box(page, '.sr-exhibits');
+    expect(card.height).toBeGreaterThanOrEqual(280);
+    const band = await page.evaluate(() => {
+      const row = document.querySelector('.sr-dial-row')!.getBoundingClientRect();
+      const above = [...document.querySelectorAll('.sr-stage > :not(.sr-dial-row)')]
+        .map((el) => el.getBoundingClientRect())
+        .filter((r) => r.height > 0);
+      return row.top - Math.max(...above.map((r) => r.bottom));
+    });
+    expect(band).toBeLessThanOrEqual(24);
+  });
+
+  test('the exhibit card and the stage move together without overlapping (p5a-r7)', async ({ page }) => {
+    await page.setViewportSize({ width: 744, height: 900 });
+    await page.goto(`${DEMO}?layout=floating`);
+    await expect(page.locator('.sr-reader')).toBeFocused();
+    await toCodeStop(page);
+    await page.waitForTimeout(700);
+    const sample = (delta: 1 | -1) =>
+      page.evaluate(async (d) => {
+        (window as unknown as { __reader: { player: { section(n: number): void } } }).__reader.player.section(d);
+        const out: { card: number; stage: number; visible: boolean }[] = [];
+        const start = performance.now();
+        while (performance.now() - start < 520) {
+          await new Promise((r) => requestAnimationFrame(r));
+          const pane = document.querySelector('.sr-exhibits')!;
+          out.push({
+            card: pane.getBoundingClientRect().bottom,
+            stage: document.querySelector('.sr-main')!.getBoundingClientRect().top,
+            visible: getComputedStyle(pane).visibility === 'visible',
+          });
+        }
+        return out;
+      }, delta);
+    for (const frames of [await sample(1), await sample(-1)]) {
+      const during = frames.filter((f) => f.visible);
+      expect(during.length).toBeGreaterThan(1);
+      for (const f of during) expect(f.card).toBeLessThanOrEqual(f.stage + 0.5);
+    }
+  });
+});

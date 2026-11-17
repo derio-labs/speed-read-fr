@@ -32,7 +32,18 @@ const MAX_FRAME_MS = 50;
 export const FIXED_SCAN_DEPTH = 6;
 export const FIXED_SCAN_LIMIT = 3000;
 /** Over these the wheel scrolls their own content instead of turning the dial. */
-const OWN_SCROLL = '.sr-exhibits, .sr-settings-backdrop, .sr-reading, .sr-expanded';
+const OWN_SCROLL = '.sr-exhibits, .sr-outline, .sr-settings-backdrop, .sr-reading, .sr-expanded';
+/** Frames in a row in which the block did not move before the follow gives up (a page end, scroll snap). */
+const STUCK_FRAMES = 3;
+/** The reader's push animation (400 ms) plus a margin: then the follow aims once more. */
+const LAYOUT_SETTLE_MS = 480;
+/** Gap between the free band's top and the block being read. */
+const BAND_GAP_PX = 8;
+/** Height of the block the free band must show to count as room for it. */
+const BAND_MIN_PX = 48;
+/** Veils for a page whose background cannot be read as one colour. */
+const DARK_VEIL: [number, number, number] = [22, 24, 29];
+const LIGHT_VEIL: [number, number, number] = [255, 255, 255];
 /** Keys handled by the reader stay in it: they do not reach the page's own shortcuts. */
 const CONTAINED_EVENTS = ['keydown', 'keyup', 'keypress'];
 
@@ -71,15 +82,57 @@ export function followStep(delta: number, dt: number): number {
   return Math.abs(eased) < 1 ? Math.sign(delta) : eased;
 }
 
-/** The first opaque background colour from `el` up to the root, as r, g, b; white when there is none. */
+/** A CSS colour as r, g, b, a (0-255, alpha 0-1): drawn to a 1x1 canvas when one exists (any syntax), else parsed as rgb(a). */
+export function parseColor(value: string, win: Window): [number, number, number, number] | null {
+  const Canvas = (win as unknown as { OffscreenCanvas?: typeof OffscreenCanvas }).OffscreenCanvas;
+  if (Canvas) {
+    try {
+      const ctx = new Canvas(1, 1).getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+        ctx.fillStyle = value;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+        return [r, g, b, a / 255];
+      }
+    } catch {
+      // Fall through to the parser.
+    }
+  }
+  const m = value.match(/rgba?\(([^)]+)\)/);
+  if (!m) return value === 'transparent' ? [0, 0, 0, 0] : null;
+  const [r, g, b, a = 1] = m[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+  return [r, g, b, a];
+}
+
+/** Relative luminance of an sRGB colour (0-1). */
+function luminance([r, g, b]: number[]): number {
+  const lin = (c: number) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+/**
+ * The page's effective background (p5a-r5): the first opaque background colour from `el` up to the
+ * root. A background image or gradient met first, or no colour at all, is judged instead: a dark
+ * colour scheme or light text gets a dark neutral veil, else a light one.
+ */
 export function pageBackground(el: Element | null, win: Window): [number, number, number] {
   for (let at = el; at; at = at.parentElement) {
-    const m = win.getComputedStyle(at).backgroundColor.match(/rgba?\(([^)]+)\)/);
-    if (!m) continue;
-    const [r, g, b, a = 1] = m[1].split(/[\s,/]+/).filter(Boolean).map(Number);
-    if (a > 0) return [r, g, b];
+    const style = win.getComputedStyle(at);
+    const colour = parseColor(style.backgroundColor, win);
+    if (colour && colour[3] > 0) return [colour[0], colour[1], colour[2]];
+    if (style.backgroundImage && style.backgroundImage !== 'none') break;
   }
-  return [255, 255, 255];
+  const root = win.document.documentElement;
+  const scheme = win.getComputedStyle(root).colorScheme ?? '';
+  const prefersDark = typeof win.matchMedia === 'function' && win.matchMedia('(prefers-color-scheme: dark)').matches;
+  const darkScheme = /\bdark\b/.test(scheme) && (!/\blight\b/.test(scheme) || prefersDark);
+  const text = parseColor(win.getComputedStyle(el ?? root).color, win);
+  return darkScheme || (text && luminance(text) > 0.6) ? DARK_VEIL : LIGHT_VEIL;
 }
 
 /** Save an inline property (value and priority) for an exact restore. */
@@ -271,7 +324,13 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
     let scroller: Element | null = null;
     let following = false;
     let last: number | null = null;
+    let lastTop = Number.NaN;
+    let stuck = 0;
     let pending: unknown = null;
+    /** One more aim after the reader's own layout has settled (the narrow push moves the free band). */
+    let settle: number | null = null;
+    /** Where the block's top should sit, in viewport px; 10 % of the viewport until the host says more. */
+    let target: (box: DOMRect) => number = () => win.innerHeight * FOLLOW_AT;
 
     function place() {
       if (!block || !block.isConnected) return;
@@ -286,38 +345,126 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       Object.assign(clear.style, { left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${bottom - top}px` });
     }
 
+    /** Scroll by `step` at once: an instant scroll, so a page's smooth scrolling cannot swallow it (p5a-r2). */
+    function scrollBy(target: Element, step: number) {
+      const top = target.scrollTop + step;
+      if (typeof target.scrollTo === 'function') target.scrollTo({ top, behavior: 'instant' as ScrollBehavior });
+      else target.scrollTop = top;
+    }
+
+    /** One frame of the follow; frames are requested only while it moves (p5a-r1). */
     function tick(time: number) {
       pending = null;
+      if (!following || !block?.isConnected || !scroller) {
+        following = false;
+        return;
+      }
       const dt = last === null ? 16 : Math.min(MAX_FRAME_MS, Math.max(0, time - last));
       last = time;
-      if (following && block?.isConnected && scroller) {
-        const step = followStep(block.getBoundingClientRect().top - win.innerHeight * FOLLOW_AT, dt);
-        const before = scroller.scrollTop;
-        if (step !== 0) scroller.scrollTop = before + step;
-        // Settled, or the page cannot scroll further.
-        if (step === 0 || scroller.scrollTop === before) following = false;
+      const box = block.getBoundingClientRect();
+      // Arrival is judged by where the block is, never by the scroll offset read back.
+      stuck = Math.abs(box.top - lastTop) < 0.5 ? stuck + 1 : 0;
+      lastTop = box.top;
+      const step = followStep(box.top - target(box), dt);
+      if (step === 0 || stuck >= STUCK_FRAMES) {
+        following = false;
+        place();
+        return;
       }
+      scrollBy(scroller, step);
       place();
-      schedule();
+      pending = frames.request(tick);
     }
-    function schedule() {
-      if (pending === null) pending = frames.request(tick);
-    }
-    schedule();
+
+    const onMove = () => place();
+    win.addEventListener('scroll', onMove, { capture: true, passive: true });
+    win.addEventListener('resize', onMove);
+    const Resize = (win as unknown as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver;
+    const resize = Resize ? new Resize(onMove) : null;
 
     return {
       fade,
+      /** The host's target for the block's top (the free band above the stage). */
+      aim(fn: (box: DOMRect) => number) {
+        target = fn;
+      },
       follow(el: Element) {
-        if (el !== block) scroller = scrollerOf(el, doc, win);
+        if (el !== block) {
+          scroller = scrollerOf(el, doc, win);
+          if (block) resize?.unobserve(block);
+          resize?.observe(el);
+        }
         block = el;
         following = true;
+        stuck = 0;
+        lastTop = Number.NaN;
+        last = null;
         place();
+        if (pending === null) pending = frames.request(tick);
+        if (settle !== null) win.clearTimeout(settle);
+        settle = win.setTimeout(() => {
+          settle = null;
+          if (!block?.isConnected || following) return;
+          following = true;
+          stuck = 0;
+          lastTop = Number.NaN;
+          last = null;
+          if (pending === null) pending = frames.request(tick);
+        }, LAYOUT_SETTLE_MS);
       },
       destroy() {
         if (pending !== null) frames.cancel(pending);
         pending = null;
+        following = false;
+        if (settle !== null) win.clearTimeout(settle);
+        win.removeEventListener('scroll', onMove, { capture: true });
+        win.removeEventListener('resize', onMove);
+        resize?.disconnect();
         veil.remove();
       },
+    };
+  }
+
+  /**
+   * Where the block being read should sit (p5a-r8): just below the free band's top (below the
+   * exhibit card when it sits above the stage), never above 10 % of the viewport; when the band
+   * cannot show it, below the stage if there is room, else at the band's top.
+   */
+  function routeWheel(e: WheelEvent, handle: ReaderHandle) {
+    if (e.ctrlKey || e.metaKey) return;
+    const target = e.target as Element | null;
+    if (!target || target.closest('.sr-stage')) return; // the stage's own dial handles it
+    const own = target.closest(OWN_SCROLL);
+    if (!own) return handle.wheel(e);
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    // Scroll the reader's own content while it can; never hand the wheel on to the page (p5a-r3).
+    if (!canScroll(target, own, e.deltaY)) e.preventDefault();
+  }
+
+  /** Whether a scroller between `target` and `own` (inclusive) can still move by `dy`. */
+  function canScroll(target: Element, own: Element, dy: number): boolean {
+    for (let at: Element | null = target; at; at = at.parentElement) {
+      const overflow = win.getComputedStyle(at).overflowY;
+      if ((overflow === 'auto' || overflow === 'scroll') && at.scrollHeight > at.clientHeight + 1) {
+        if (dy < 0 && at.scrollTop > 0) return true;
+        if (dy > 0 && at.scrollTop + at.clientHeight < at.scrollHeight - 1) return true;
+      }
+      if (at === own) break;
+    }
+    return false;
+  }
+
+  function aimFor(handle: ReaderHandle) {
+    return (box: DOMRect) => {
+      const vh = win.innerHeight;
+      const fallback = vh * FOLLOW_AT;
+      const band = handle.freeBand();
+      if (!band || !(band.bottom > band.top)) return fallback;
+      const top = Math.max(fallback, band.top + BAND_GAP_PX);
+      const need = Math.min(box.height, BAND_MIN_PX);
+      if (top + need <= band.bottom) return top;
+      if (band.below + BAND_GAP_PX + need <= vh) return band.below + BAND_GAP_PX;
+      return band.top + BAND_GAP_PX;
     };
   }
 
@@ -361,17 +508,11 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       layout: mode === 'overlay' ? 'floating' : 'panel',
       hostSettings: ['pageFade'],
     });
-    // Overlay: every wheel event on the page turns the dial, except where the reader scrolls its own content.
+    // Overlay: every wheel event on the page turns the dial, except where the reader scrolls its own
+    // content; zoom (ctrl/meta) and horizontal swipes stay the browser's.
     if (overlay) {
-      frame.addEventListener(
-        'wheel',
-        (e) => {
-          const target = e.target as Element | null;
-          if (!target || target.closest('.sr-stage') || target.closest(OWN_SCROLL)) return;
-          handle.wheel(e);
-        },
-        { passive: false },
-      );
+      overlay.aim(aimFor(handle));
+      frame.addEventListener('wheel', (e) => routeWheel(e, handle), { passive: false });
     }
     // A page that re-renders (an SPA) can remove the host element: restore the page as on close.
     const removal = new MutationObserver(() => {

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Reading structured answers quickly</title>
+    <!-- Our own test page: the article with proximity scroll snapping on its blocks (p5a-r2). -->
+    <style>html { scroll-snap-type: y proximity; } #content > * { scroll-snap-align: start; }</style>
+  </head>
+  <body>
+    <!-- Our own test document for the demo page and the browser-level tests. The demo reads only
+         #content; the extension's tests also need the page furniture around it. -->
+    <nav class="site-nav">
+      <h2>Site navigation</h2>
+      <p><a href="/">Home</a> · <a href="styled.html">Styled page</a> · <a href="hostile.html">Hostile page</a></p>
+      <button id="bump" type="button" onclick="this.dataset.count = String((+this.dataset.count || 0) + 1)">Menu</button>
+    </nav>
+    <article id="content">
+      <h1>Reading structured answers quickly</h1>
+      <p>So you can read it all in one go: the reader shows a few words at a time, each chunk centred on the letter your eye lands on. Long answers from a model are rarely just prose, though. They carry lists, code, tables and pictures, and each of those wants a different pace.</p>
+      <p>This page is <a id="demo-link" href="styled.html">the demo</a> the tests drive. Press <code>Space</code> to start, and the reader stops at every chapter so you can see what is coming.</p>
+
+      <h2>How prose is paced</h2>
+      <p>Prose is streamed in short chunks. A chunk ends at the word limit, at the character limit, or at the end of a sentence, whichever comes first. Chunks that end a clause, end a sentence, or hold long words stay on screen a little longer.</p>
+      <p>After every stop the speed ramps up again over the next few chunks, so you never resume at full speed. Use the arrow keys to move by sentence and to change the speed.</p>
+      <p>Some words are far wider than the stage. Pneumonoultramicroscopicsilicovolcanoconiosis-and-its-very-long-relatives is one of them, and it still has to fit.</p>
+
+      <h2>Lists are read item by item</h2>
+      <p>A long list is streamed one item at a time with a counter, and nested items are indented by their depth.</p>
+      <ul>
+        <li>Open the reader from the toolbar button, which reads your selection or else the main content of the page.</li>
+        <li>Hold Alt and click any block on a page to start reading from that point to the end of its container.</li>
+        <li>Use the context menu when you would rather keep both hands away from the keyboard for a while.
+          <ul>
+            <li>Speed read selection reads exactly the text you have highlighted on the page.</li>
+            <li>Speed read from here starts at the block you clicked and continues to the end.</li>
+          </ul>
+        </li>
+        <li>Press Tab at any moment to switch to normal reading at your current position.</li>
+      </ul>
+      <h3>Short lists</h3>
+      <p>A list whose items are all short is shown whole instead.</p>
+      <ul>
+        <li>Chrome</li>
+        <li>Firefox</li>
+        <li>VS Code</li>
+      </ul>
+
+      <h2>Code, tables and math</h2>
+      <p>Code is never streamed: the reader stops, names the block and its size, and shows it in the exhibit pane. The function below is what splits a sentence into chunks, and <code>chunkWords</code> is its main limit.</p>
+      <pre><code class="language-ts"><span class="tok-kw">export function</span> <span class="tok-fn">chunkSentence</span>(sentence: <span class="tok-ty">Sentence</span>, opts: <span class="tok-ty">ChunkOptions</span>): <span class="tok-ty">Chunk</span>[] {
+  <span class="tok-kw">const</span> groups: <span class="tok-ty">Token</span>[][] = [];
+  <span class="tok-kw">let</span> current: <span class="tok-ty">Token</span>[] = [];
+  <span class="tok-kw">let</span> chars = <span class="tok-num">0</span>;
+
+  <span class="tok-kw">const</span> <span class="tok-fn">flush</span> = () =&gt; {
+    <span class="tok-kw">if</span> (current.length &gt; <span class="tok-num">0</span>) groups.<span class="tok-fn">push</span>(current);
+    current = [];
+    chars = <span class="tok-num">0</span>;
+  };
+
+  <span class="tok-kw">for</span> (<span class="tok-kw">const</span> token <span class="tok-kw">of</span> sentence.tokens) {
+    <span class="tok-kw">const</span> length = token.text.length + (current.length &gt; <span class="tok-num">0</span> ? <span class="tok-num">1</span> : <span class="tok-num">0</span>);
+    <span class="tok-kw">if</span> (current.length &gt;= opts.chunkWords || chars + length &gt; opts.chunkChars) <span class="tok-fn">flush</span>();
+    current.<span class="tok-fn">push</span>(token);
+    chars += token.text.length + (current.length &gt; <span class="tok-num">1</span> ? <span class="tok-num">1</span> : <span class="tok-num">0</span>);
+    <span class="tok-kw">if</span> (current.length &gt;= <span class="tok-num">2</span> &amp;&amp; <span class="tok-fn">endsClause</span>(token)) <span class="tok-fn">flush</span>();
+  }
+  <span class="tok-fn">flush</span>();
+
+  <span class="tok-cm">// The last chunk of a sentence is shown longer.</span>
+  <span class="tok-kw">return</span> groups.<span class="tok-fn">map</span>((tokens, i) =&gt; ({ tokens, endsSentence: i === groups.length - <span class="tok-num">1</span> }));
+}
+<span class="tok-kw">export default</span> chunkSentence;</code></pre>
+      <p>Tables are treated the same way, with their size in rows and columns.</p>
+      <table>
+        <thead>
+          <tr><th>Setting</th><th>Default</th><th>Range</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Speed</td><td>300 WPM</td><td>100 to 1000</td></tr>
+          <tr><td>Words per chunk</td><td>3</td><td>1 to 10</td></tr>
+          <tr><td>Characters per chunk</td><td>20</td><td>5 to 80</td></tr>
+          <tr><td>Image dwell</td><td>3 s</td><td>1 to 60</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Pictures and diagrams</h2>
+      <p>Images and diagrams are shown in the exhibit pane for a few seconds, then playback continues on its own.</p>
+      <div class="mermaid">
+        <svg role="img" aria-label="Extraction pipeline: DOM, extract, timeline, player" viewBox="0 0 560 120" width="560" height="120" xmlns="http://www.w3.org/2000/svg">
+          <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#6b7280"/></marker></defs>
+          <g font-family="system-ui, sans-serif" font-size="14" text-anchor="middle">
+            <rect x="8" y="36" width="110" height="48" rx="8" fill="#e0ecff" stroke="#3b6fd8"/><text x="63" y="65">Rendered DOM</text>
+            <rect x="152" y="36" width="110" height="48" rx="8" fill="#fde7d9" stroke="#d9703a"/><text x="207" y="65">extract()</text>
+            <rect x="296" y="36" width="110" height="48" rx="8" fill="#e3f4e8" stroke="#3c9a5f"/><text x="351" y="65">Timeline</text>
+            <rect x="440" y="36" width="110" height="48" rx="8" fill="#efe6fb" stroke="#7b4bd1"/><text x="495" y="65">Player</text>
+            <path d="M118 60 H150" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
+            <path d="M262 60 H294" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
+            <path d="M406 60 H438" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
+          </g>
+        </svg>
+      </div>
+      <figure>
+        <img alt="A mountain landscape at sunset" width="480" height="240" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjQwIiB2aWV3Qm94PSIwIDAgNDgwIDI0MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeDI9IjEiIHkxPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZjRkNThkIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjZTA3YTVmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNDAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIzNjAiIGN5PSI4MCIgcj0iMzYiIGZpbGw9IiNmZmY2ZGYiLz48cGF0aCBkPSJNMCAyMDAgTDEyMCAxMTAgTDIxMCAxNzAgTDMwMCA5MCBMNDgwIDIxMCBMNDgwIDI0MCBMMCAyNDAgWiIgZmlsbD0iIzNkNDA1YiIvPjxwYXRoIGQ9Ik0wIDIyMCBMMTYwIDE1MCBMMjYwIDIwMCBMMzgwIDE0MCBMNDgwIDIzMCBMNDgwIDI0MCBMMCAyNDAgWiIgZmlsbD0iIzgxYjI5YSIvPjwvc3ZnPg==" />
+        <figcaption>An image carried as a data URI, so the page makes no network request.</figcaption>
+      </figure>
+      <p>That is the whole tour. Press Escape to close the reader.</p>
+    </article>
+    <aside class="sidebar">
+      <h2>Related reading</h2>
+      <p>Sidebar entries that the reader leaves out: <a href="/">one</a>, <a href="/">two</a>.</p>
+    </aside>
+    <footer>
+      <p>Footer text the reader leaves out. Copyright nobody.</p>
+    </footer>
+  </body>
+</html>

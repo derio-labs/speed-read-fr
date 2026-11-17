@@ -434,6 +434,37 @@ describe('floating overlay over the faded page (R17, R29)', () => {
     document.body.style.backgroundColor = '';
   });
 
+  it('re-places the clear window on scroll and resize without a frame loop (p5a-r1)', async () => {
+    const { reader } = make();
+    await reader.open('auto');
+    await reader.current!.handle.ready;
+    const p3 = document.getElementById('p3')!;
+    let top = 100;
+    boxOf(p3, () => ({ top, left: 0, width: 400, height: 40 }));
+    reader.current!.handle.player.jumpToBlock({ element: p3 });
+    frames.run(300);
+    expect(frames.pending).toBe(0);
+    top = 300;
+    window.dispatchEvent(new Event('scroll'));
+    expect(parseFloat((shadow().querySelector('.sr-window') as HTMLElement).style.top)).toBe(300 - 6);
+    top = 200;
+    window.dispatchEvent(new Event('resize'));
+    expect(parseFloat((shadow().querySelector('.sr-window') as HTMLElement).style.top)).toBe(200 - 6);
+  });
+
+  it('a page whose background is only a dark gradient, with light text, gets a dark veil (p5a-r5)', async () => {
+    document.body.style.backgroundImage = 'linear-gradient(#0b0d12, #151922)';
+    document.body.style.color = 'rgb(230, 232, 238)';
+    const { reader } = make();
+    await reader.open('auto');
+    const shadowValue = (shadow().querySelector('.sr-window') as HTMLElement).style.boxShadow;
+    document.body.style.backgroundImage = '';
+    document.body.style.color = '';
+    expect(shadowValue).not.toContain('rgba(255, 255, 255');
+    const [r, g, b] = shadowValue.match(/rgba\((\d+), (\d+), (\d+)/)!.slice(1).map(Number);
+    expect(r + g + b).toBeLessThan(150);
+  });
+
   it('a page with no background of its own is veiled in white', async () => {
     const { reader } = make();
     await reader.open('auto');
@@ -456,6 +487,8 @@ describe('floating overlay over the faded page (R17, R29)', () => {
     expect(first).toBeCloseTo(target * (1 - Math.exp(-16 / FOLLOW_TAU_MS)), 0);
     frames.run(200);
     expect(Math.abs(scroller.scrollTop - target)).toBeLessThanOrEqual(1);
+    // Settled: no frame is pending until the position moves again (p5a-r1).
+    expect(frames.pending).toBe(0);
     scroller.scrollTop = 0;
   });
 
@@ -467,26 +500,54 @@ describe('floating overlay over the faded page (R17, R29)', () => {
     expect(followStep(3, 1)).toBe(1);
   });
 
-  it('a wheel event on the page side moves the reading position and is not scrolled, except over exhibits, settings and normal reading', async () => {
+  it('a wheel event on the page side moves the reading position and is not scrolled; over exhibits, outline, settings and normal reading it is not the dial', async () => {
     const { reader } = make();
     await reader.open('auto');
     await reader.current!.handle.ready;
     const root = shadow().querySelector('.sr-reader')!;
-    const wheel = () => new WheelEvent('wheel', { deltaY: 130, bubbles: true, cancelable: true, composed: true });
+    const wheel = (init: WheelEventInit = {}) => new WheelEvent('wheel', { deltaY: 130, bubbles: true, cancelable: true, composed: true, ...init });
     const e = wheel();
     root.dispatchEvent(e);
     expect(e.defaultPrevented).toBe(true);
     expect(reader.current!.handle.player.index).toBe(1);
-    for (const selector of ['.sr-exhibits', '.sr-reading']) {
-      const ev = wheel();
-      shadow().querySelector(selector)!.dispatchEvent(ev);
-      expect(ev.defaultPrevented, selector).toBe(false);
+    for (const selector of ['.sr-exhibits', '.sr-reading', '.sr-outline']) {
+      shadow().querySelector(selector)!.dispatchEvent(wheel());
     }
     (shadow().querySelector('.sr-settings-button') as HTMLElement).click();
-    const ev = wheel();
-    shadow().querySelector('.sr-settings')!.dispatchEvent(ev);
-    expect(ev.defaultPrevented).toBe(false);
+    shadow().querySelector('.sr-settings')!.dispatchEvent(wheel());
     expect(reader.current!.handle.player.index).toBe(1);
+  });
+
+  it('over a scroller of its own the wheel scrolls it while it can, and never chains to the page (p5a-r3)', async () => {
+    const { reader } = make();
+    await reader.open('auto');
+    const list = shadow().querySelector('.sr-exhibit-list') as HTMLElement;
+    list.style.overflowY = 'auto';
+    Object.defineProperty(list, 'scrollHeight', { value: 500, configurable: true });
+    Object.defineProperty(list, 'clientHeight', { value: 100, configurable: true });
+    const wheel = (deltaY: number) => new WheelEvent('wheel', { deltaY, bubbles: true, cancelable: true, composed: true });
+    const down = wheel(100);
+    list.dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(false);
+    const up = wheel(-100); // already at the top: nothing to scroll, so the page must not take it
+    list.dispatchEvent(up);
+    expect(up.defaultPrevented).toBe(true);
+    const plain = wheel(100); // the reading view in jsdom cannot scroll at all
+    shadow().querySelector('.sr-reading')!.dispatchEvent(plain);
+    expect(plain.defaultPrevented).toBe(true);
+  });
+
+  it('leaves ctrl+wheel (zoom) and horizontal swipes on the page to the browser (p5a-r4)', async () => {
+    const { reader } = make();
+    await reader.open('auto');
+    const root = shadow().querySelector('.sr-reader')!;
+    const zoom = new WheelEvent('wheel', { deltaY: 130, ctrlKey: true, bubbles: true, cancelable: true });
+    root.dispatchEvent(zoom);
+    const swipe = new WheelEvent('wheel', { deltaX: 130, deltaY: 2, bubbles: true, cancelable: true });
+    root.dispatchEvent(swipe);
+    expect(zoom.defaultPrevented).toBe(false);
+    expect(swipe.defaultPrevented).toBe(false);
+    expect(reader.current!.handle.player.index).toBe(0);
   });
 
   it('ignores a page script’s wheel events by default', async () => {

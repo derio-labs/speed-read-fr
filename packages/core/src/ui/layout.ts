@@ -50,7 +50,7 @@ export interface LayoutElements {
   list: HTMLElement;
 }
 
-const PROPS = ['--sr-stage-top', '--sr-stage-push', '--sr-exhibit-top', '--sr-exhibit-max'];
+const PROPS = ['--sr-stage-top', '--sr-stage-push', '--sr-exhibit-top', '--sr-exhibit-max', '--sr-exhibit-height'];
 
 /** What the panel's stage needs: its children's extent plus its padding. */
 function contentHeight(stage: HTMLElement): number {
@@ -63,7 +63,14 @@ function contentHeight(stage: HTMLElement): number {
   return bottom - top + pad;
 }
 
-export function createLayout(el: LayoutElements): { update(): void; destroy(): void } {
+/** The unobstructed band above the stage, and the stage's bottom, in viewport px. */
+export interface FreeBand {
+  top: number;
+  bottom: number;
+  below: number;
+}
+
+export function createLayout(el: LayoutElements): { update(): void; freeBand(): FreeBand; destroy(): void } {
   const { reader } = el;
   const px = (n: number) => `${Math.round(n)}px`;
 
@@ -75,7 +82,10 @@ export function createLayout(el: LayoutElements): { update(): void; destroy(): v
     const box = reader.getBoundingClientRect();
     if (box.width === 0 || box.width >= WIDE_MIN_PX) return clear();
     const shown = !el.exhibits.hasAttribute('data-empty');
-    const cardHeight = el.exhibits.offsetHeight - el.list.clientHeight + el.list.scrollHeight;
+    // What the card needs: its head, its whole list, its border (its own height is animated).
+    const head = el.exhibits.querySelector<HTMLElement>('.sr-exhibits-head');
+    const cardHeight = (head?.offsetHeight ?? 0) + el.list.scrollHeight + 2;
+    const height = (max: number) => reader.style.setProperty('--sr-exhibit-height', px(shown ? Math.min(cardHeight, max) : 0));
     if (el.floating) {
       const stageHeight = el.main.offsetHeight;
       const floor = box.height - PUSH_GAP_PX;
@@ -84,6 +94,7 @@ export function createLayout(el: LayoutElements): { update(): void; destroy(): v
       reader.style.setProperty('--sr-stage-top', px(r.top));
       reader.style.setProperty('--sr-exhibit-top', px(FLOATING_CARD_TOP_PX));
       reader.style.setProperty('--sr-exhibit-max', px(r.cardMax));
+      height(r.cardMax);
       return;
     }
     const resting = el.overall.getBoundingClientRect().bottom - box.top;
@@ -92,6 +103,15 @@ export function createLayout(el: LayoutElements): { update(): void; destroy(): v
     reader.style.setProperty('--sr-stage-push', px(r.top - resting));
     reader.style.setProperty('--sr-exhibit-top', px(cardTop));
     reader.style.setProperty('--sr-exhibit-max', px(r.cardMax));
+    height(r.cardMax);
+  }
+
+  function freeBand(): FreeBand {
+    const box = reader.getBoundingClientRect();
+    const stage = (el.floating ? el.main : el.stage).getBoundingClientRect();
+    const narrow = box.width > 0 && box.width < WIDE_MIN_PX;
+    const above = narrow && !el.exhibits.hasAttribute('data-empty') ? el.exhibits.getBoundingClientRect().bottom : box.top;
+    return { top: above, bottom: stage.top, below: stage.bottom };
   }
 
   const win = reader.ownerDocument.defaultView as (Window & { ResizeObserver?: typeof ResizeObserver; MutationObserver?: typeof MutationObserver }) | null;
@@ -114,6 +134,7 @@ export function createLayout(el: LayoutElements): { update(): void; destroy(): v
 
   return {
     update,
+    freeBand,
     destroy() {
       resize?.disconnect();
       mutation?.disconnect();
