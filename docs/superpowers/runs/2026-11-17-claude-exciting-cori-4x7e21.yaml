@@ -211,7 +211,15 @@ steps:
     stdout: |
       6 out-of-scope finding(s): p3-r16, p3-r17, p3-r18, p4-r11, p5a-r12, p5a-r13
   lens-review:
-    state: pending
+    state: running
+    at: '2026-11-17T19:31:22+00:00'
+    units:
+      step/lens-review:
+        attempts:
+        - dispatched: '2026-11-17T19:31:22+00:00'
+          harness: claude-code
+          model: claude-fable-5-2
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
   deliver:
     state: pending
 fr_version: 8.1.3
