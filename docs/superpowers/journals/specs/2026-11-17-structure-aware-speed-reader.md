@@ -531,3 +531,6 @@ run_kind: none
 
 <!-- fr:journal kind=decision scope=spec id=phase-split-2026-11-17-structure-aware-speed-reader-p3 created=2026-11-17T15:30:46+00:00 -->
 ### phase-split-2026-11-17-structure-aware-speed-reader-p3 · decision · ask: the Chrome and Firefox extension (R13-R18) is the brief's second deliverable
+
+<!-- fr:journal kind=decision scope=spec id=tier-2026-11-17-structure-aware-speed-reader-p3 created=2026-11-17T15:30:47+00:00 -->
+### tier-2026-11-17-structure-aware-speed-reader-p3 · decision · hard: keeping page styling on slotted clones while isolating the reader, and MV3 lifecycle differences, are design judgements with no test oracle but the browser
