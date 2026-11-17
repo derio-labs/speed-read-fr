@@ -312,30 +312,24 @@ visual:
 - row: browser-floating-overlay
   script: scripts/capture-visual.mjs
   shots:
-  - path: .visual/review-5a/overlay-article-1600.png
+  - path: .visual/review-5-final/floating-overlay-light.png
     shows:
     - floating cards over faded page with current block at full strength
-  - path: .visual/review-5a/overlay-styled-1600.png
+  - path: .visual/review-5-final/floating-overlay-dark.png
     shows:
     - floating cards over faded page with current block at full strength
-  - path: .visual/review-5a/push-code24-1000.png
-    shows:
-    - narrow window exhibit card pushes stage down
-  - path: .visual/review-5a/push-short-1000.png
+  - path: .visual/review-5-final/floating-narrow-exhibit-push.png
     shows:
     - narrow window exhibit card pushes stage down
 - row: browser-overlay-and-dock
   script: scripts/capture-visual.mjs
   shots:
-  - path: .visual/review-5a/dock-fixed-open.png
+  - path: .visual/review-5-final/docked-side-panel-fixed-elements.png
     shows:
     - docked side panel beside page
 - row: tts-voices-offline-labels
   script: scripts/capture-visual.mjs
   shots:
-  - path: .visual/review-5b/01-local-network-default.png
-    shows:
-    - speech settings with local and network voices
-  - path: .visual/review-5b/02-local-network-picked-network.png
+  - path: .visual/review-5-final/speech-settings-voices.png
     shows:
     - speech settings with local and network voices
