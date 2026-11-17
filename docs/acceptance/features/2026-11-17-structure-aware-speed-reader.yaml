@@ -219,9 +219,13 @@ rows:
       or docked as a side panel beside a usable page when set so.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R17
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/browser-extension/src/reader-entry.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/extension.spec.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
     visual:
       states:
       - docked side panel beside page
