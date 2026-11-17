@@ -108,9 +108,13 @@ rows:
       and section moves, speed, normal reading, exhibit expansion and closing.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R11
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/ui/keys.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
     visual:
       states:
       - normal reading view at current block
