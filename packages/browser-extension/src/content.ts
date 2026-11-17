@@ -34,10 +34,22 @@ function pageTarget(e: Event): Element | null {
 /** Hand `el` out once, and only while it is in the page. */
 const take = (el: Element | null): Element | null => (el?.isConnected ? el : null);
 
+export interface ContentOptions {
+  /**
+   * Act only on events from the user (`isTrusted`), never on ones a page script dispatched (default
+   * true: the script shares the page with its scripts). Unit tests relax it, as jsdom events are untrusted.
+   */
+  trustedEventsOnly?: boolean;
+}
+
+/** Whether `error` says the extension that injected this script is gone (reloaded, updated, removed). */
+const contextGone = (error: unknown): boolean => /context invalidated|extension context/i.test(String((error as Error | null)?.message ?? error));
+
 /** Install the listeners on `win` and the bridge on `scope`; returns the uninstall. */
-export function installContent(scope: object, win: Window, api: ExtApi | undefined): () => void {
+export function installContent(scope: object, win: Window, api: ExtApi | undefined, { trustedEventsOnly = true }: ContentOptions = {}): () => void {
   const slots = scope as Record<PropertyKey, ContentBridge | undefined>;
   if (bridgeOf(scope)) return () => {};
+  const accepts = (e: Event) => !trustedEventsOnly || e.isTrusted;
   let outlined: HTMLElement | null = null;
   let saved: [string, string, string, string] = ['', '', '', ''];
   let underPointer: Element | null = null;
@@ -69,13 +81,14 @@ export function installContent(scope: object, win: Window, api: ExtApi | undefin
   }
 
   const onMove = (e: MouseEvent) => {
+    if (!accepts(e)) return;
     underPointer = pageTarget(e);
     if (e.altKey) outline(underPointer);
     else clear();
   };
 
   const onKey = (e: KeyboardEvent) => {
-    if (e.key !== 'Alt') return;
+    if (!accepts(e) || e.key !== 'Alt') return;
     if (e.type === 'keydown') {
       outline(underPointer);
       return;
@@ -89,6 +102,7 @@ export function installContent(scope: object, win: Window, api: ExtApi | undefin
   };
 
   const onPress = (e: MouseEvent) => {
+    if (!accepts(e)) return;
     const target = pageTarget(e);
     if (!outlined || !e.altKey || !target || !outlined.contains(target)) return;
     e.preventDefault();
@@ -96,11 +110,28 @@ export function installContent(scope: object, win: Window, api: ExtApi | undefin
     pressed = true;
     if (e.type === 'click') {
       hoverTarget = outlined;
-      void api?.runtime.sendMessage(HOVER_MESSAGE)?.catch?.(() => {});
+      send();
     }
   };
 
+  /**
+   * Ask the background to open the reader. After the extension is reloaded or updated this script is
+   * orphaned: its `sendMessage` throws (or rejects) because the context is gone. It then removes
+   * itself, so the page behaves as if it had never been installed.
+   */
+  function send() {
+    try {
+      const sent = api?.runtime.sendMessage(HOVER_MESSAGE);
+      void sent?.catch?.((error: unknown) => {
+        if (contextGone(error)) uninstall();
+      });
+    } catch {
+      uninstall();
+    }
+  }
+
   const onContextMenu = (e: MouseEvent) => {
+    if (!accepts(e)) return;
     contextTarget = e.target instanceof Element ? e.target : null;
   };
 
@@ -125,11 +156,15 @@ export function installContent(scope: object, win: Window, api: ExtApi | undefin
       return el;
     },
   };
-  return () => {
+  let installed = true;
+  function uninstall() {
+    if (!installed) return;
+    installed = false;
     clear();
     for (const [type, fn] of listeners) win.removeEventListener(type, fn, true);
     delete slots[BRIDGE_KEY];
-  };
+  }
+  return uninstall;
 }
 
 if (typeof window !== 'undefined' && ext()) installContent(globalThis, window, ext());

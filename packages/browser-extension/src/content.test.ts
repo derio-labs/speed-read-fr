@@ -4,6 +4,9 @@ import { HOVER_ATTRIBUTE, installContent } from './content';
 import type { ExtApi } from './ext';
 import { BRIDGE_KEY, bridgeOf, type ContentBridge } from './shared';
 
+/** jsdom events are untrusted, like a page script's: the unit tests relax the production check. */
+const RELAXED = { trustedEventsOnly: false };
+
 let scope: Record<PropertyKey, unknown>;
 let sendMessage: ReturnType<typeof vi.fn>;
 let uninstall: () => void;
@@ -34,7 +37,7 @@ beforeEach(() => {
     </article>`;
   scope = {};
   sendMessage = vi.fn(async () => undefined);
-  uninstall = installContent(scope, window, { runtime: { sendMessage } } as unknown as ExtApi);
+  uninstall = installContent(scope, window, { runtime: { sendMessage } } as unknown as ExtApi, RELAXED);
 });
 
 afterEach(() => uninstall());
@@ -180,7 +183,7 @@ describe('a page with elements named like the extension globals', () => {
     uninstall();
     const named = document.createElement('div');
     const s: Record<PropertyKey, unknown> = { __speedReadContent: named, __speedRead: named };
-    const off = installContent(s, window, { runtime: { sendMessage } } as unknown as ExtApi);
+    const off = installContent(s, window, { runtime: { sendMessage } } as unknown as ExtApi, RELAXED);
     expect(typeof (s[BRIDGE_KEY] as ContentBridge).contextTarget).toBe('function');
     pointer('contextmenu', $('li'));
     expect((s[BRIDGE_KEY] as ContentBridge).contextTarget()).toBe($('li'));
@@ -199,5 +202,70 @@ describe('install', () => {
     expect(installContent(scope, window, undefined)).toBeTypeOf('function');
     pointer('contextmenu', $('li'));
     expect(bridge().contextTarget()).toBe($('li'));
+  });
+});
+
+describe('untrusted events (a page script dispatching them)', () => {
+  let off: () => void;
+  let s: Record<PropertyKey, unknown>;
+  beforeEach(() => {
+    uninstall();
+    uninstall = () => {};
+    s = {};
+    // The production default: only events from the user act.
+    off = installContent(s, window, { runtime: { sendMessage } } as unknown as ExtApi);
+  });
+  afterEach(() => off());
+
+  it('a synthetic Alt move, keydown and press outline nothing, prevent nothing and send nothing', () => {
+    pointer('mousemove', $('link'), true);
+    key('keydown', true);
+    expect(outlined()).toEqual([]);
+    for (const type of ['mousedown', 'mouseup', 'click', 'auxclick']) expect(pointer(type, $('link'), true).defaultPrevented, type).toBe(false);
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect((s[BRIDGE_KEY] as ContentBridge).hoverTarget()).toBeNull();
+  });
+
+  it('a synthetic contextmenu event is not remembered', () => {
+    pointer('contextmenu', $('li'));
+    expect((s[BRIDGE_KEY] as ContentBridge).contextTarget()).toBeNull();
+  });
+});
+
+describe('an orphaned content script (the extension was reloaded)', () => {
+  it('when sendMessage throws, it removes its listeners and outline and the page behaves normally', () => {
+    sendMessage.mockImplementation(() => {
+      throw new Error('Extension context invalidated.');
+    });
+    pointer('mousemove', $('link'), true);
+    expect(() => pointer('click', $('link'), true)).not.toThrow();
+    expect(outlined()).toEqual([]);
+    expect($('p1').getAttribute('style') ?? '').toBe('');
+    expect(scope[BRIDGE_KEY]).toBeUndefined();
+    pointer('mousemove', $('link'), true);
+    expect(outlined()).toEqual([]);
+    expect(pointer('click', $('link'), true).defaultPrevented).toBe(false);
+  });
+
+  it('when sendMessage rejects with a gone context, it removes itself too', async () => {
+    sendMessage.mockImplementation(async () => {
+      throw new Error('Extension context invalidated.');
+    });
+    pointer('mousemove', $('link'), true);
+    pointer('click', $('link'), true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(scope[BRIDGE_KEY]).toBeUndefined();
+    pointer('mousemove', $('link'), true);
+    expect(outlined()).toEqual([]);
+  });
+
+  it('another rejection (no receiver yet) keeps it installed', async () => {
+    sendMessage.mockImplementation(async () => {
+      throw new Error('Could not establish connection. Receiving end does not exist.');
+    });
+    pointer('mousemove', $('link'), true);
+    pointer('click', $('link'), true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(scope[BRIDGE_KEY]).toBeDefined();
   });
 });
