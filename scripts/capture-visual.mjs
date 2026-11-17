@@ -1,6 +1,6 @@
 // Visual evidence, one PNG per declared state or interaction, at deviceScaleFactor 2, into a
 // git-ignored directory. Serves the repo on localhost only.
-//   node scripts/capture-visual.mjs [outDir] [--phase 2|3|4]
+//   node scripts/capture-visual.mjs [outDir] [--phase 2|3|4|5]
 // Phase 2 (default; outDir .visual/phase-2): the reader UI rows (reader-three-zone-ui, reader-keys,
 // reader-settings) on the core demo page.
 // Phase 3 (outDir .visual/phase-3, or any outDir named phase-3): the browser extension rows
@@ -8,6 +8,9 @@
 // extension loaded into the full Chromium.
 // Phase 4 (outDir .visual/phase-4, or any outDir named phase-4): the VS Code webview row
 // (vscode-webview-renders), the built webview bundle under the extension's CSP, dark and light.
+// Phase 5 (outDir .visual/phase-5, or any outDir named phase-5): the floating overlay over the faded
+// page (browser-floating-overlay), the dock beside fixed elements (browser-overlay-and-dock) and the
+// speech settings (tts-voices-offline-labels).
 import { chromium } from '@playwright/test';
 import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
@@ -28,9 +31,13 @@ const NARROW = { width: 700, height: 960 };
 await rm(outDir, { recursive: true, force: true });
 await mkdir(outDir, { recursive: true });
 const written = [];
-if (phase === 3 || phase === 4) {
+if (phase === 3 || phase === 4 || phase === 5) {
   const capture =
-    phase === 3 ? (await import('./capture-visual-extension.mjs')).capturePhase3 : (await import('./capture-visual-webview.mjs')).capturePhase4;
+    phase === 3
+      ? (await import('./capture-visual-extension.mjs')).capturePhase3
+      : phase === 4
+        ? (await import('./capture-visual-webview.mjs')).capturePhase4
+        : (await import('./capture-visual-phase5.mjs')).capturePhase5;
   written.push(...(await capture(outDir)));
   console.log(written.join('\n'));
   process.exit(0);

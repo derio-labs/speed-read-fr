@@ -74,7 +74,7 @@ export async function capturePhase3(outDir) {
     await shot(page, 'alt-hover-block-outlined.png');
     await page.keyboard.up('Alt');
 
-    // Overlay over the dark styled page, stopped at the code with the page-styled exhibit.
+    // The floating overlay over the dark styled page, stopped at the code with the page-styled exhibit.
     page = await open('styled.html', { wpm: 1000 });
     await openReader(page);
     await page.keyboard.press('Space');
