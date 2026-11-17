@@ -374,9 +374,17 @@ for (const layout of ['panel', 'floating'] as const) {
     const fit = await page.locator('.sr-exhibit-list').evaluate((list) => {
       const max = parseFloat(getComputedStyle(list.closest('.sr-reader')!).getPropertyValue('--sr-exhibit-max'));
       const cardHeight = (list.closest('.sr-exhibits') as HTMLElement).getBoundingClientRect().height;
-      return { overflows: list.scrollHeight > list.clientHeight + 1, atMax: Math.abs(cardHeight - max) <= 1 };
+      // Room left below the last exhibit inside the list: none when the card is only as tall as its content.
+      const last = list.lastElementChild!;
+      const slack = list.getBoundingClientRect().bottom - (last.getBoundingClientRect().bottom + parseFloat(getComputedStyle(last).marginBottom) + parseFloat(getComputedStyle(list).paddingBottom));
+      return { max, cardHeight, slack, overflows: list.scrollHeight > list.clientHeight + 1, atMax: Math.abs(cardHeight - max) <= 1 };
     });
-    expect(fit.overflows ? fit.atMax : true).toBe(true);
+    expect(fit.max, 'the room the card may take').toBeGreaterThan(0);
+    expect(fit.cardHeight).toBeLessThanOrEqual(fit.max + 1);
+    // Each branch on its own: content taller than the room scrolls in a card at the maximum; content
+    // that fits gets a card exactly as tall as it.
+    if (fit.overflows) expect(fit.atMax, 'an overflowing card is at the maximum').toBe(true);
+    else expect(Math.abs(fit.slack), 'a card whose content fits is as tall as that content').toBeLessThanOrEqual(2);
 
     // A section with nothing revealed yet: the card goes and the stage glides back.
     await page.keyboard.press('n');
@@ -388,6 +396,51 @@ for (const layout of ['panel', 'floating'] as const) {
     };
     await expect.poll(offRest).toBeLessThanOrEqual(1);
   });
+}
+
+for (const layout of ['panel', 'floating'] as const) {
+  for (const reduced of [false, true]) {
+    test(`narrow (${layout}${reduced ? ', reduced motion' : ''}): the stage ${reduced ? 'jumps' : 'glides'} back when the card empties and down when it fills (R28)`, async ({ page }) => {
+      if (reduced) await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.setViewportSize({ width: 700, height: 900 });
+      await page.goto(`${DEMO}?layout=${layout}`);
+      await expect(page.locator('.sr-reader')).toBeFocused();
+      const moving = layout === 'floating' ? '.sr-main' : '.sr-stage';
+      await toCodeStop(page);
+      await expect(page.locator('.sr-exhibits')).toBeVisible();
+      // Let the push settle, then move a section on (the card empties) and back (it fills again),
+      // sampling the stage's top on every animation frame from the move on.
+      await page.waitForTimeout(700);
+      const sample = (delta: 1 | -1) =>
+        page.evaluate(
+          async ([sel, d]) => {
+            const top = () => document.querySelector(sel as string)!.getBoundingClientRect().top;
+            const from = top();
+            (window as unknown as { __reader: { player: { section(n: number): void } } }).__reader.player.section(d as number);
+            const tops: number[] = [];
+            const start = performance.now();
+            while (performance.now() - start < 700) {
+              await new Promise((r) => requestAnimationFrame(r));
+              tops.push(top());
+            }
+            return { from, to: tops[tops.length - 1], tops };
+          },
+          [moving, delta] as const,
+        );
+      const back = await sample(1);
+      expect(back.to, 'the stage moved back up').toBeLessThan(back.from - 20);
+      const down = await sample(-1);
+      expect(down.to, 'the stage moved down again').toBeGreaterThan(down.from + 20);
+      for (const [name, run] of [['return', back], ['push', down]] as const) {
+        expect(run.tops.length, `frames sampled during the ${name}`).toBeGreaterThan(5);
+        const lo = Math.min(run.from, run.to) + 0.5;
+        const hi = Math.max(run.from, run.to) - 0.5;
+        const between = run.tops.filter((t) => t > lo && t < hi);
+        if (reduced) expect(between, `no intermediate position during the ${name} with reduced motion`).toEqual([]);
+        else expect(between.length, `an intermediate position during the ${name}`).toBeGreaterThan(0);
+      }
+    });
+  }
 }
 
 test.describe('floating layout', () => {
