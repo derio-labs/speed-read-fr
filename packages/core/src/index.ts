@@ -10,4 +10,5 @@ export { blockWords, extract, extractRange, type ExtractOptions } from './extrac
 export { mountReader, type MountOptions, type ReaderHandle } from './ui/mount';
 export type { Host, HostDocument, ExhibitUse } from './ui/host';
 export { createCloneHost, type CloneHostOptions } from './ui/clone-host';
+export { createCloneMap, sourceRefOf, type CloneMap } from './ui/clone-map';
 export { READER_CSS, WIDE_MIN_PX } from './ui/styles';

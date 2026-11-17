@@ -69,7 +69,9 @@ describe('normal reading', () => {
     const original = t.source.querySelector('#a')!.getAttribute('style');
     expect(a.hasAttribute('data-sr-current')).toBe(true);
     expect(a.style.outlineStyle).toBe('solid');
-    expect(a.style.backgroundColor).not.toBe('');
+    expect(a.style.outlineOffset).not.toBe('');
+    // Outline only: a fill would replace the page's own background (a dark code block).
+    expect(a.style.backgroundColor).toBe('');
     b.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(a.getAttribute('style')).toBe(original);
     expect(a.hasAttribute('data-sr-current')).toBe(false);

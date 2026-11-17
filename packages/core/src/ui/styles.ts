@@ -283,6 +283,17 @@ export const READER_CSS = `
 .sr-settings input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--sr-progress); }
 
 /* Nothing to outline (no headings, or an empty document): no bar, no rail. */
+/* A narrow reader (the browser dock) keeps a whole card in view: compact cards, a lower exhibit pane. */
+@container sr-reader (max-width: ${WIDE_MIN_PX - 1}px) {
+  .sr-layout { grid-template-rows: auto minmax(0, 1fr) minmax(0, 34%); }
+  .sr-stage { padding-block: 12px; }
+  .sr-card { padding: 16px 18px; }
+  .sr-card-title { font-size: 22px; margin: 4px 0 2px; }
+  .sr-card-title-step .sr-card-title { font-size: 26px; }
+  .sr-card-summary { margin-top: 8px; font-size: 14px; }
+  .sr-card-subs { margin-top: 10px; padding-top: 8px; gap: 2px; font-size: 13px; }
+  .sr-card-hint { margin-top: 10px; }
+}
 .sr-layout[data-outline="none"] { grid-template-rows: minmax(0, 1fr) minmax(0, 42%); grid-template-areas: "main" "exhibits"; }
 .sr-layout[data-outline="none"] .sr-outline-bar, .sr-layout[data-outline="none"] .sr-outline { display: none; }
 .sr-layout[data-outline="none"][data-mode="reading"] .sr-main { grid-row: 1 / -1; }

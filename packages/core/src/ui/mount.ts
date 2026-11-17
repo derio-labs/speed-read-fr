@@ -19,6 +19,11 @@ export interface MountOptions {
   host: Host;
   /** Timers for the player; the window's by default. */
   scheduler?: Scheduler;
+  /**
+   * Ignore keyboard and settings events a script dispatched (`isTrusted` false). A host whose
+   * reader shares a page with untrusted scripts (the browser extension) sets it; default false.
+   */
+  trustedEventsOnly?: boolean;
 }
 
 export interface ReaderHandle {
@@ -108,6 +113,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     document: ownerDocument,
     h,
     reader,
+    accepts: (event) => !options.trustedEventsOnly || event.isTrusted,
   };
   const outlineZone = createOutline(ctx, { outline, bar: outlineBar, layout });
   const exhibitZone = createExhibits(ctx, { pane: exhibits, main });
@@ -120,6 +126,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     panel,
   ];
   const detachKeys = attachKeys({
+    accepts: ctx.accepts,
     player,
     reader,
     stage,

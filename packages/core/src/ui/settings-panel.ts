@@ -153,8 +153,8 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     if (commit) show(ctx.settings);
   }
 
-  const onInput = () => apply(false);
-  const onCommit = () => apply(true);
+  const onInput = (e: Event) => ctx.accepts(e) && apply(false);
+  const onCommit = (e: Event) => ctx.accepts(e) && apply(true);
   panel.addEventListener('input', onInput);
   panel.addEventListener('change', onCommit);
 

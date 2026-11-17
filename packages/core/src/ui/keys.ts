@@ -3,6 +3,8 @@ import { cycleFocus } from './dom';
 import type { ExhibitZone } from './exhibits';
 
 export interface KeyTargets {
+  /** Whether the event may act (see `MountOptions.trustedEventsOnly`). */
+  accepts?(event: Event): boolean;
   player: Player;
   reader: HTMLElement;
   stage: HTMLElement;
@@ -60,6 +62,7 @@ function shortcut(key: string, t: KeyTargets): (() => void) | null {
  */
 export function attachKeys(t: KeyTargets): () => void {
   function onKeyDown(event: KeyboardEvent) {
+    if (t.accepts && !t.accepts(event)) return;
     if (t.panel.isOpen()) return t.panel.onKeyDown(event);
     const target = event.target as Element | null;
     if (!target || target.closest(FORM_CONTROL)) return;

@@ -17,6 +17,8 @@ export interface ReaderContext {
   readonly h: Build;
   /** The focus root of the reader. */
   readonly reader: HTMLElement;
+  /** Whether an input event may act: with `trustedEventsOnly`, only events from the user do. */
+  accepts(event: Event): boolean;
 }
 
 /** A part of the reader UI. `refresh` runs after the timeline is rebuilt. */

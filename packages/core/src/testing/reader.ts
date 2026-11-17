@@ -30,6 +30,7 @@ export interface Harness {
 export interface HarnessOptions {
   settings?: Partial<Settings>;
   saved?: Partial<Settings>;
+  trustedEventsOnly?: boolean;
 }
 
 export function mountHarness(markup: string, opts: HarnessOptions = {}): Harness {
@@ -64,6 +65,7 @@ export function mountHarness(markup: string, opts: HarnessOptions = {}): Harness
     store,
     host,
     scheduler: clock,
+    trustedEventsOnly: opts.trustedEventsOnly,
   });
   const reader = mount.querySelector<HTMLElement>('.sr-reader')!;
   return {

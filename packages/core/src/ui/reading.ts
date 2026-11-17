@@ -9,7 +9,7 @@ export interface ReadingElements {
 }
 
 const CURRENT_ATTR = 'data-sr-current';
-const FALLBACK = { line: '#2f63c9', fill: 'rgba(47, 99, 201, 0.14)' };
+const FALLBACK_LINE = '#2f63c9';
 
 /** A reader colour resolved to a value usable in an inline style (custom properties do not reach slotted content). */
 function resolveColour(reader: HTMLElement, property: string, fallback: string): string {
@@ -23,10 +23,8 @@ export function createReading(ctx: ReaderContext, { reading, layout }: ReadingEl
   let open: { doc: HostDocument; sources: Set<Element> } | null = null;
   let marked: { el: HTMLElement; style: string | null } | null = null;
   let position: SourceRef | null = null;
-  const colours = {
-    line: resolveColour(ctx.reader, '--sr-progress', FALLBACK.line),
-    fill: resolveColour(ctx.reader, '--sr-progress-soft', FALLBACK.fill),
-  };
+  // Outline only: a background fill would replace the page's own (a dark code block on a light tint).
+  const colours = { line: resolveColour(ctx.reader, '--sr-progress', FALLBACK_LINE) };
 
   /**
    * The mark is inline style plus an attribute on the host's element, so it shows whatever tree the
@@ -53,7 +51,6 @@ export function createReading(ctx: ReaderContext, { reading, layout }: ReadingEl
     el.style.setProperty('outline-style', 'solid');
     el.style.setProperty('outline-color', colours.line);
     el.style.setProperty('outline-offset', '4px');
-    el.style.setProperty('background-color', colours.fill);
     el.style.setProperty('border-radius', '4px');
     if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'center' });
   }
