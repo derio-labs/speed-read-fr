@@ -342,9 +342,13 @@ rows:
       leaves it on the line being read.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R21
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/vscode-extension/src/panel.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/webview.spec.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
   - id: vscode-extension-in-host
     capability: vscode-extension
     acceptance: The packaged extension installs in VS Code and its commands, CodeLens,
