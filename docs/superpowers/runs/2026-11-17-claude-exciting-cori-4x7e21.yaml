@@ -228,8 +228,10 @@ steps:
           findings: l-errors-r1,l-errors-r2,l-errors-r3,l-errors-r4,l-errors-r5,l-errors-r6,l-errors-r7,l-errors-r8,l-errors-r9,l-errors-r10,l-errors-r11,l-security-r1,l-security-r2,l-security-r3,l-security-r4,l-security-r5,l-tests-r1,l-tests-r2,l-tests-r3,l-tests-r4,l-tests-r5,l-tests-r6,l-tests-r7,l-tests-r8,l-security-r6,l-security-r7
           lenses: errors=27:l-errors-r1,l-errors-r2,l-errors-r3,l-errors-r4,l-errors-r5,l-errors-r6,l-errors-r7,l-errors-r8,l-errors-r9,l-errors-r10,l-errors-r11;security=32:l-security-r6,l-security-r7;tests=36:l-tests-r1,l-tests-r2,l-tests-r3,l-tests-r4,l-tests-r5,l-tests-r6,l-tests-r7,l-tests-r8
   deliver:
-    state: running
-    at: '2026-11-17T20:28:43+00:00'
+    state: done
+    at: '2026-11-17T20:43:25+00:00'
+    emitted:
+      pr: https://github.com/derio-net/speed-read-fr/pull/1
     units:
       step/deliver:
         attempts:
@@ -237,5 +239,13 @@ steps:
           harness: claude-code
           model: claude-fable-5-2
           session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T20:43:16+00:00'
+          outcome: done
+        evidence:
+          tests: deliver-full-suite-3.log@4d08cb0c4d35
+          walk: none
+          proportionality: 44d318c9f1df638c9679dc52f2805305b386417d:c0d56fa3d98a1b2a84113458accd21a8ae1a216235b60f553f234f3e815f1cf9
+          docs: none
+          visual: browser-alt-hover:1:83426c6e7a7f,browser-exhibits-page-styled:1:5a2129e7271a,browser-overlay-and-dock:1:800ffa8b766c,browser-floating-overlay:2:b7eb140e9b8d,reader-three-zone-ui:8:cc1d3bb0e939,reader-keys:1:2196dac43b22,reader-settings:3:af465c1a2bdd,tts-voices-offline-labels:1:1dfcc31c235c,vscode-webview-renders:1:964010a18bd2
 fr_version: 8.1.3
 pr: https://github.com/derio-net/speed-read-fr/pull/1
