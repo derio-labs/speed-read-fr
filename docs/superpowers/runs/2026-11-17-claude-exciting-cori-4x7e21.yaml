@@ -62,8 +62,10 @@ steps:
         state: running
         attempts:
         - dispatched: '2026-11-17T15:31:15+00:00'
+          agent: af2e43b0cb4875b90
           agent_type: super-fr:fr-phase-executor
           harness: claude-code
+          model: opus
           tier: standard
           bound: opus
           session: 304c235a-e6b6-566c-a451-2bef9b4242bd
