@@ -23,6 +23,7 @@ export class ReaderPanel implements vscode.Disposable {
   private ready = false;
   private pending: ToWebview | null = null;
   private source: vscode.Uri | null = null;
+  private lastLine: number | null = null;
 
   constructor(private readonly extensionUri: vscode.Uri) {}
 
@@ -34,6 +35,7 @@ export class ReaderPanel implements vscode.Disposable {
       this.panel.reveal(vscode.ViewColumn.Beside, false);
     }
     this.source = document.uri;
+    this.lastLine = null;
     const message: ReadMessage = {
       type: 'read',
       markdown: document.getText(),
@@ -88,8 +90,25 @@ export class ReaderPanel implements vscode.Disposable {
       this.ready = false;
       this.pending = null;
       this.source = null;
+      this.lastLine = null;
     });
     return panel;
+  }
+
+  /**
+   * Cursor follow (R21): put the source editor's cursor at the start of `line` and reveal it. The
+   * selection is set on the editor object, so focus stays in the webview; a closed document, an
+   * editor no longer visible or a disposed panel is ignored, and the cursor stays where it was.
+   */
+  private follow(line: unknown) {
+    const source = this.source?.toString();
+    if (!source || typeof line !== 'number' || !Number.isInteger(line) || line < 0 || line === this.lastLine) return;
+    const editor = vscode.window.visibleTextEditors.find((e) => !e.document.isClosed && e.document.uri.toString() === source);
+    if (!editor || line >= editor.document.lineCount) return;
+    this.lastLine = line;
+    const start = new vscode.Position(line, 0);
+    editor.selection = new vscode.Selection(start, start);
+    editor.revealRange(new vscode.Range(start, start), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
   }
 
   private receive(message: FromWebview) {
@@ -104,6 +123,9 @@ export class ReaderPanel implements vscode.Disposable {
         break;
       case 'settings':
         if (message.settings && typeof message.settings === 'object' && !Array.isArray(message.settings)) void writeSettings(message.settings);
+        break;
+      case 'position':
+        this.follow(message.line);
         break;
       case 'close':
         this.panel?.dispose();
