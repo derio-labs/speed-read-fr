@@ -1176,3 +1176,268 @@ Added and asserted (aad0000).
 ### p5b-r15-resolved · finding [fixed] · resolves p5b-r15: Speech mapping tests missed edge cases (phase 5)
 
 Tests added (1bd0f44).
+
+<!-- fr:journal kind=review scope=plan id=review-lenses created=2026-11-17T20:28:42+00:00 -->
+### review-lenses · review · Lens review of the whole diff under errors, security and tests: 24 in-scope findings, all fixed
+
+Three reviewers, one per lens, each given only its lens brief and the diff from the merge base. Errors: l-errors-r1 to r11. Security: l-security-r1 to r5, with every earlier security fix re-verified in the final code and no route found from a Markdown file to script execution or exfiltration. Tests: l-tests-r1 to r8, with a requirement-to-test table. Fixes verified by the orchestrator: full gate re-run green. The first security return named a file outside the diff, so a second security reviewer was dispatched on the fixed code: it re-verified fixes r1 to r5 and raised l-security-r6 and r7, both fixed.
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r1 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-errors-r1 · finding [open] (reviewer: in scope) · Background swallowed every failure to open the reader
+
+Raised by the errors lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r2 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-errors-r2 · finding [open] (reviewer: in scope) · Opening closed the current reader then failed silently
+
+Raised by the errors lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r3 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-errors-r3 · finding [open] (reviewer: in scope) · Rejected settings save skipped the remount and was unhandled
+
+Raised by the errors lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r4 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-errors-r4 · finding [open] (reviewer: in scope) · VS Code settings write rejection swallowed
+
+Raised by the errors lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r5 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-errors-r5 · finding [open] (reviewer: in scope) · Speech watchdog treated a never-spoken utterance as a normal end
+
+Raised by the errors lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r6 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-errors-r6 · finding [open] (reviewer: in scope) · Webview read failure left a blank panel
+
+Raised by the errors lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r7 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-errors-r7 · finding [open] (reviewer: in scope) · Unopenable document reported as open a file to read
+
+Raised by the errors lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r8 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-errors-r8 · finding [open] (reviewer: in scope) · Re-read did nothing when the source was closed
+
+Raised by the errors lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r9 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-errors-r9 · finding [open] (reviewer: in scope) · Content script missing in pre-install tabs; orphaned script threw after reload
+
+Raised by the errors lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r10 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-errors-r10 · finding [open] (reviewer: in scope) · CI e2e ran with pass-with-no-tests
+
+Raised by the errors lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r11 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-errors-r11 · finding [open] (reviewer: in scope) · Mermaid render error dropped
+
+Raised by the errors lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r1 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-security-r1 · finding [open] (reviewer: in scope) · Firefox: canvas copy could expose cross-origin pixels to the page
+
+Raised by the security lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r2 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-security-r2 · finding [open] (reviewer: in scope) · Alt-hover handlers accepted synthetic events
+
+Raised by the security lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r3 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-security-r3 · finding [open] (reviewer: in scope) · Reading-view press skipped the trusted-event check
+
+Raised by the security lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r4 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-security-r4 · finding [open] (reviewer: in scope) · Bundled KaTeX in range of GHSA-238p-pmpm-9mq7
+
+Raised by the security lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r5 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-security-r5 · finding [open] (reviewer: in scope) · CI actions pinned by moving tag
+
+Raised by the security lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-tests-r1 · finding [open] (reviewer: in scope) · Tab focus cycling broken inside the extension's shadow root
+
+Raised by the tests lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-tests-r2 · finding [open] (reviewer: in scope) · Packaged build never shown responding to real input
+
+Raised by the tests lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-tests-r3 · finding [open] (reviewer: in scope) · Package test checked one entry name per archive
+
+Raised by the tests lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-tests-r4 · finding [open] (reviewer: in scope) · Bundled VS Code extension never loaded by a test
+
+Raised by the tests lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r5 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-tests-r5 · finding [open] (reviewer: in scope) · Smooth movement of R28 unasserted
+
+Raised by the tests lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r6 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-tests-r6 · finding [open] (reviewer: in scope) · Read in another folder relied on the stub's reload model
+
+Raised by the tests lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r7 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-tests-r7 · finding [open] (reviewer: in scope) · Conditional or vacuous e2e assertions and sleep-then-assert-nothing
+
+Raised by the tests lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r8 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-tests-r8 · finding [open] (reviewer: in scope) · test:e2e used pass-with-no-tests
+
+Raised by the tests lens reviewer with file and line; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r6 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-security-r6 · finding [open] (reviewer: in scope) · API shim accepted a page-clobberable browser global
+
+Raised by the second security lens reviewer with file and line and a scenario; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r7 created=2026-11-17T20:28:42+00:00 state=open review_scope=in -->
+### l-security-r7 · finding [open] (reviewer: in scope) · Untrusted paths and webview text in notifications could form command links
+
+Raised by the second security lens reviewer with file and line and a scenario; in scope: caused by this feature's code.
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r1-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-errors-r1 -->
+### l-errors-r1-resolved · finding [fixed] · resolves l-errors-r1: Background swallowed every failure to open the reader
+
+Forbidden pages get a badge and title; other failures are warned with context (d7aa752).
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r2-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-errors-r2 -->
+### l-errors-r2-resolved · finding [fixed] · resolves l-errors-r2: Opening closed the current reader then failed silently
+
+New content resolved first; failures caught, shown as a notice and reported back (46fa9e0).
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r3-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-errors-r3 -->
+### l-errors-r3-resolved · finding [fixed] · resolves l-errors-r3: Rejected settings save skipped the remount and was unhandled
+
+Remount regardless; Settings not saved note (0e75e6f, 46fa9e0).
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r4-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-errors-r4 -->
+### l-errors-r4-resolved · finding [fixed] · resolves l-errors-r4: VS Code settings write rejection swallowed
+
+Warning message once per burst and a note in the webview (33d995b, 9d0a8b0).
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r5-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-errors-r5 -->
+### l-errors-r5-resolved · finding [fixed] · resolves l-errors-r5: Speech watchdog treated a never-spoken utterance as a normal end
+
+Counts as an error when neither start nor boundary arrived (defc9f4).
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r6-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-errors-r6 -->
+### l-errors-r6-resolved · finding [fixed] · resolves l-errors-r6: Webview read failure left a blank panel
+
+Wrapped with an inline error and an error message to the extension; Mermaid render timeout (9d0a8b0).
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r7-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-errors-r7 -->
+### l-errors-r7-resolved · finding [fixed] · resolves l-errors-r7: Unopenable document reported as open a file to read
+
+Specific message with path and cause (33d995b).
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r8-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-errors-r8 -->
+### l-errors-r8-resolved · finding [fixed] · resolves l-errors-r8: Re-read did nothing when the source was closed
+
+Reopens by URI, else says the source is closed (33d995b).
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r9-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-errors-r9 -->
+### l-errors-r9-resolved · finding [fixed] · resolves l-errors-r9: Content script missing in pre-install tabs; orphaned script threw after reload
+
+Injected on install; orphaned script retires itself (d7aa752, 7387470).
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r10-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-errors-r10 -->
+### l-errors-r10-resolved · finding [fixed] · resolves l-errors-r10: CI e2e ran with pass-with-no-tests
+
+Flag removed, with a test (a8fee35).
+
+<!-- fr:journal kind=finding scope=plan id=l-errors-r11-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-errors-r11 -->
+### l-errors-r11-resolved · finding [fixed] · resolves l-errors-r11: Mermaid render error dropped
+
+Caption above the code block (9d0a8b0).
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r1-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-security-r1 -->
+### l-security-r1-resolved · finding [fixed] · resolves l-security-r1: Firefox: canvas copy could expose cross-origin pixels to the page
+
+Canvas pixels are never read; canvases show the placeholder; spec section 7 amended (bb60c27).
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r2-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-security-r2 -->
+### l-security-r2-resolved · finding [fixed] · resolves l-security-r2: Alt-hover handlers accepted synthetic events
+
+Handlers require trusted events; e2e proves a page cannot open the reader (7387470, 0c26a58).
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r3-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-security-r3 -->
+### l-security-r3-resolved · finding [fixed] · resolves l-security-r3: Reading-view press skipped the trusted-event check
+
+Handler starts with the accepts check (f7c08e2).
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r4-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-security-r4 -->
+### l-security-r4-resolved · finding [fixed] · resolves l-security-r4: Bundled KaTeX in range of GHSA-238p-pmpm-9mq7
+
+KaTeX pinned to 0.19.1 with a root override so one copy is bundled; test pins it. Dev-only advisories in the vitest and vsce chains have no drop-in fix and stay; no audit step was added to CI because it cannot pass yet (417a6df).
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r5-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-security-r5 -->
+### l-security-r5-resolved · finding [fixed] · resolves l-security-r5: CI actions pinned by moving tag
+
+Pinned to commit SHAs obtained with git ls-remote, enforced by a test (d3d442b).
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-tests-r1 -->
+### l-tests-r1-resolved · finding [fixed] · resolves l-tests-r1: Tab focus cycling broken inside the extension's shadow root
+
+cycleFocus reads the root node's active element; shadow-root unit test and real-keyboard e2e (824349f, 0c26a58).
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-tests-r2 -->
+### l-tests-r2-resolved · finding [fixed] · resolves l-tests-r2: Packaged build never shown responding to real input
+
+Positive controls with real keys in the packaged build (0c26a58).
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-tests-r3 -->
+### l-tests-r3-resolved · finding [fixed] · resolves l-tests-r3: Package test checked one entry name per archive
+
+Every zip entry inflated, CRC-checked and compared; vsix contents asserted (97d0839).
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-tests-r4 -->
+### l-tests-r4-resolved · finding [fixed] · resolves l-tests-r4: Bundled VS Code extension never loaded by a test
+
+Bundle evaluated against the stub and its registrations asserted (97d0839).
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r5-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-tests-r5 -->
+### l-tests-r5-resolved · finding [fixed] · resolves l-tests-r5: Smooth movement of R28 unasserted
+
+Frames sampled during push and return; reduced motion asserted too (fa30eaa).
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r6-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-tests-r6 -->
+### l-tests-r6-resolved · finding [fixed] · resolves l-tests-r6: Read in another folder relied on the stub's reload model
+
+Fallback posts the held read after 1.5 s; both stub behaviours tested (33d995b).
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r7-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-tests-r7 -->
+### l-tests-r7-resolved · finding [fixed] · resolves l-tests-r7: Conditional or vacuous e2e assertions and sleep-then-assert-nothing
+
+Preconditions and branches asserted; positive events awaited (fa30eaa, 0c26a58).
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r8-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-tests-r8 -->
+### l-tests-r8-resolved · finding [fixed] · resolves l-tests-r8: test:e2e used pass-with-no-tests
+
+Flag removed (a8fee35).
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r6-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-security-r6 -->
+### l-security-r6-resolved · finding [fixed] · resolves l-security-r6: API shim accepted a page-clobberable browser global
+
+Only an own global whose runtime has sendMessage and getURL functions is accepted, falling through to chrome; fixture and e2e cover it (634f7ba).
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r7-resolved created=2026-11-17T20:28:42+00:00 state=fixed resolves=l-security-r7 -->
+### l-security-r7-resolved · finding [fixed] · resolves l-security-r7: Untrusted paths and webview text in notifications could form command links
+
+One helper neutralises link syntax in every interpolated notification value (5f25fd8).
