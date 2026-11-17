@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A page with remote subresources</title>
+    <!-- Our own test page. The test serves https://remote.example/ itself through a Playwright route. -->
+    <link rel="stylesheet" href="https://remote.example/style.css" />
+  </head>
+  <body>
+    <article>
+      <h3>Remote picture</h3>
+      <p>The picture below comes from another origin. Showing it in the reader must not fetch it again.</p>
+      <figure>
+        <img alt="A remote picture" width="320" height="160" src="https://remote.example/picture.svg" />
+        <figcaption>Served from another origin.</figcaption>
+      </figure>
+      <p>After the picture the text goes on.</p>
+    </article>
+  </body>
+</html>

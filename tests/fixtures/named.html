@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Elements named like the extension's globals</title>
+    <!-- Our own test page: element ids become named properties of window, even in the isolated world. -->
+  </head>
+  <body>
+    <div id="__speedRead"></div>
+    <div id="__speedReadContent"></div>
+    <div id="__speedReadTest"></div>
+    <div id="browser"></div>
+    <article>
+      <h3>Named elements</h3>
+      <p id="first">The first paragraph sits under elements that share names with the extension's globals.</p>
+      <p id="second">The second paragraph is where reading from here should <a id="named-link" href="article.html">start</a> instead.</p>
+    </article>
+  </body>
+</html>

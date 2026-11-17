@@ -17,6 +17,11 @@ const LOCAL = /^(https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/|chrome-extension:\
 const ARTICLE = '/tests/fixtures/article.html';
 const STYLED = '/tests/fixtures/styled.html';
 const HOSTILE = '/tests/fixtures/hostile.html';
+const NAMED = '/tests/fixtures/named.html';
+const REMOTE = '/tests/fixtures/remote.html';
+/** Served by the test itself (a Playwright route); allowed only on page load, see the remote test. */
+const REMOTE_ORIGIN = 'https://remote.example/';
+const REMOTE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="160"><rect width="320" height="160" fill="#3d405b"/></svg>';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -25,6 +30,7 @@ let worker: Worker;
 let userDataDir: string;
 const baseURL = 'http://127.0.0.1:4317';
 const offsite: string[] = [];
+const remoteRequests: string[] = [];
 
 test.beforeAll(async () => {
   userDataDir = mkdtempSync(path.join(tmpdir(), 'speed-read-ext-'));
@@ -35,7 +41,16 @@ test.beforeAll(async () => {
     args: [`--disable-extensions-except=${EXTENSION}`, `--load-extension=${EXTENSION}`],
   });
   context.on('request', (request) => {
-    if (!LOCAL.test(request.url())) offsite.push(request.url());
+    if (request.url().startsWith(REMOTE_ORIGIN)) remoteRequests.push(request.url());
+    else if (!LOCAL.test(request.url())) offsite.push(request.url());
+  });
+  await context.route(`${REMOTE_ORIGIN}**`, (route) => {
+    const svg = route.request().url().endsWith('.svg');
+    return route.fulfill({
+      status: 200,
+      headers: { 'content-type': svg ? 'image/svg+xml' : 'text/css', 'cache-control': 'max-age=3600' },
+      body: svg ? REMOTE_SVG : 'figure { border: 2px solid #3d405b; }',
+    });
   });
   worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
 });
@@ -271,4 +286,201 @@ test('settings survive a page reload', async () => {
   await page.reload();
   await openReader(page, 'auto');
   await expect(wpm).toHaveText(changed);
+});
+
+test('a nested list item read from Alt+click starts at that item with its own counter', async () => {
+  const page = await openPage(ARTICLE);
+  const item = page.locator('#content li li', { hasText: 'Speed read from here starts' });
+  await item.scrollIntoViewIfNeeded();
+  const box = (await item.boundingBox())!;
+  await page.mouse.move(box.x + 30, box.y + box.height / 2);
+  await page.keyboard.down('Alt');
+  await page.mouse.move(box.x + 34, box.y + box.height / 2);
+  await expect(item).toHaveAttribute('data-speed-read-hover', '');
+  await page.mouse.click(box.x + 34, box.y + box.height / 2);
+  await page.keyboard.up('Alt');
+  await expect(reader(page)).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(page.locator('[data-speed-read-host] .sr-item-counter')).toHaveText(/item 2\/2/);
+  await expect(sentence(page)).toContainText('Speed read from here starts');
+});
+
+test('elements named like the extension globals break nothing', async () => {
+  const page = await openPage(NAMED);
+  // Alt-hover and Alt+click.
+  const link = page.locator('#named-link');
+  const box = (await link.boundingBox())!;
+  await page.mouse.move(box.x + 4, box.y + box.height / 2);
+  await page.keyboard.down('Alt');
+  await page.mouse.move(box.x + 6, box.y + box.height / 2);
+  await expect(page.locator('#second')).toHaveAttribute('data-speed-read-hover', '');
+  await page.mouse.click(box.x + 6, box.y + box.height / 2);
+  await page.keyboard.up('Alt');
+  await expect(reader(page)).toBeFocused();
+  expect(page.url()).toBe(baseURL + NAMED);
+  await page.keyboard.press('Space');
+  await expect(sentence(page)).toContainText('The second paragraph');
+  await page.keyboard.press('Escape');
+  // From here, after a real context-menu event.
+  await page.locator('#second').click({ button: 'right' });
+  await page.keyboard.press('Escape');
+  await openReader(page, 'from-here');
+  await page.keyboard.press('Space');
+  await expect(sentence(page)).toContainText('The second paragraph');
+  await page.keyboard.press('Escape');
+  // The toolbar path.
+  await openReader(page, 'auto');
+  await page.keyboard.press('Space');
+  await expect(sentence(page)).toContainText('The first paragraph');
+});
+
+test('page scripts cannot drive the reader: synthetic keys change nothing in storage', async () => {
+  const page = await openPage(ARTICLE);
+  await openReader(page, 'auto');
+  await page.evaluate(() => {
+    const host = document.querySelector('[data-speed-read-host]')!;
+    const root = host.shadowRoot!.querySelector('.sr-reader')!;
+    for (const target of [host, root]) {
+      for (let i = 0; i < 5; i++) target.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, composed: true }));
+    }
+  });
+  await expect(page.locator('[data-speed-read-host] .sr-status-wpm')).toHaveText('300 WPM');
+  expect(await worker.evaluate(async () => (await chrome.storage.local.get('settings')).settings)).toBeUndefined();
+});
+
+test('the packaged build has a closed shadow root and no test hook', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'speed-read-packaged-'));
+  const packaged = await chromium.launchPersistentContext(dir, {
+    channel: 'chromium',
+    headless: true,
+    viewport: { width: 1280, height: 800 },
+    args: [`--disable-extensions-except=${PACKAGED}`, `--load-extension=${PACKAGED}`],
+  });
+  try {
+    packaged.on('request', (request) => {
+      if (!LOCAL.test(request.url())) offsite.push(request.url());
+    });
+    const sw = packaged.serviceWorkers()[0] ?? (await packaged.waitForEvent('serviceworker'));
+    expect(await sw.evaluate(() => typeof (globalThis as Record<string, unknown>).__speedReadTest)).toBe('undefined');
+    const page = await packaged.newPage();
+    await page.goto(baseURL + ARTICLE);
+    const first = page.locator('#content > p').first();
+    const box = (await first.boundingBox())!;
+    await page.mouse.move(box.x + 20, box.y + 8);
+    await page.keyboard.down('Alt');
+    await page.mouse.move(box.x + 24, box.y + 8);
+    await expect(first).toHaveAttribute('data-speed-read-hover', '');
+    await page.mouse.click(box.x + 24, box.y + 8);
+    await page.keyboard.up('Alt');
+    await expect(page.locator('[data-speed-read-host]')).toHaveCount(1);
+    const reach = await page.evaluate(() => {
+      const host = document.querySelector('[data-speed-read-host]')!;
+      for (let i = 0; i < 5; i++) host.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, composed: true }));
+      return host.shadowRoot;
+    });
+    expect(reach).toBeNull();
+    await page.waitForTimeout(200);
+    expect(await sw.evaluate(async () => (await chrome.storage.local.get('settings')).settings)).toBeUndefined();
+  } finally {
+    await packaged.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a link pressed in the reading view moves the position and does not navigate', async () => {
+  const page = await openPage(ARTICLE);
+  await openReader(page, 'auto');
+  await page.keyboard.press('Tab');
+  const clone = page.locator('[data-speed-read-host] > [data-sr-clone]');
+  const link = clone.locator('a', { hasText: 'the demo' });
+  await link.click();
+  await page.waitForTimeout(300);
+  expect(page.url()).toBe(baseURL + ARTICLE);
+  await expect(clone.locator('[data-sr-current]')).toContainText('This page is the demo the tests drive.');
+  await expect(clone.locator('[id], [name]')).toHaveCount(0);
+});
+
+test('the reading-view mark keeps a dark code block its own background', async () => {
+  const page = await openPage(STYLED);
+  await saveSettings({ wpm: 1000 });
+  await openReader(page, 'auto');
+  await page.keyboard.press('Space');
+  await expect(page.locator('[data-speed-read-host] .sr-card-stop')).toBeVisible({ timeout: 15_000 });
+  await page.keyboard.press('Tab');
+  const marked = page.locator('[data-speed-read-host] > [data-sr-clone] [data-sr-current]');
+  await expect(marked).toHaveCount(1);
+  const [tag, background, outline] = await marked.evaluate((el) => [el.localName, getComputedStyle(el).backgroundColor, getComputedStyle(el).outlineStyle]);
+  const original = await page.evaluate((t) => getComputedStyle(document.querySelector(`main.post ${t}`)!).backgroundColor, tag);
+  expect(background).toBe(original);
+  expect(outline).toBe('solid');
+});
+
+test('when the page removes the reader, the page is restored', async () => {
+  const page = await openPage(ARTICLE);
+  await openReader(page, 'auto');
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflow)).toBe('hidden');
+  await page.evaluate(() => document.querySelector('[data-speed-read-host]')!.remove());
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).overflow)).toBe('visible');
+  // The reader can be opened again.
+  await openReader(page, 'auto');
+  await expect(host(page)).toHaveCount(1);
+});
+
+test('in the dock at 800 px the whole chapter card is in view', async () => {
+  const page = await openPage(ARTICLE);
+  await saveSettings({ display: 'dock' });
+  await openReader(page, 'auto');
+  await page.keyboard.press('Space');
+  const card = page.locator('[data-speed-read-host] .sr-card-chapter');
+  await expect(card).toBeVisible();
+  const [c, s] = await Promise.all([card.boundingBox(), page.locator('[data-speed-read-host] .sr-stage').boundingBox()]);
+  expect(c!.y).toBeGreaterThanOrEqual(s!.y);
+  expect(c!.y + c!.height).toBeLessThanOrEqual(s!.y + s!.height);
+  const hint = page.locator('[data-speed-read-host] .sr-card-chapter .sr-card-hint');
+  const h = (await hint.boundingBox())!;
+  expect(h.y + h.height).toBeLessThanOrEqual(s!.y + s!.height);
+});
+
+test("on a hostile page the normal-reading clone is not rotated, faded or narrowed by the page's div rules", async () => {
+  const page = await openPage(HOSTILE);
+  await openReader(page, 'auto');
+  await page.keyboard.press('Tab');
+  const clone = page.locator('[data-speed-read-host] > [data-sr-clone]');
+  await expect(clone).toHaveCount(1);
+  const look = await clone.evaluate((el) => {
+    const shell = el.querySelector('div.content')!;
+    const pick = (e: Element) => {
+      const s = getComputedStyle(e);
+      return { transform: s.transform, opacity: s.opacity, width: e.getBoundingClientRect().width, display: s.display };
+    };
+    return { wrapper: pick(el), shell: pick(shell), tag: el.localName };
+  });
+  expect(look.tag).toBe('sr-clone');
+  for (const part of [look.wrapper, look.shell]) {
+    expect(part.transform).toBe('none');
+    expect(part.opacity).toBe('1');
+    expect(part.display).toBe('block');
+    expect(part.width).toBeGreaterThan(400);
+  }
+});
+
+test('a remote picture shown in the reader is not fetched again', async () => {
+  const page = await openPage(REMOTE);
+  await expect.poll(() => remoteRequests.length).toBeGreaterThanOrEqual(2);
+  await page.waitForLoadState('networkidle');
+  const onLoad = remoteRequests.length;
+  await saveSettings({ wpm: 1000, imageDwellSeconds: 30 });
+  await openReader(page, 'auto');
+  await page.keyboard.press('Space');
+  const exhibit = page.locator('[data-speed-read-host] .sr-exhibits .sr-exhibit');
+  await expect(exhibit).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('[data-speed-read-host] > [data-sr-clone] img').first()).toBeVisible();
+  await page.keyboard.press('e');
+  await expect(page.locator('[data-speed-read-host] .sr-expanded')).toBeVisible();
+  await expect.poll(() => page.locator('[data-speed-read-host] > [data-sr-clone] img').count()).toBe(2);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Tab');
+  await expect(page.locator('[data-speed-read-host] .sr-reading')).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(remoteRequests.slice(onLoad)).toEqual([]);
 });
