@@ -537,3 +537,6 @@ run_kind: none
 
 <!-- fr:journal kind=decision scope=spec id=phase-split-2026-11-17-structure-aware-speed-reader-p4 created=2026-11-17T15:30:48+00:00 -->
 ### phase-split-2026-11-17-structure-aware-speed-reader-p4 · decision · ask: the VS Code extension (R19-R21) is the brief's third deliverable
+
+<!-- fr:journal kind=decision scope=spec id=phase-split-2026-11-17-structure-aware-speed-reader-p5 created=2026-11-17T15:30:49+00:00 -->
+### phase-split-2026-11-17-structure-aware-speed-reader-p5 · decision · ask: text-to-speech (R22) is the bonus built last per D4, shipped with the install docs and packaging (R23, R25) that need every target to exist
