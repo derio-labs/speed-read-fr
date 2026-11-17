@@ -3,7 +3,7 @@ run: 2026-11-17-claude-exciting-cori-4x7e21
 workflow: fr-goal@1
 branch: claude/exciting-cori-4x7e21
 started: '2026-11-17T15:08:54+00:00'
-cursor: plan
+cursor: plan-review
 steps:
   brainstorm:
     state: done
@@ -32,8 +32,10 @@ steps:
           reviewer: a8fd2a6e91ba6dc0b
           findings: sr-r1,sr-r2,sr-r3,sr-r4,sr-r5,sr-r6,sr-r7,sr-r8,sr-r9,sr-r10,sr-r11,sr-r12,sr-r13,sr-r14,sr-r15,sr-r16,sr2-r1,sr2-r2,sr2-r3,sr2-r4,sr2-r5,sr2-r6,sr2-r7,sr2-r8,sr2-r9,sr2-r10,sr2-r11,sr2-r12,sr2-r13,sr2-r14
   plan:
-    state: running
-    at: '2026-11-17T15:27:43+00:00'
+    state: done
+    at: '2026-11-17T15:31:13+00:00'
+    emitted:
+      plan: docs/superpowers/plans/2026-11-17-structure-aware-speed-reader
     units:
       step/plan:
         attempts:
@@ -41,6 +43,8 @@ steps:
           harness: claude-code
           model: claude-fable-5-2
           session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T15:31:13+00:00'
+          outcome: done
   plan-review:
     state: pending
   implement:
