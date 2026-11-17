@@ -1,0 +1,258 @@
+# Acceptance rows owned by one feature (spec 2026-11-04-repo-feature-settings R16).
+# The effective matrix is a fold over every fragment in this directory
+# (`fr acceptance status`); it is never stored. Write rows with
+# `fr acceptance add` / `set-status`, never by hand. Keep `rows:` before
+# `amendments:`.
+schema_version: 2
+feature: 2026-11-17-structure-aware-speed-reader
+repo: derio-net/speed-read-fr
+rows:
+  - id: structure-extraction
+    capability: reader-core
+    acceptance: 'A rendered document is split into sections at its headings, each holding
+      typed blocks: prose, list, code, table, math, image, diagram.'
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R3
+    levels: {}
+    status: not-implemented
+    notes: ''
+  - id: prose-chunk-pacing
+    capability: reader-core
+    acceptance: Prose is shown in chunks bounded by a word limit, a character limit
+      and the sentence end; commas, sentence ends and long words are shown longer, and
+      speed ramps back up after every stop.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R4
+    - spec:2026-11-17-structure-aware-speed-reader#R9
+    levels: {}
+    status: not-implemented
+    notes: ''
+  - id: list-item-reading
+    capability: reader-core
+    acceptance: A list is read item by item with an item i/n counter, a pause between
+      items and nested items indented; a list of short items is shown whole.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R5
+    levels: {}
+    status: not-implemented
+    notes: ''
+  - id: non-prose-never-streamed
+    capability: reader-core
+    acceptance: 'Code, tables and display math are never streamed: per type the reader
+      stops with a prompt naming type and size, skips, or dwells; images and diagrams
+      are shown for a dwell.'
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R6
+    - spec:2026-11-17-structure-aware-speed-reader#R7
+    levels: {}
+    status: not-implemented
+    notes: ''
+  - id: heading-chapter-stops
+    capability: reader-core
+    acceptance: A heading at a configured stop level halts playback on a chapter card
+      with title, length, estimated time and contents summary until the reader continues.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R8
+    levels: {}
+    status: not-implemented
+    notes: ''
+  - id: reader-three-zone-ui
+    capability: reader-ui
+    acceptance: The reader shows an outline rail with current heading, progress and
+      time, a stage with the highlighted chunk above the faded sentence, and an exhibit
+      pane that reveals non-prose blocks as playback reaches them.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R10
+    levels: {}
+    status: not-implemented
+    notes: ''
+    visual:
+      states:
+      - playing prose chunk with pivot highlight
+      - chapter card
+      - code stop prompt with exhibit revealed
+      - list item with counter
+      - narrow layout exhibit below stage
+      - dark theme
+      interactions:
+      - click outline heading jumps
+      - expand exhibit with E
+  - id: reader-keys
+    capability: reader-ui
+    acceptance: Space, arrow keys, N/P, Tab, E and Esc control play/pause, sentence
+      and section moves, speed, normal reading, exhibit expansion and closing.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R11
+    levels: {}
+    status: not-implemented
+    notes: ''
+    visual:
+      states:
+      - normal reading view at current block
+  - id: reader-settings
+    capability: reader-ui
+    acceptance: Speed, words per chunk, characters per chunk, stop levels, per-type
+      behaviour, image dwell, display mode and speech are adjustable in the reader,
+      apply at once and persist; defaults are 300 WPM, 3 words, 20 characters.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R12
+    levels: {}
+    status: not-implemented
+    notes: ''
+    visual:
+      states:
+      - settings panel open with defaults
+      interactions:
+      - change words per chunk to 1 and to 8
+  - id: browser-entry-points
+    capability: browser-extension
+    acceptance: The toolbar button and Alt+Shift+R read the selection or else the main
+      content, and the context menu offers Speed read selection and Speed read from
+      here.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R13
+    - spec:2026-11-17-structure-aware-speed-reader#R15
+    levels: {}
+    status: not-implemented
+    notes: ''
+  - id: browser-alt-hover
+    capability: browser-extension
+    acceptance: While Alt is held the block under the pointer is outlined and a click
+      reads from it to the end of its container; without Alt the page behaves normally.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R14
+    levels: {}
+    status: not-implemented
+    notes: ''
+    visual:
+      states:
+      - alt held block outlined
+  - id: chat-site-adapters
+    capability: browser-extension
+    acceptance: On claude.ai, ChatGPT and Gemini reading is confined to one assistant
+      reply.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R15
+    levels: {}
+    status: not-implemented
+    notes: ''
+    verify: live
+  - id: browser-exhibits-page-styled
+    capability: browser-extension
+    acceptance: Exhibits and the normal-reading view in the browser are the page's own
+      rendered content with the page's styling, while the reader's interface is unaffected
+      by page styles.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R16
+    levels: {}
+    status: not-implemented
+    notes: ''
+    visual:
+      states:
+      - overlay on styled page with highlighted code exhibit
+  - id: browser-overlay-and-dock
+    capability: browser-extension
+    acceptance: The browser reader opens as a full-page overlay over a dimmed page,
+      or docked as a side panel beside a usable page when set so.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R17
+    levels: {}
+    status: not-implemented
+    notes: ''
+    visual:
+      states:
+      - docked side panel beside page
+  - id: chrome-firefox-one-codebase
+    capability: browser-extension
+    acceptance: One source tree builds a Chrome package and a Firefox package, each
+      with its own Manifest V3 manifest.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R18
+    levels: {}
+    status: not-implemented
+    notes: ''
+  - id: firefox-extension-runs
+    capability: browser-extension
+    acceptance: The Firefox package installs in Firefox and its entry points, hover
+      mode and settings work there.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R18
+    levels: {}
+    status: not-implemented
+    notes: ''
+    verify: live
+  - id: vscode-entry-points
+    capability: vscode-extension
+    acceptance: VS Code offers commands to read the file, the selection and from the
+      cursor, a Read section CodeLens above Markdown headings, and a Speed read from
+      here hover link on headings and paragraphs.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R19
+    levels: {}
+    status: not-implemented
+    notes: ''
+  - id: vscode-webview-renders
+    capability: vscode-extension
+    acceptance: The VS Code reader renders Markdown including dollar and bracket math
+      and Mermaid diagrams from bundled libraries, with those blocks as exhibits.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R20
+    levels: {}
+    status: not-implemented
+    notes: ''
+    visual:
+      states:
+      - webview reader with rendered math and mermaid exhibits
+  - id: vscode-cursor-follows
+    capability: vscode-extension
+    acceptance: The editor cursor follows the reading position, so closing the reader
+      leaves it on the line being read.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R21
+    levels: {}
+    status: not-implemented
+    notes: ''
+  - id: vscode-extension-in-host
+    capability: vscode-extension
+    acceptance: The packaged extension installs in VS Code and its commands, CodeLens,
+      hover, panel and cursor follow work in a real window.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R19
+    - spec:2026-11-17-structure-aware-speed-reader#R20
+    - spec:2026-11-17-structure-aware-speed-reader#R21
+    levels: {}
+    status: not-implemented
+    notes: ''
+    verify: live
+  - id: tts-voices-offline-labels
+    capability: text-to-speech
+    acceptance: Speech can be turned on; voices are labelled local or network, only
+      local voices are chosen by default, and the reader says offline speech needs a
+      locally installed voice.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R22
+    levels: {}
+    status: not-implemented
+    notes: ''
+    visual:
+      states:
+      - speech settings with local and network voices
+  - id: tts-speaks-in-sync
+    capability: text-to-speech
+    acceptance: With speech on, the displayed chunk follows the spoken words on a machine
+      with an installed voice.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R22
+    levels: {}
+    status: not-implemented
+    notes: ''
+    verify: live
+  - id: offline-no-network
+    capability: offline
+    acceptance: Using the reader in the browser extension and in the VS Code webview
+      makes no network request.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R2
+    levels: {}
+    status: not-implemented
+    notes: ''
