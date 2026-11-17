@@ -67,9 +67,10 @@ afterEach(() => {
   window.getSelection()?.removeAllRanges();
 });
 
-function make(stored?: Record<string, unknown>) {
+/** jsdom events are untrusted, so tests that drive the reader by synthetic input turn the filter off. */
+function make(stored?: Record<string, unknown>, trustedEventsOnly = false) {
   const fake = fakeApi(stored);
-  reader = createReader({ api: fake.api, win: window, scope });
+  reader = createReader({ api: fake.api, win: window, scope, trustedEventsOnly });
   return { ...fake, reader };
 }
 
@@ -171,7 +172,103 @@ describe('what is read', () => {
   });
 });
 
+describe('lists, empty containers and the main mode', () => {
+  const LIST = `
+    <main id="main">
+      <p>Intro words.</p>
+      <ul id="list">
+        <li id="i1">One.</li>
+        <li id="i2">Two.<ul><li id="n1">Nested one.</li><li id="n2">Nested two.</li></ul></li>
+        <li id="i3">Three.</li>
+      </ul>
+      <p id="after">After words.</p>
+    </main>
+    <aside><p id="side">Side words.</p></aside>
+    <nav id="nav2"><p>Menu.</p></nav>`;
+
+  const items = (doc: Doc) => {
+    const list = doc.sections.flatMap((s) => s.blocks).find((b) => b.kind === 'list');
+    return list && list.kind === 'list' ? list.items.map((i) => [i.sentences.map((x) => x.tokens.map((t) => t.text).join(' ')).join(' '), i.index, i.of, i.depth]) : [];
+  };
+
+  it('from a nested list item reads from that item, keeping the list numbering', async () => {
+    document.body.innerHTML = LIST;
+    bridge.hoverTarget = () => document.getElementById('n2');
+    const { reader } = make();
+    await reader.open('from-block');
+    const doc = reader.current!.doc;
+    expect(items(doc)).toEqual([
+      ['Nested two.', 2, 2, 1],
+      ['Three.', 3, 3, 0],
+    ]);
+    expect(words(doc)).toBe('Nested two. | Three. | After words.');
+    expect(doc.sections[0].words).toBe(5);
+  });
+
+  it('from a top-level list item keeps that item and its nested items', async () => {
+    document.body.innerHTML = LIST;
+    bridge.contextTarget = () => document.getElementById('i2');
+    const { reader } = make();
+    await reader.open('from-here');
+    expect(items(reader.current!.doc).map((i) => i[0])).toEqual(['Two.', 'Nested one.', 'Nested two.', 'Three.']);
+  });
+
+  it('a block outside the main content whose container extracts to nothing is read alone', async () => {
+    document.body.innerHTML = LIST;
+    bridge.hoverTarget = () => document.getElementById('side');
+    const { reader } = make();
+    await reader.open('from-block');
+    expect(words(reader.current!.doc)).toBe('Side words.');
+  });
+
+  it('a target with nothing readable falls back to the main content', async () => {
+    document.body.innerHTML = LIST;
+    bridge.hoverTarget = () => document.getElementById('nav2');
+    const { reader } = make();
+    await reader.open('from-block');
+    expect(reader.current!.container.id).toBe('main');
+  });
+
+  it("'main' reads the main content even with a selection", async () => {
+    const { reader } = make();
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById('p2')!);
+    window.getSelection()!.addRange(range);
+    await reader.open('main');
+    expect(words(reader.current!.doc)).toMatch(/^Title \| First paragraph/);
+  });
+});
+
 describe('mount', () => {
+  it('ignores synthetic input by default: a page script cannot drive the reader or write settings', async () => {
+    const fake = fakeApi();
+    reader = createReader({ api: fake.api, win: window, scope });
+    await reader.open('auto');
+    await reader.current!.handle.ready;
+    const root = hostEl()!.shadowRoot!.querySelector('.sr-reader') as HTMLElement;
+    for (let i = 0; i < 5; i++) root.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, composed: true }));
+    await flush();
+    expect(reader.current!.handle.player.settings.wpm).toBe(300);
+    expect(fake.raw.storage.local.set).not.toHaveBeenCalled();
+  });
+
+  it('when the page removes the host element, the page is restored and the reader is closed', async () => {
+    document.documentElement.style.overflow = 'scroll';
+    const { reader } = make();
+    await reader.open('auto');
+    hostEl()!.remove();
+    await vi.waitFor(() => expect(reader.current).toBeNull());
+    expect(document.documentElement.style.overflow).toBe('scroll');
+  });
+
+  it('when the page removes the docked host, the margin goes', async () => {
+    const { reader } = make({ [SETTINGS_KEY]: { display: 'dock' } });
+    await reader.open('auto');
+    document.body.replaceChildren();
+    await vi.waitFor(() => expect(reader.current).toBeNull());
+    expect(document.documentElement.style.marginRight).toBe('');
+  });
+
   it('appends a host element with an all:initial inline style and a shadow root holding the reader', async () => {
     const { reader } = make();
     await reader.open('auto');

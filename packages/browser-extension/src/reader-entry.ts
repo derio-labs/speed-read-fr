@@ -2,7 +2,7 @@
  * reader.js, injected on demand (spec section 7): resolves the container and start block,
  * extracts, and mounts the reader in a shadow root over (overlay) or beside (dock) the page.
  */
-import { blockWords, DEFAULT_SETTINGS, extract, extractRange, mountReader, normalizeSettings, type Doc, type ReaderHandle, type Settings, type SourceRef } from '@speed-read/core';
+import { blockWords, DEFAULT_SETTINGS, extract, extractRange, mountReader, normalizeSettings, type Block, type Doc, type ReaderHandle, type Settings, type SourceRef } from '@speed-read/core';
 import { findContainer } from './adapters/index';
 import { ext, type ExtApi } from './ext';
 import { createBrowserHost } from './host';
@@ -45,6 +45,8 @@ export interface ReaderDeps {
   win: Window;
   /** Where the content script's bridge is found (the shared isolated world's global). */
   scope: object;
+  /** Ignore input events a page script dispatched (default true: the reader shares the page with its scripts). */
+  trustedEventsOnly?: boolean;
 }
 
 /** The blocks of `doc` from `start` on: what contains it, is it, or follows it in the page. */
@@ -55,12 +57,26 @@ export function fromBlock(doc: Doc, start: Element): Doc {
     return el === start || el.contains(start) || !!(start.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
   };
   const sections = doc.sections.flatMap((section) => {
-    const blocks = section.blocks.filter((b) => keep(b.source));
+    const blocks = section.blocks.filter((b) => keep(b.source)).map((b) => (b.kind === 'list' ? listFrom(b, start) : b));
     const heading = section.heading && keep(section.heading.source) ? section.heading : undefined;
     if (!heading && blocks.length === 0) return [];
     return [{ ...section, heading, blocks, words: blocks.reduce((n, b) => n + blockWords(b), 0) }];
   });
   return { sections: sections.map(({ heading, ...rest }) => (heading ? { ...rest, heading } : rest)) };
+}
+
+/**
+ * A list read from the item holding `start` (the innermost one, for a nested item), keeping each
+ * item's own `index`/`of`, so the counter still reads e.g. "item 3/4". A start outside every item
+ * (the list itself, or before it) keeps the whole list.
+ */
+function listFrom(list: ListBlock, start: Element): ListBlock {
+  let from = -1;
+  list.items.forEach((item, i) => {
+    const el = item.source.element;
+    if (el && (el === start || el.contains(start))) from = i;
+  });
+  return from <= 0 ? list : { ...list, items: list.items.slice(from) };
 }
 
 function selectedRange(win: Window): Range | null {
@@ -69,9 +85,11 @@ function selectedRange(win: Window): Range | null {
   return sel.getRangeAt(0);
 }
 
+type ListBlock = Extract<Block, { kind: 'list' }>;
+
 const elementOf = (node: Node): Element | null => (node.nodeType === 1 ? (node as Element) : node.parentElement);
 
-export function createReader({ api, win, scope }: ReaderDeps): Reader {
+export function createReader({ api, win, scope, trustedEventsOnly = true }: ReaderDeps): Reader {
   const doc = win.document;
   const baseStore = extensionStore(api.storage.local);
   let current: (OpenReader & { teardown(): void; lastRef: SourceRef | null }) | null = null;
@@ -91,7 +109,11 @@ export function createReader({ api, win, scope }: ReaderDeps): Reader {
     const target = mode === 'from-here' ? bridge?.contextTarget() : mode === 'from-block' ? bridge?.hoverTarget() : null;
     if (target && target.isConnected) {
       const container = findContainer(doc, hostname, target);
-      if (container) return { doc: fromBlock(extract(container), target), container };
+      const read = container ? fromBlock(extract(container), target) : null;
+      if (container && read && read.sections.length > 0) return { doc: read, container };
+      // Nothing readable around it (page furniture extraction skips): the block alone, else the main content.
+      const alone = extract(target);
+      if (alone.sections.length > 0) return { doc: alone, container: target };
     }
     const container = findContainer(doc, hostname);
     return container ? { doc: extract(container), container } : null;
@@ -156,7 +178,13 @@ export function createReader({ api, win, scope }: ReaderDeps): Reader {
       },
       onClose: () => finish(),
     });
-    const handle = mountReader(frame, content.doc, { settings, store, host });
+    const handle = mountReader(frame, content.doc, { settings, store, host, trustedEventsOnly });
+    // A page that re-renders (an SPA) can remove the host element: restore the page as on close.
+    const removal = new MutationObserver(() => {
+      if (!hostElement.isConnected && current?.handle === handle) close();
+    });
+    removal.observe(doc.body, { childList: true });
+    removal.observe(doc.documentElement, { childList: true });
     if (at) void handle.ready.then(() => handle.player.jumpToBlock(at));
     current = {
       mode,
@@ -164,6 +192,7 @@ export function createReader({ api, win, scope }: ReaderDeps): Reader {
       handle,
       lastRef: at,
       teardown() {
+        removal.disconnect();
         handle.destroy();
         hostElement.remove();
         unlock();
