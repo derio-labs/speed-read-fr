@@ -33,7 +33,7 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 }
 body.vscode-dark .sr-reader, body.vscode-high-contrast:not(.vscode-high-contrast-light) .sr-reader { color-scheme: dark; }
 body.vscode-light .sr-reader, body.vscode-high-contrast-light .sr-reader { color-scheme: light; }
-#sr-render { position: absolute; left: -10000px; top: 0; width: 760px; visibility: hidden; pointer-events: none; }
+#sr-render-frame { position: absolute; left: -10000px; top: 0; width: 760px; visibility: hidden; pointer-events: none; }
 .sr-md { color: var(--vscode-editor-foreground); font-family: var(--vscode-font-family); line-height: 1.6; }
 .sr-md pre { margin: 0; padding: 10px 12px; border-radius: 6px; overflow: auto; background: var(--vscode-textCodeBlock-background); font: 13px/1.5 var(--vscode-editor-font-family, ui-monospace, monospace); }
 .sr-exhibit-body .sr-md pre, .sr-expanded-body .sr-md pre { padding: 0; background: transparent; }
@@ -54,11 +54,32 @@ document.head.append(style);
 
 const readerRoot = document.getElementById('sr-reader-root') ?? document.body.appendChild(document.createElement('div'));
 readerRoot.id = 'sr-reader-root';
-/** The rendered document: attached (Mermaid measures text) but kept out of view. */
+/**
+ * The rendered document (`#sr-render`), in a frame that is attached (Mermaid measures text) but
+ * kept out of view: absolutely positioned off-screen and `visibility: hidden`.
+ */
+const renderFrame = document.createElement('div');
+renderFrame.id = 'sr-render-frame';
+renderFrame.setAttribute('aria-hidden', 'true');
 const renderRoot = document.createElement('div');
 renderRoot.id = 'sr-render';
-renderRoot.setAttribute('aria-hidden', 'true');
-document.body.append(renderRoot);
+/** Where Mermaid measures a diagram: `mermaid.render` empties the container it is given. */
+const diagramScratch = document.createElement('div');
+renderFrame.append(renderRoot, diagramScratch);
+document.body.append(renderFrame);
+
+/**
+ * Extract the rendered document. The extractor skips what is not rendered, `visibility: hidden`
+ * included, so the off-screen frame is made visible for the synchronous extraction only.
+ */
+function extractRendered() {
+  renderFrame.style.visibility = 'visible';
+  try {
+    return extract(renderRoot);
+  } finally {
+    renderFrame.style.visibility = '';
+  }
+}
 
 const isDark = () => document.body.classList.contains('vscode-dark') || (document.body.classList.contains('vscode-high-contrast') && !document.body.classList.contains('vscode-high-contrast-light'));
 
@@ -96,7 +117,7 @@ async function read(message: ReadMessage) {
       ? renderPlain(message.markdown, range)
       : renderMarkdown(message.markdown, { ...range, resolveUri: base ? (src) => new URL(src, base).toString() : undefined });
   mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: isDark() ? 'dark' : 'default', suppressErrorRendering: true });
-  await renderDiagrams(renderRoot, (id, source) => mermaid.render(id, source, renderRoot));
+  await renderDiagrams(renderRoot, (id, source) => mermaid.render(id, source, diagramScratch));
   if (current !== generation) return;
   const host = createCloneHost(renderRoot, {
     wrapperClass: 'sr-md',
@@ -107,7 +128,7 @@ async function read(message: ReadMessage) {
     },
     onClose: close,
   });
-  handle = mountReader(readerRoot, extract(renderRoot), { settings: message.settings, store, host });
+  handle = mountReader(readerRoot, extractRendered(), { settings: message.settings, store, host });
 }
 
 window.addEventListener('message', (event: MessageEvent<ToWebview>) => {
