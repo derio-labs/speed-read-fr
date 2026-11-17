@@ -131,14 +131,14 @@ test('Tab shows normal reading at the current block and returns paused', async (
   await expect(reading).toBeVisible();
   await expect(page.locator('.sr-stage')).toBeHidden();
   await expect(page.locator('.sr-exhibits')).toBeHidden();
-  const current = page.locator('.sr-reading-current');
+  const current = page.locator('[data-sr-current]');
   await expect(current).toHaveCount(1);
   await expect(current).toContainText('Prose is streamed in short chunks.');
   await expect(current).toBeInViewport();
 
   // A click on a block moves the position there.
   await reading.locator('p', { hasText: 'After every stop the speed ramps' }).click();
-  await expect(page.locator('.sr-reading-current')).toContainText('After every stop the speed ramps');
+  await expect(page.locator('[data-sr-current]')).toContainText('After every stop the speed ramps');
 
   await page.keyboard.press('Tab');
   await expect(reading).toBeHidden();

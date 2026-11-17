@@ -13,6 +13,11 @@ export interface HostDocument {
 /**
  * The bridge the core calls (spec section 6). The core never clones or moves source elements
  * itself: every node it shows comes from the host and is handed back through `release`.
+ *
+ * The reader's stylesheet styles only its own tree. A host that returns a `<slot>` (content kept in
+ * the light DOM) must size and style that content itself, e.g. images fitting the pane. The
+ * normal-reading mark is applied inline (`data-sr-current` plus outline and background) so it shows
+ * on slotted content too.
  */
 export interface Host {
   /** A new, independent node displaying `block`, for the core to insert into its own tree. */

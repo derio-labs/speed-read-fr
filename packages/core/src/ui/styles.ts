@@ -242,7 +242,6 @@ export const READER_CSS = `
 
 /* Normal reading. */
 .sr-reading { flex: 1; overflow-y: auto; padding: 24px clamp(16px, 5cqi, 64px) 64px; min-height: 0; }
-.sr-reading-current { outline: 2px solid var(--sr-progress); outline-offset: 4px; border-radius: 4px; background: var(--sr-progress-soft); }
 .sr-reading :is(p, li, h1, h2, h3, h4, h5, h6, pre, table, figure) { cursor: pointer; }
 
 /* Settings panel. */

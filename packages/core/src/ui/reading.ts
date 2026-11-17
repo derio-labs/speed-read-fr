@@ -8,22 +8,54 @@ export interface ReadingElements {
   layout: HTMLElement;
 }
 
-const CURRENT = 'sr-reading-current';
+const CURRENT_ATTR = 'data-sr-current';
+const FALLBACK = { line: '#2f63c9', fill: 'rgba(47, 99, 201, 0.14)' };
+
+/** A reader colour resolved to a value usable in an inline style (custom properties do not reach slotted content). */
+function resolveColour(reader: HTMLElement, property: string, fallback: string): string {
+  const value = reader.ownerDocument.defaultView?.getComputedStyle(reader).getPropertyValue(property).trim() ?? '';
+  return value && !value.startsWith('var(') ? value : fallback;
+}
 
 /** Normal reading (Tab): the host's document in place of stage and pane, marked at the position. */
 export function createReading(ctx: ReaderContext, { reading, layout }: ReadingElements): Zone {
   const { host, player } = ctx;
   let open: { doc: HostDocument; sources: Set<Element> } | null = null;
-  let marked: Element | null = null;
+  let marked: { el: HTMLElement; style: string | null } | null = null;
   let position: SourceRef | null = null;
+  const colours = {
+    line: resolveColour(ctx.reader, '--sr-progress', FALLBACK.line),
+    fill: resolveColour(ctx.reader, '--sr-progress-soft', FALLBACK.fill),
+  };
+
+  /**
+   * The mark is inline style plus an attribute on the host's element, so it shows whatever tree the
+   * node lives in (a slotted light-DOM clone is out of reach of the reader's sheet). The element's own
+   * style attribute is restored exactly when the mark moves or reading ends.
+   */
+  function unmark() {
+    if (!marked) return;
+    const { el, style } = marked;
+    marked = null;
+    if (style === null) el.removeAttribute('style');
+    else el.setAttribute('style', style);
+    el.removeAttribute(CURRENT_ATTR);
+  }
 
   function mark(ref: SourceRef | null | undefined) {
     if (!open || !ref) return;
-    marked?.classList.remove(CURRENT);
-    marked = open.doc.locate(ref);
-    if (!marked) return;
-    marked.classList.add(CURRENT);
-    if (typeof marked.scrollIntoView === 'function') marked.scrollIntoView({ block: 'center' });
+    unmark();
+    const el = open.doc.locate(ref) as HTMLElement | null;
+    if (!el?.style) return;
+    marked = { el, style: el.getAttribute('style') };
+    el.setAttribute(CURRENT_ATTR, '');
+    el.style.setProperty('outline-width', '2px');
+    el.style.setProperty('outline-style', 'solid');
+    el.style.setProperty('outline-color', colours.line);
+    el.style.setProperty('outline-offset', '4px');
+    el.style.setProperty('background-color', colours.fill);
+    el.style.setProperty('border-radius', '4px');
+    if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'center' });
   }
 
   function enter() {
@@ -41,8 +73,7 @@ export function createReading(ctx: ReaderContext, { reading, layout }: ReadingEl
     if (!open) return;
     const { doc } = open;
     open = null;
-    marked?.classList.remove(CURRENT);
-    marked = null;
+    unmark();
     doc.node.parentNode?.removeChild(doc.node);
     host.release(doc.node);
     reading.hidden = true;

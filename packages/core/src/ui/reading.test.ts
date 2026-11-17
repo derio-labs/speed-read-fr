@@ -25,7 +25,7 @@ describe('normal reading', () => {
     expect(reading.hidden).toBe(false);
     const node = t.host.document.mock.results[0].value.node as Node;
     expect(reading.contains(node)).toBe(true);
-    const marked = t.qa('.sr-reading-current');
+    const marked = t.qa('[data-sr-current]');
     expect(marked).toHaveLength(1);
     expect(marked[0].tagName).toBe('H2');
     expect(marked[0].textContent).toBe('Setup');
@@ -41,7 +41,7 @@ describe('normal reading', () => {
     code.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     const pre = t.source.querySelector('pre')!;
     expect(t.host.onPosition).toHaveBeenLastCalledWith({ element: pre, line: 9 });
-    expect(t.qa('.sr-reading-current')).toEqual([reading.querySelector('pre')]);
+    expect(t.qa('[data-sr-current]')).toEqual([reading.querySelector('pre')]);
     expect(t.handle.player.state).toBe('reading');
   });
 
@@ -58,6 +58,25 @@ describe('normal reading', () => {
     expect(t.host.release).toHaveBeenCalledWith(node);
     expect(t.q('.sr-display')!.dataset.kind).toBe('chunk');
     expect(t.q('.sr-sentence')!.textContent).toContain('The first paragraph');
+  });
+
+  it('marks the located element inline and restores its own style exactly', () => {
+    const t = mountHarness('<p id="a" style="outline: 1px dotted red; color: blue">First words here.</p><p id="b">Second words.</p>');
+    t.key('Tab');
+    const reading = t.q('.sr-reading')!;
+    const a = reading.querySelector('p')!;
+    const b = reading.querySelectorAll('p')[1] as HTMLElement;
+    const original = t.source.querySelector('#a')!.getAttribute('style');
+    expect(a.hasAttribute('data-sr-current')).toBe(true);
+    expect(a.style.outlineStyle).toBe('solid');
+    expect(a.style.backgroundColor).not.toBe('');
+    b.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(a.getAttribute('style')).toBe(original);
+    expect(a.hasAttribute('data-sr-current')).toBe(false);
+    expect(b.hasAttribute('data-sr-current')).toBe(true);
+    t.key('Tab');
+    expect(b.hasAttribute('style')).toBe(false);
+    expect(b.hasAttribute('data-sr-current')).toBe(false);
   });
 
   it('releases the document on destroy', () => {

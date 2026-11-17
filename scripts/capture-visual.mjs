@@ -66,7 +66,7 @@ try {
   await shot(page, 'playing-prose-chunk.png');
   // Normal reading at the current block (Tab), from that position.
   await press(page, 'Tab');
-  await page.locator('.sr-reading-current').waitFor();
+  await page.locator('[data-sr-current]').waitFor();
   await page.waitForTimeout(300);
   await shot(page, 'normal-reading.png');
   await page.context().close();
