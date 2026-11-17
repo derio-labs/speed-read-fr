@@ -55,3 +55,40 @@ describe('README', () => {
     }
   });
 });
+
+describe('README content pinned by the review (p5b-r13)', () => {
+  it('the offline and text-to-speech section states the voice rules', () => {
+    const tts = section('## Offline and text-to-speech');
+    for (const phrase of ['off by default', '**local**', '**network**', 'No offline voice installed', 'This voice needs a network connection', 'Speech failed: showing text only']) {
+      expect(tts, phrase).toContain(phrase);
+    }
+  });
+
+  it('states every default of R12 and R29 in the settings table', () => {
+    const settings = section('## Settings');
+    const row = (name: string) => settings.split('\n').find((l) => l.startsWith(`| ${name} |`)) ?? '';
+    expect(row('Speed')).toContain('300 WPM');
+    expect(row('Words per chunk')).toContain('| 3 |');
+    expect(row('Characters per chunk')).toContain('20');
+    expect(row('Stop at headings')).toContain('H1 and H2');
+    for (const kind of ['Code', 'Tables', 'Math']) expect(row(kind)).toMatch(/Stop \(Dwell: 5 s\)/);
+    expect(row('Images and diagrams')).toContain('3 s');
+    expect(row('Display')).toContain('Overlay');
+    expect(row('Page fade')).toContain('32 %');
+    expect(row('Text-to-speech')).toContain('Off');
+  });
+
+  it('names the Firefox minimum version the manifest requires', () => {
+    const manifest = JSON.parse(readFileSync(new URL('../packages/browser-extension/manifest.firefox.json', import.meta.url), 'utf8'));
+    const min = String(manifest.browser_specific_settings.gecko.strict_min_version).replace(/\.0$/, '');
+    expect(section('### Firefox')).toContain(`Firefox ${min} or later`);
+  });
+
+  it('names both layout thresholds and the wheel exceptions', () => {
+    const usage = section('## Usage');
+    expect(usage).toContain('1180 px');
+    expect(usage).toContain('900 px');
+    expect(usage).toContain('outline card');
+    expect(usage.toLowerCase()).toContain('zoom');
+  });
+});

@@ -49,6 +49,11 @@ describe.skipIf(!built)('packages in dist/ (R25)', () => {
 describe('CI workflow (R25)', () => {
   const ci = readFileSync(new URL('.github/workflows/ci.yml', root), 'utf8');
 
+  it('reads the repository only and cancels a superseded run (p5b-r14)', () => {
+    expect(ci).toMatch(/^permissions:\s*\n\s+contents:\s*read\s*$/m);
+    expect(ci).toMatch(/^concurrency:\s*\n\s+group:\s*ci-\$\{\{ github\.ref \}\}\s*\n\s+cancel-in-progress:\s*true\s*$/m);
+  });
+
   it('runs on pull requests and on pushes to main', () => {
     expect(ci).toMatch(/^on:\s*\n(?:\s+.*\n)*?\s+pull_request:/m);
     expect(ci).toMatch(/push:\s*\n\s+branches:\s*\[\s*main\s*\]/);

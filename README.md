@@ -37,9 +37,10 @@ Firefox 128 or later.
    signed by Mozilla, or Firefox Developer Edition or Nightly with
    `xpinstall.signatures.required` set to `false` in `about:config` (then install the zip from
    `about:addons`, **Install Add-on From File…**).
-4. The first press of the toolbar button asks for access to all sites. Grant it for Alt-hover
-   and "Speed read from here"; without it the toolbar button, the shortcut and the menu still
-   read the current tab.
+4. Firefox 128 and later grant the requested access to all sites when the add-on is installed.
+   If you later revoke it (in `about:addons`, **Permissions**), the toolbar button asks for it
+   again; Alt-hover and "Speed read from here" need it, while the toolbar button, the shortcut and
+   the menu still read the current tab without it.
 
 ### VS Code
 
@@ -88,8 +89,12 @@ read and stays on it when you pause or close.
 
 A tick strip under the sentence line moves the reading position in both directions. Drag it
 (left moves forward) or turn the mouse wheel over the stage; in the browser overlay the wheel
-turns the dial anywhere on the page, except over the exhibit card, the settings panel and the
-normal-reading view, which scroll their own content. A slow turn moves one chunk at a time;
+turns the dial anywhere on the page, except over the outline card, the exhibit card, the
+settings panel and the normal-reading view, which scroll their own content (and never hand the
+wheel on to the page behind). Ctrl+wheel and pinch still zoom the page, and a horizontal swipe
+still goes back or forward; only on the strip itself does a sideways turn move the dial. While
+you read, the page follows the block being read so it sits just below the top of the free band
+above the stage (below the exhibit card when that card sits above the stage). A slow turn moves one chunk at a time;
 faster turns accelerate up to fourteen-fold (the readout beside the strip shows the
 multiplier), and the dial coasts briefly when you let go. Playback pauses while you turn it and
 resumes on its own afterwards if it was playing. Chapter cards and stops are shown as you pass
@@ -97,10 +102,12 @@ them; they do not hold the dial.
 
 ### Narrow windows
 
-When the reader is narrower than 900 px (a narrow window, the docked panel, a narrow VS Code
-panel) the outline becomes a bar with a drawer in the stage header, and the exhibit card moves
-above the stage. It takes the height its content needs, up to the room available, and the stage
-glides down to make room and back up when the card empties. **E** expands an exhibit over the
+In the browser's floating overlay the outline card collapses into a bar with a drawer in the
+stage header when the window is narrower than 1180 px. When the reader is narrower than 900 px
+(a narrow window, the docked panel, a narrow VS Code panel) the outline is that bar in every
+layout, and the exhibit card moves above the stage. It takes the height its content needs, up
+to the room available (the stage card keeps only what it shows), and the card grows while the
+stage glides down to make room, then shrinks while the stage glides back when the card empties. **E** expands an exhibit over the
 whole reader in every layout.
 
 ## Keys
@@ -150,12 +157,19 @@ Text-to-speech uses the voices of the browser or the system (the Web Speech API)
   local voice is chosen automatically: the first local voice of the page's language, else the
   first local voice.
 - With no local voice installed the panel says "No offline voice installed", and speech stays
-  off until you pick a voice yourself. Picking a network voice shows "This voice needs a network
-  connection": that voice sends the text to its provider.
+  off until you pick a voice yourself. The voice list groups local and network voices, and a
+  badge beside it shows which kind is chosen. Picking a network voice shows
+  "This voice needs a network connection": that voice sends the text to its provider.
+- A saved voice that is no longer installed falls back to the automatic choice, and the panel
+  says "Saved voice not found; using Automatic".
 - While it speaks, the chunk on the stage follows the voice's word boundaries. A voice that
   reports no boundaries shows each sentence whole while it is spoken.
-- Code, tables and math are not spoken; headings are. Inline math is left out of the spoken
-  text.
+- Code, tables and math are not spoken. Headings that do not stop are spoken; chapter cards
+  (the headings that stop) are not. Inline math is left out of the spoken text, headings
+  included.
+- If the voice fails (for example a network voice while offline), that sentence is shown as text
+  at your reading speed instead; after two failures in a row speech is switched off for the
+  session and the status line and the settings say "Speech failed: showing text only".
 
 ## Known limits
 
@@ -179,6 +193,12 @@ Text-to-speech uses the voices of the browser or the system (the Web Speech API)
   elements the page adds after that are not moved.
 - **Bare prose runs** (text not wrapped in a paragraph) share their container as their position,
   so the clear window, the page follow and VS Code's cursor land on the container.
+- **The faded page is not interactive** while the floating overlay is open: it cannot be selected
+  or pressed, and Alt-hover is inactive until the reader closes. The side panel leaves the page
+  usable.
+- **Fixed elements restyled while the dock is open**: closing the side panel restores fixed
+  elements to how they were when it opened, so a page that restyled them in the meantime may show
+  them shifted until it restyles them again.
 - **Without host access** (declined in Firefox, or site access "on click" in Chrome) Alt-hover is
   unavailable and "Speed read from here" reads the main content from its start.
 - **Verified by the operator after merge**: the physical toolbar button, menu items and shortcut,
