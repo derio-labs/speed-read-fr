@@ -53,13 +53,24 @@ export interface ExtApi {
 
 type ExtScope = { browser?: ExtApi; chrome?: ExtApi };
 
-/** An extension API object, not a page element that an `id` made a named property of the global. */
-const isApi = (value: unknown): value is ExtApi =>
-  !!value && typeof value === 'object' && typeof (value as { runtime?: unknown }).runtime === 'object' && !!(value as { runtime?: unknown }).runtime;
+/**
+ * An extension API object, not a page element: a named element (`<form id="browser">` with a control
+ * named `runtime`) shows through the global but is never its own property, and has no API functions.
+ */
+const isApi = (value: unknown): value is ExtApi => {
+  if (!value || typeof value !== 'object') return false;
+  const runtime = (value as { runtime?: unknown }).runtime as { sendMessage?: unknown; getURL?: unknown } | null | undefined;
+  return !!runtime && typeof runtime === 'object' && typeof runtime.sendMessage === 'function' && typeof runtime.getURL === 'function';
+};
 
-/** The extension API of `scope` (the global object by default), or undefined outside an extension. */
+/** `scope[name]` when it is the scope's own property and a real extension API. */
+function own(scope: object, name: keyof ExtScope): ExtApi | undefined {
+  if (!Object.prototype.hasOwnProperty.call(scope, name)) return undefined;
+  const value = (scope as ExtScope)[name];
+  return isApi(value) ? value : undefined;
+}
+
+/** The extension API of `scope` (the global object by default): Firefox's `browser`, else Chrome's `chrome`. */
 export function ext(scope: object = globalThis): ExtApi | undefined {
-  const s = scope as ExtScope;
-  if (isApi(s.browser)) return s.browser;
-  return isApi(s.chrome) ? s.chrome : undefined;
+  return own(scope, 'browser') ?? own(scope, 'chrome');
 }

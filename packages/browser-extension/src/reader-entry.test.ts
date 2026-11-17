@@ -2,6 +2,7 @@
 import type { Doc } from '@speed-read/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExtApi } from './ext';
+import { ext } from './ext';
 import { createReader, DOCK_WIDTH_PX, FOLLOW_TAU_MS, followStep, install, type Reader } from './reader-entry';
 import { BRIDGE_KEY, READER_KEY, type ContentBridge } from './shared';
 import { SETTINGS_KEY } from './storage';
@@ -21,7 +22,7 @@ function fakeApi(stored: Record<string, unknown> = {}) {
   const listeners: ((m: unknown, s: unknown, reply?: (r: unknown) => void) => unknown)[] = [];
   const data = { ...stored };
   const api = {
-    runtime: { onMessage: { addListener: vi.fn((fn: (m: unknown, s: unknown, reply?: (r: unknown) => void) => unknown) => listeners.push(fn)) } },
+    runtime: { sendMessage: vi.fn(async () => undefined), getURL: vi.fn((path: string) => `chrome-extension://test/${path}`), onMessage: { addListener: vi.fn((fn: (m: unknown, s: unknown, reply?: (r: unknown) => void) => unknown) => listeners.push(fn)) } },
     storage: {
       local: {
         get: vi.fn(async (key: string) => (key in data ? { [key]: data[key] } : {})),
@@ -128,6 +129,31 @@ describe('install', () => {
     const s: Record<PropertyKey, unknown> = { browser: document.createElement('div'), chrome: fake.api };
     expect(install(s, window)).toBe(true);
     expect(fake.raw.runtime.onMessage.addListener).toHaveBeenCalledOnce();
+  });
+
+  it('is not switched off by a page form named browser with a control named runtime (l-security-r6)', () => {
+    document.body.insertAdjacentHTML('beforeend', '<form id="browser"><input name="runtime"></form>');
+    const form = document.getElementById('browser') as HTMLFormElement & { runtime?: unknown };
+    // Browsers expose a form's named controls as its properties (jsdom does not): model it.
+    Object.defineProperty(form, 'runtime', { value: form.querySelector('input'), configurable: true });
+    expect(form.runtime).toBeInstanceOf(HTMLInputElement);
+    const fake = fakeApi();
+    // A named property the page put on the global: not an own property of the isolated world's scope.
+    const s = Object.create({ browser: form }) as Record<PropertyKey, unknown>;
+    s.chrome = fake.api;
+    expect(ext(s)).toBe(fake.api);
+    expect(install(s, window)).toBe(true);
+    expect(fake.raw.runtime.onMessage.addListener).toHaveBeenCalledOnce();
+  });
+
+  it('ext() accepts an own global only with a real runtime (sendMessage and getURL functions), else falls through to chrome', () => {
+    const api = { runtime: { sendMessage() {}, getURL() {}, onMessage: { addListener() {} } } };
+    const formLike = { runtime: document.createElement('input') };
+    expect(ext({ browser: formLike, chrome: api })).toBe(api);
+    expect(ext({ browser: { runtime: { sendMessage() {} } }, chrome: api })).toBe(api);
+    expect(ext({ browser: api, chrome: formLike })).toBe(api);
+    expect(ext({ chrome: formLike })).toBeUndefined();
+    expect(ext(Object.create({ chrome: api }))).toBeUndefined();
   });
 
   it('is not fooled by a page element named like a guard', () => {
