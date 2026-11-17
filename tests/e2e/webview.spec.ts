@@ -230,7 +230,7 @@ test.describe('exhibits wider or taller than the pane', () => {
     page.locator('.sr-exhibits .sr-exhibit[data-kind="math"] .katex-display').nth(index).evaluate((el) => {
       const display = el as HTMLElement;
       const body = display.closest('.sr-exhibit-body') as HTMLElement;
-      const html = display.querySelector('.katex-html > .base:last-child') as HTMLElement;
+      const html = display.querySelector('.katex-html > .katex-base:last-child') as HTMLElement;
       return {
         zoom: Number(getComputedStyle(display).zoom),
         fits: html.getBoundingClientRect().right <= body.getBoundingClientRect().right + 1,

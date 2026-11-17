@@ -72,3 +72,21 @@ describe('VS Code extension manifest', () => {
     expect(lines).toEqual(['**', '!dist/**', '!media/**', '!package.json', '!README.md', '!LICENSE']);
   });
 });
+
+describe('bundled KaTeX (l-security-r4)', () => {
+  const lock = JSON.parse(readFileSync(new URL('../../../package-lock.json', import.meta.url), 'utf8')) as { packages: Record<string, { version?: string }> };
+  const root = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
+  const atLeast = (version: string, min: number[]) => {
+    const parts = version.split('.').map(Number);
+    for (let i = 0; i < min.length; i++) if (parts[i] !== min[i]) return parts[i] > min[i];
+    return true;
+  };
+
+  it('is pinned to a version outside GHSA-238p-pmpm-9mq7 (fixed in 0.18.2), for the webview and for Mermaid alike', () => {
+    expect(pkg.devDependencies.katex).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(atLeast(pkg.devDependencies.katex, [0, 18, 2])).toBe(true);
+    expect(root.overrides?.katex).toBe(pkg.devDependencies.katex);
+    const copies = Object.entries(lock.packages).filter(([path]) => /(^|\/)node_modules\/katex$/.test(path));
+    expect(copies.map(([, entry]) => entry.version)).toEqual([pkg.devDependencies.katex]);
+  });
+});
