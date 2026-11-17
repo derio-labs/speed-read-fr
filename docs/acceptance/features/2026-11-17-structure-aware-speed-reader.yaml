@@ -340,3 +340,10 @@ amendments:
       the reader leaves it on the first source line of the block or list item being
       read.
     why: 'sr2-r10: R21 is block granularity'
+  - row: browser-overlay-and-dock
+    op: reword
+    base: 0
+    acceptance: When set so, the browser reader is docked as a side panel beside a usable
+      page, and page elements fixed to the right edge are moved out from under it.
+    why: 'D10: the overlay is no longer a full-page panel over a dimmed page; this row
+      keeps the dock, the floating overlay has its own row'
