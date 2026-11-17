@@ -146,9 +146,14 @@ rows:
       if it was playing.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R27
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/dial.test.ts
+      - speed-read-fr:packages/core/src/ui/dial-ui.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
   - id: browser-entry-points
     capability: browser-extension
     acceptance: The extension declares a toolbar action, the context-menu items Speed
