@@ -183,6 +183,9 @@ Text-to-speech uses the voices of the browser or the system (the Web Speech API)
   exhibit). Headings that contain inline math show their TeX source in the outline and on cards.
 - **Unrendered Mermaid or TeX on web pages** is shown as the page shows it, as source; the browser
   reader renders nothing itself.
+- **Browser pages cannot be read**: no extension may run on `chrome://` and `about:` pages, the
+  extension stores or the browser's PDF viewer. There the toolbar button shows a **!** badge and
+  the tooltip "Can't read this page" until that tab navigates or a read succeeds.
 - **VS Code chat panels** (Copilot, Claude Code) cannot be read: the text must be in a file or a
   selection.
 - **Cursor follow in VS Code is block-granular**: the cursor sits on the first line of the block

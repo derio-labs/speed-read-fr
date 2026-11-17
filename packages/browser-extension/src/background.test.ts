@@ -10,7 +10,11 @@ function fakeApi(base = 'moz-extension://abc/') {
   const listeners: Record<string, Listener[]> = {};
   const event = (name: string) => ({ addListener: vi.fn((fn: Listener) => (listeners[name] ??= []).push(fn)) });
   const api = {
-    action: { onClicked: event('action') },
+    action: {
+      onClicked: event('action'),
+      setBadgeText: vi.fn(async (_d: { tabId: number; text: string }) => {}),
+      setTitle: vi.fn(async (_d: { tabId: number; title: string }) => {}),
+    },
     commands: { onCommand: event('command') },
     contextMenus: {
       create: vi.fn((item: { id: string }) => calls.push(`menu:${item.id}`)),
@@ -36,8 +40,10 @@ function fakeApi(base = 'moz-extension://abc/') {
     tabs: {
       sendMessage: vi.fn(async (tabId: number, m: { mode: string }) => {
         calls.push(`send:${tabId}:${m.mode}`);
+        return { ok: true } as unknown;
       }),
-      query: vi.fn(async () => [{ id: 9 }]),
+      query: vi.fn(async (_q: { active?: boolean; url?: string[] }): Promise<{ id?: number; url?: string }[]> => [{ id: 9 }]),
+      onUpdated: event('updated'),
     },
   };
   const fire = (name: string, ...args: unknown[]) => (listeners[name] ?? []).map((fn) => (fn as (...a: unknown[]) => unknown)(...args));
@@ -61,7 +67,7 @@ afterEach(() => {
 
 describe('registration', () => {
   it('registers every listener at top level, once', () => {
-    for (const name of ['action', 'command', 'menu', 'message', 'installed']) expect(fake.listeners[name], name).toHaveLength(1);
+    for (const name of ['action', 'command', 'menu', 'message', 'installed', 'updated']) expect(fake.listeners[name], name).toHaveLength(1);
   });
 
   it('creates the two context-menu items on install', async () => {
@@ -164,5 +170,97 @@ describe('openReader', () => {
     const source = readFileSync(fileURLToPath(new URL('./background.ts', import.meta.url)), 'utf8');
     expect(source).not.toMatch(/^(let|var)\s/m);
     expect(source).not.toMatch(/new (Map|Set|WeakMap)\b/);
+  });
+});
+
+describe('a reader that cannot open (l-errors-r1)', () => {
+  const lastBadge = (tabId: number) => fake.api.action.setBadgeText.mock.calls.filter(([d]) => d.tabId === tabId).at(-1)?.[0].text;
+  const lastTitle = (tabId: number) => fake.api.action.setTitle.mock.calls.filter(([d]) => d.tabId === tabId).at(-1)?.[0].title;
+  let warn: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => warn.mockRestore());
+
+  it.each(['chrome://extensions/', 'about:addons', 'https://chromewebstore.google.com/detail/x', 'https://addons.mozilla.org/en-US/firefox/', 'view-source:https://example.com/'])(
+    'on a page no extension may script (%s) it sets a badge and title for that tab, and warns nothing',
+    async (url) => {
+      fake.api.scripting.executeScript.mockRejectedValueOnce(new Error('Cannot access contents of the page'));
+      fake.fire('action', { id: 7, url });
+      await settle();
+      expect(lastBadge(7)).toBe('!');
+      expect(lastTitle(7)).toBe("Speed Read: Can't read this page");
+      expect(warn).not.toHaveBeenCalled();
+    },
+  );
+
+  it('with no URL known, a refused injection is judged by the error text (the PDF viewer)', async () => {
+    fake.api.scripting.executeScript.mockRejectedValueOnce(new Error('Cannot access contents of url "https://example.com/a.pdf". Extension manifest must request permission to access this host.'));
+    fake.fire('menu', { menuItemId: 'speed-read-from-here', frameId: 0 }, { id: 5 });
+    await settle();
+    expect(lastBadge(5)).toBe('!');
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('any other failure is a console warning with its context, and no badge', async () => {
+    fake.api.tabs.sendMessage.mockRejectedValueOnce(new Error('Could not establish connection. Receiving end does not exist.'));
+    fake.fire('action', { id: 8, url: 'https://example.com/' });
+    await settle();
+    expect(lastBadge(8)).not.toBe('!');
+    expect(warn).toHaveBeenCalledOnce();
+    expect(String(warn.mock.calls[0][0])).toMatch(/tab 8.*auto.*example\.com/);
+    expect(String(warn.mock.calls[0][1])).toMatch(/Receiving end/);
+  });
+
+  it("the reader's own failure, reported back in its reply, is warned with its cause", async () => {
+    fake.api.tabs.sendMessage.mockResolvedValueOnce({ ok: false, error: 'No readable content' });
+    fake.fire('action', { id: 8, url: 'https://example.com/' });
+    await settle();
+    expect(warn).toHaveBeenCalledOnce();
+    expect(String(warn.mock.calls[0][1])).toMatch(/No readable content/);
+    expect(lastBadge(8)).not.toBe('!');
+  });
+
+  it('the badge is cleared on the next successful open', async () => {
+    fake.api.scripting.executeScript.mockRejectedValueOnce(new Error('Cannot access a chrome:// URL'));
+    fake.fire('action', { id: 7, url: 'chrome://newtab/' });
+    await settle();
+    expect(lastBadge(7)).toBe('!');
+    fake.fire('action', { id: 7, url: 'https://example.com/' });
+    await settle();
+    expect(lastBadge(7)).toBe('');
+    expect(lastTitle(7)).toBe('Speed read (Alt+Shift+R)');
+  });
+
+  it('the badge is cleared when the tab navigates', async () => {
+    fake.api.scripting.executeScript.mockRejectedValueOnce(new Error('Cannot access a chrome:// URL'));
+    fake.fire('action', { id: 7, url: 'chrome://newtab/' });
+    await settle();
+    fake.fire('updated', 7, { status: 'loading', url: 'https://example.com/' });
+    expect(lastBadge(7)).toBe('');
+    expect(lastTitle(7)).toBe('Speed read (Alt+Shift+R)');
+  });
+});
+
+describe('content script in tabs open before install (l-errors-r9)', () => {
+  it('on install injects content.js into every open http(s) tab, skipping tabs that refuse', async () => {
+    fake.api.tabs.query.mockImplementation(async (q: { url?: string[] }) => (q.url ? [{ id: 1 }, { id: 2 }, { id: 3 }] : [{ id: 9 }]));
+    fake.api.scripting.executeScript.mockImplementation(async (o: { target: { tabId: number }; files: string[] }) => {
+      if (o.target.tabId === 2) throw new Error('Cannot access contents of the page');
+      fake.calls.push(`inject:${o.target.tabId}:${o.files.join(',')}`);
+      return [];
+    });
+    fake.fire('installed');
+    await settle();
+    await settle();
+    expect(fake.api.tabs.query).toHaveBeenCalledWith({ url: ['http://*/*', 'https://*/*'] });
+    expect(fake.calls.filter((c) => c.startsWith('inject:'))).toEqual(['inject:1:content.js', 'inject:3:content.js']);
+  });
+
+  it('a failing tab query does not throw out of the install handler', async () => {
+    fake.api.tabs.query.mockRejectedValueOnce(new Error('no'));
+    fake.fire('installed');
+    await settle();
+    expect(fake.api.contextMenus.create).toHaveBeenCalledTimes(2);
   });
 });

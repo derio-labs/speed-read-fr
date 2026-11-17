@@ -9,6 +9,8 @@ export interface ExtEvent<F extends (...args: never[]) => unknown> {
 
 export interface Tab {
   id?: number;
+  /** Present for pages the extension may see (host permission or activeTab). */
+  url?: string;
 }
 
 export interface MessageSender {
@@ -22,7 +24,11 @@ export interface MenuClickInfo {
 }
 
 export interface ExtApi {
-  action: { onClicked: ExtEvent<(tab: Tab) => void> };
+  action: {
+    onClicked: ExtEvent<(tab: Tab) => void>;
+    setBadgeText(details: { tabId: number; text: string }): Promise<void>;
+    setTitle(details: { tabId: number; title: string }): Promise<void>;
+  };
   commands: { onCommand: ExtEvent<(command: string, tab?: Tab) => void> };
   contextMenus: {
     create(item: { id: string; title: string; contexts: string[] }): unknown;
@@ -32,7 +38,7 @@ export interface ExtApi {
   permissions: { request(p: { origins: string[] }): Promise<boolean> };
   runtime: {
     onInstalled: ExtEvent<() => void>;
-    onMessage: ExtEvent<(message: unknown, sender: MessageSender) => unknown>;
+    onMessage: ExtEvent<(message: unknown, sender: MessageSender, sendResponse: (response: unknown) => void) => unknown>;
     sendMessage(message: unknown): Promise<unknown>;
     getURL(path: string): string;
   };
@@ -40,7 +46,8 @@ export interface ExtApi {
   storage: { local: { get(key: string): Promise<Record<string, unknown>>; set(items: Record<string, unknown>): Promise<void> } };
   tabs: {
     sendMessage(tabId: number, message: unknown): Promise<unknown>;
-    query(q: { active: boolean; currentWindow: boolean }): Promise<Tab[]>;
+    query(q: { active?: boolean; currentWindow?: boolean; url?: string[] }): Promise<Tab[]>;
+    onUpdated: ExtEvent<(tabId: number, change: { status?: string; url?: string }) => void>;
   };
 }
 

@@ -21,6 +21,9 @@ export interface ReadMessage {
 /** Content script -> background, on an Alt+click on an outlined block. */
 export const HOVER_MESSAGE = { type: 'read-from-hover' } as const;
 
+/** Reader -> background, the answer to a ReadMessage: the cause when the reader could not open. */
+export type ReadReply = { ok: true } | { ok: false; error: string };
+
 export const isReadMessage = (m: unknown): m is ReadMessage => READ_MODES.includes((m as ReadMessage | null)?.mode as ReadMode);
 
 /** The content script's answers to the reader. Each target is handed out once, and only while in the page. */
