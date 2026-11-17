@@ -277,3 +277,88 @@ No refactor step: the task adds the fixture, demo page, scripts and browser test
 ### p2-prose-run-source · decision · Bare prose runs share their parent container as source; line from the nearest data-line ancestor (phase 2) (phase 2)
 
 Inline text between blocks (loose text in a div) has no element of its own. The core never wraps or mutates page text, so such a run keeps the parent container as its `SourceRef.element` (several blocks can share one element: jumpToBlock and normal-reading marks then land on the container). Its `line` comes from the nearest `data-line` ancestor, so the VS Code cursor still lands on a source line. This stays a known limit (review finding p2-r8c).
+
+<!-- fr:journal kind=review scope=plan id=review-p2 created=2026-11-17T16:40:01+00:00 phase=2 -->
+### review-p2 · review · Phase 2 code and visual review: 8 findings, all in scope, all fixed (phase 2)
+
+Independent reviewer checked the phase 2 diff against spec sections 2, 6, 10, 11 and plan 02.yaml, ran typecheck, unit and browser suites, took and opened its own screenshots for every declared visual name and tried each control at its limits (WPM 100 and 1000, words per chunk 1 and 8 and the clamps, 360 px and 1600 px, dark theme, long heading, long word, deep list, empty document). Findings raised: p2-r1 to p2-r8. Fixes verified by the orchestrator: 247 unit and 14 browser tests pass.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r1 created=2026-11-17T16:40:01+00:00 phase=2 state=open review_scope=in -->
+### p2-r1 · finding [open] (reviewer: in scope) · Outline remaining times not recomputed on speed changes (phase 2)
+
+Raised by the phase 2 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r2 created=2026-11-17T16:40:01+00:00 phase=2 state=open review_scope=in -->
+### p2-r2 · finding [open] (reviewer: in scope) · Normal-reading mark relied on shadow styles that cannot reach slotted content (phase 2)
+
+Raised by the phase 2 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r3 created=2026-11-17T16:40:01+00:00 phase=2 state=open review_scope=in -->
+### p2-r3 · finding [open] (reviewer: in scope) · Esc could not close the outline drawer after a pointer press on its toggle (phase 2)
+
+Raised by the phase 2 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r4 created=2026-11-17T16:40:01+00:00 phase=2 state=open review_scope=in -->
+### p2-r4 · finding [open] (reviewer: in scope) · Very long word shrunk to unreadable size and the sentence line overflowed (phase 2)
+
+Raised by the phase 2 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r5 created=2026-11-17T16:40:01+00:00 phase=2 state=open review_scope=in -->
+### p2-r5 · finding [open] (reviewer: in scope) · Pivot fit ignored list depth and was not redone on resize (phase 2)
+
+Raised by the phase 2 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r6 created=2026-11-17T16:40:01+00:00 phase=2 state=open review_scope=in -->
+### p2-r6 · finding [open] (reviewer: in scope) · Settings Done button contrast too low (phase 2)
+
+Raised by the phase 2 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r7 created=2026-11-17T16:40:01+00:00 phase=2 state=open review_scope=in -->
+### p2-r7 · finding [open] (reviewer: in scope) · Narrow-bar menu icon squashed by a long heading (phase 2)
+
+Raised by the phase 2 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r8 created=2026-11-17T16:40:01+00:00 phase=2 state=open review_scope=in -->
+### p2-r8 · finding [open] (reviewer: in scope) · Empty and no-heading states, shared prose-run source, outline rewrote every row (phase 2)
+
+Raised by the phase 2 reviewer with file and line or screenshot; in scope: caused by this phase's code.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r1-resolved created=2026-11-17T16:40:01+00:00 phase=2 state=fixed resolves=p2-r1 -->
+### p2-r1-resolved · finding [fixed] · resolves p2-r1: Outline remaining times not recomputed on speed changes (phase 2)
+
+Recomputed at the player's current speed on every speed change, including loaded settings (5a2ac57).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r2-resolved created=2026-11-17T16:40:01+00:00 phase=2 state=fixed resolves=p2-r2 -->
+### p2-r2-resolved · finding [fixed] · resolves p2-r2: Normal-reading mark relied on shadow styles that cannot reach slotted content (phase 2)
+
+Mark is now inline on the located element with exact restore; Host doc says a slot-returning host sizes its own content (31f4bc5).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r3-resolved created=2026-11-17T16:40:01+00:00 phase=2 state=fixed resolves=p2-r3 -->
+### p2-r3-resolved · finding [fixed] · resolves p2-r3: Esc could not close the outline drawer after a pointer press on its toggle (phase 2)
+
+Focus moves into the drawer on open and back to the root on close; Esc closes from anywhere (fb1a12e).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r4-resolved created=2026-11-17T16:40:01+00:00 phase=2 state=fixed resolves=p2-r4 -->
+### p2-r4-resolved · finding [fixed] · resolves p2-r4: Very long word shrunk to unreadable size and the sentence line overflowed (phase 2)
+
+Minimum scale 0.5 then wrap; sentence line wraps within the stage (d500c23).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r5-resolved created=2026-11-17T16:40:01+00:00 phase=2 state=fixed resolves=p2-r5 -->
+### p2-r5-resolved · finding [fixed] · resolves p2-r5: Pivot fit ignored list depth and was not redone on resize (phase 2)
+
+Depth offset included; ResizeObserver re-aligns (d500c23).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r6-resolved created=2026-11-17T16:40:01+00:00 phase=2 state=fixed resolves=p2-r6 -->
+### p2-r6-resolved · finding [fixed] · resolves p2-r6: Settings Done button contrast too low (phase 2)
+
+Control reset has zero specificity; e2e checks 4.5:1 in both themes (e0cc7ea).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r7-resolved created=2026-11-17T16:40:01+00:00 phase=2 state=fixed resolves=p2-r7 -->
+### p2-r7-resolved · finding [fixed] · resolves p2-r7: Narrow-bar menu icon squashed by a long heading (phase 2)
+
+Icon keeps its size; heading ellipsizes (697f1fd).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r8-resolved created=2026-11-17T16:40:01+00:00 phase=2 state=fixed resolves=p2-r8 -->
+### p2-r8-resolved · finding [fixed] · resolves p2-r8: Empty and no-heading states, shared prose-run source, outline rewrote every row (phase 2)
+
+Empty state and collapsed outline; only changed rows update; prose-run source keeps the container with nearest data-line, recorded as a known limit (f1780c0, 366e687).
