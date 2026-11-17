@@ -75,10 +75,18 @@ export function createExhibits(ctx: ReaderContext, { pane, main }: ExhibitElemen
     for (const [at, { item }] of shown) {
       if (at === active) {
         item.setAttribute('aria-current', 'true');
-        if (typeof item.scrollIntoView === 'function') item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        reveal(item);
       } else item.removeAttribute('aria-current');
     }
     empty.hidden = shown.size > 0;
+  }
+
+  /** Scroll the pane's own list (never an ancestor) so the item's caption is in view. */
+  function reveal(item: HTMLElement) {
+    const view = list.getBoundingClientRect();
+    const box = item.getBoundingClientRect();
+    if (box.top >= view.top && box.bottom <= view.bottom) return;
+    list.scrollTop += box.top - view.top - 8;
   }
 
   function onStep({ step }: StepEvent) {

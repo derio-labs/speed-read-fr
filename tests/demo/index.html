@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Speed reader demo</title>
+    <style>
+      :root { color-scheme: light dark; --page-bg: #fbfaf7; --page-text: #1f2328; --page-muted: #59636e; --page-border: #d8dee4; --code-bg: #f6f8fa; }
+      @media (prefers-color-scheme: dark) {
+        :root { --page-bg: #0f1115; --page-text: #e6edf3; --page-muted: #9198a1; --page-border: #30363d; --code-bg: #161b22; }
+      }
+      html, body { margin: 0; height: 100%; background: var(--page-bg); color: var(--page-text); }
+      body { font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      .demo-bar { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; border-bottom: 1px solid var(--page-border); background: var(--page-bg); }
+      .demo-bar button { font: inherit; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--page-border); background: var(--code-bg); color: inherit; cursor: pointer; }
+      #page { max-width: 760px; margin: 0 auto; padding: 24px; }
+      #reader { position: fixed; inset: 0; z-index: 10; }
+      /* The document, on the page and in clones shown by the reader (wrapped in .doc). */
+      :where(#page, .doc) { color: var(--page-text); }
+      :where(#page, .doc) h1 { font-size: 2rem; line-height: 1.25; }
+      :where(#page, .doc) pre { margin: 0; padding: 12px 14px; border-radius: 8px; background: var(--code-bg); border: 1px solid var(--page-border); overflow: auto; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .sr-exhibit-body .doc pre, .sr-expanded-body .doc pre { border: 0; padding: 0; background: transparent; }
+      :where(#page, .doc) code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; }
+      :where(#page, .doc) table { border-collapse: collapse; font-size: 14px; }
+      :where(#page, .doc) th, :where(#page, .doc) td { border: 1px solid var(--page-border); padding: 6px 10px; text-align: left; }
+      :where(#page, .doc) th { background: var(--code-bg); }
+      :where(#page, .doc) figure { margin: 0; }
+      :where(#page, .doc) figcaption { font-size: 13px; color: var(--page-muted); margin-top: 6px; }
+      :where(#page, .doc) img, :where(#page, .doc) svg { max-width: 100%; height: auto; border-radius: 6px; }
+      .doc .mermaid svg text { fill: #1f2328; }
+      .tok-kw { color: #cf222e; } .tok-fn { color: #8250df; } .tok-ty { color: #0550ae; } .tok-num { color: #0a7f3f; } .tok-cm { color: #6e7781; font-style: italic; }
+      @media (prefers-color-scheme: dark) {
+        .tok-kw { color: #ff7b72; } .tok-fn { color: #d2a8ff; } .tok-ty { color: #79c0ff; } .tok-num { color: #7ee787; } .tok-cm { color: #8b949e; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="demo-bar">
+      <strong>Speed reader demo</strong>
+      <button type="button" id="open">Speed read</button>
+    </header>
+    <main id="page"></main>
+    <div id="reader" hidden></div>
+    <script type="module" src="./dist/demo.js"></script>
+  </body>
+</html>

@@ -1,15 +1,9 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { mountHarness } from '../testing/reader';
 
-const scrolled = vi.fn();
-beforeEach(() => {
-  scrolled.mockClear();
-  Element.prototype.scrollIntoView = scrolled;
-});
 afterEach(() => {
   document.body.innerHTML = '';
-  delete (Element.prototype as Partial<Element>).scrollIntoView;
 });
 
 const paneItems = (t: ReturnType<typeof mountHarness>) => t.qa('.sr-exhibits .sr-exhibit');
@@ -23,7 +17,7 @@ function runToStop(t: ReturnType<typeof mountHarness>) {
 describe('exhibit pane', () => {
   const DOC = '<p>Intro words are here.</p><pre id="code">a\nb</pre><p>After the code.</p>';
 
-  it('requests a block’s node only when playback reaches it, marks it active and scrolls it into view', () => {
+  it('requests a block’s node only when playback reaches it and marks it active', () => {
     const t = mountHarness(DOC);
     t.handle.player.toggle();
     expect(t.host.exhibit).not.toHaveBeenCalled();
@@ -35,7 +29,6 @@ describe('exhibit pane', () => {
     expect(item.querySelector('#code, pre')).not.toBeNull();
     expect(item.getAttribute('aria-current')).toBe('true');
     expect(item.textContent).toContain('Code');
-    expect(scrolled).toHaveBeenCalled();
   });
 
   it('keeps a passed exhibit visible and no longer active', () => {
