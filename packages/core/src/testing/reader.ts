@@ -34,6 +34,8 @@ export interface HarnessOptions {
   saved?: Partial<Settings>;
   trustedEventsOnly?: boolean;
   layout?: 'panel' | 'floating';
+  /** Declare the host's page fade setting (the browser overlay). */
+  pageFade?: boolean;
 }
 
 export function mountHarness(markup: string, opts: HarnessOptions = {}): Harness {
@@ -80,6 +82,7 @@ export function mountHarness(markup: string, opts: HarnessOptions = {}): Harness
     scheduler: clock,
     trustedEventsOnly: opts.trustedEventsOnly,
     layout: opts.layout,
+    hostSettings: opts.pageFade ? ['pageFade'] : undefined,
     frame,
   });
   const reader = mount.querySelector<HTMLElement>('.sr-reader')!;

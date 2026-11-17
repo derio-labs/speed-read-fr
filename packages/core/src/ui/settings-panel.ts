@@ -78,6 +78,9 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       h('legend', {}, 'Display'),
       field('Images and diagrams', 'seconds shown', number('imageDwellSeconds', 1, 60, 1)),
       field('Reader', 'in the browser', select('display', [['overlay', 'Overlay'], ['dock', 'Side panel']])),
+      ctx.hostSettings.includes('pageFade')
+        ? field('Page behind the reader', 'strength, 10-80 %', number('pageFade', 10, 80, 1), h('span', { class: 'sr-field-hint' }, '%'))
+        : null,
     ),
     h(
       'fieldset',
@@ -108,6 +111,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     }
     control('imageDwellSeconds').value = String(s.imageDwellSeconds);
     control('display').value = s.display;
+    if (control('pageFade')) control('pageFade').value = String(Math.round(s.pageFade * 100));
     control('tts').checked = s.tts.enabled;
     enableSeconds();
   }
@@ -138,6 +142,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       math: exhibit('math'),
       imageDwellSeconds: num('imageDwellSeconds', current.imageDwellSeconds),
       display: control('display').value as Settings['display'],
+      pageFade: control('pageFade') ? num('pageFade', current.pageFade * 100) / 100 : current.pageFade,
     });
   }
 

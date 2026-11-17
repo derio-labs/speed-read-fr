@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 type Listener = (...args: never[]) => unknown;
 
 /** A fake extension API recording listeners and the order of calls. */
-function fakeApi() {
+function fakeApi(base = 'moz-extension://abc/') {
   const calls: string[] = [];
   const listeners: Record<string, Listener[]> = {};
   const event = (name: string) => ({ addListener: vi.fn((fn: Listener) => (listeners[name] ??= []).push(fn)) });
@@ -25,7 +25,7 @@ function fakeApi() {
         return true;
       }),
     },
-    runtime: { onInstalled: event('installed'), onMessage: event('message'), sendMessage: vi.fn() },
+    runtime: { onInstalled: event('installed'), onMessage: event('message'), sendMessage: vi.fn(), getURL: vi.fn((path: string) => base + path) },
     scripting: {
       executeScript: vi.fn(async (o: { target: { tabId: number }; files: string[] }) => {
         calls.push(`inject:${o.target.tabId}:${o.files.join(',')}`);
@@ -76,8 +76,25 @@ describe('registration', () => {
   });
 });
 
+describe('permission request (p3-r17): Firefox only', () => {
+  beforeEach(async () => {
+    vi.resetModules();
+    fake = fakeApi('chrome-extension://abc/');
+    (globalThis as Record<string, unknown>).chrome = fake.api;
+    await import('./background');
+  });
+
+  it('in Chrome the toolbar button and the command never call permissions.request', async () => {
+    fake.fire('action', { id: 3 });
+    fake.fire('command', 'speed-read', { id: 4 });
+    await settle();
+    expect(fake.api.permissions.request).not.toHaveBeenCalled();
+    expect(fake.calls).toEqual(['inject:3:reader.js', 'send:3:auto', 'inject:4:reader.js', 'send:4:auto']);
+  });
+});
+
 describe('routing to openReader', () => {
-  it('the toolbar button requests host access first, synchronously, then opens auto', async () => {
+  it('in Firefox the toolbar button requests host access first, synchronously, then opens auto', async () => {
     fake.fire('action', { id: 3 });
     expect(fake.api.permissions.request).toHaveBeenCalledWith({ origins: ['<all_urls>'] });
     expect(fake.calls[0]).toBe('request');
@@ -85,7 +102,7 @@ describe('routing to openReader', () => {
     expect(fake.calls).toEqual(['request', 'inject:3:reader.js', 'send:3:auto']);
   });
 
-  it('the speed-read command requests host access first, synchronously, then opens auto', async () => {
+  it('in Firefox the speed-read command requests host access first, synchronously, then opens auto', async () => {
     fake.fire('command', 'speed-read', { id: 4 });
     expect(fake.calls[0]).toBe('request');
     await settle();

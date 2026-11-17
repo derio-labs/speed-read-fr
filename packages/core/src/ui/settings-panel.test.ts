@@ -114,3 +114,25 @@ describe('settings panel', () => {
     expect(field('wpm').value).toBe('325');
   });
 });
+
+describe('page fade setting (R29)', () => {
+  it('is absent unless the host declares it', () => {
+    const t = mountHarness(ARTICLE);
+    expect(open(t).panel.querySelector('[name="pageFade"]')).toBeNull();
+  });
+
+  it('shows the page strength in percent, applies and saves it, clamped to 10-80', async () => {
+    const t = mountHarness(ARTICLE, { pageFade: true });
+    await t.settle();
+    const { field, set } = open(t);
+    expect(field('pageFade').value).toBe('32');
+    expect(field('pageFade').min).toBe('10');
+    expect(field('pageFade').max).toBe('80');
+    set('pageFade', '50');
+    expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ pageFade: 0.5 }));
+    set('pageFade', '95');
+    field('pageFade').dispatchEvent(new Event('change', { bubbles: true }));
+    expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ pageFade: 0.8 }));
+    expect(field('pageFade').value).toBe('80');
+  });
+});

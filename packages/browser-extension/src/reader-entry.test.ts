@@ -2,7 +2,7 @@
 import type { Doc } from '@speed-read/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExtApi } from './ext';
-import { createReader, DOCK_WIDTH_PX, install, type Reader } from './reader-entry';
+import { createReader, DOCK_WIDTH_PX, FOLLOW_TAU_MS, followStep, install, type Reader } from './reader-entry';
 import { BRIDGE_KEY, READER_KEY, type ContentBridge } from './shared';
 import { SETTINGS_KEY } from './storage';
 
@@ -67,11 +67,50 @@ afterEach(() => {
   window.getSelection()?.removeAllRanges();
 });
 
+/** Animation frames the test runs by hand. */
+function fakeFrames() {
+  let queue: ((t: number) => void)[] = [];
+  let time = 0;
+  return {
+    source: {
+      request(fn: (t: number) => void) {
+        queue.push(fn);
+        return fn;
+      },
+      cancel(handle: unknown) {
+        queue = queue.filter((f) => f !== handle);
+      },
+    },
+    run(n = 1) {
+      for (let i = 0; i < n; i++) {
+        time += 16;
+        const due = queue;
+        queue = [];
+        for (const fn of due) fn(time);
+      }
+    },
+    get pending() {
+      return queue.length;
+    },
+  };
+}
+let frames: ReturnType<typeof fakeFrames>;
+
 /** jsdom events are untrusted, so tests that drive the reader by synthetic input turn the filter off. */
 function make(stored?: Record<string, unknown>, trustedEventsOnly = false) {
   const fake = fakeApi(stored);
-  reader = createReader({ api: fake.api, win: window, scope, trustedEventsOnly });
+  frames = fakeFrames();
+  reader = createReader({ api: fake.api, win: window, scope, trustedEventsOnly, frame: frames.source });
   return { ...fake, reader };
+}
+
+const shadow = () => hostEl()!.shadowRoot!;
+/** Stub one element's box. */
+function boxOf(el: Element, rect: () => { top: number; left: number; width: number; height: number }) {
+  el.getBoundingClientRect = () => {
+    const r = rect();
+    return { ...r, right: r.left + r.width, bottom: r.top + r.height, x: r.left, y: r.top, toJSON() {} } as DOMRect;
+  };
 }
 
 describe('install', () => {
@@ -280,14 +319,16 @@ describe('mount', () => {
     expect(host.shadowRoot!.querySelector('.sr-reader')).not.toBeNull();
   });
 
-  it('overlay mode adds the dimmed backdrop and locks page scroll', async () => {
+  it('overlay mode mounts the floating layout, adds no backdrop and does not lock page scroll', async () => {
     const { reader } = make();
     await reader.open('auto');
     const host = hostEl()!;
     expect(host.dataset.display).toBe('overlay');
     expect(host.getAttribute('style')).toMatch(/inset: 0(px)? !important/);
-    expect(host.shadowRoot!.querySelector('.sr-backdrop')).not.toBeNull();
-    expect(document.documentElement.style.overflow).toBe('hidden');
+    expect(shadow().querySelector('.sr-reader')!.getAttribute('data-layout')).toBe('floating');
+    expect(shadow().querySelector('.sr-backdrop')).toBeNull();
+    expect(document.documentElement.style.overflow).toBe('');
+    expect(document.body.style.overflow).toBe('');
   });
 
   it(`docked mode fixes a ${DOCK_WIDTH_PX} px panel to the right and gives the page a matching margin`, async () => {
@@ -299,6 +340,8 @@ describe('mount', () => {
     expect(host.style.width).toBe('420px');
     expect(host.getAttribute('style')).toMatch(/inset: 0(px)? 0(px)? 0(px)? auto !important/);
     expect(host.shadowRoot!.querySelector('.sr-backdrop')).toBeNull();
+    expect(host.shadowRoot!.querySelector('.sr-veil')).toBeNull();
+    expect(host.shadowRoot!.querySelector('.sr-reader')!.getAttribute('data-layout')).toBe('panel');
     expect(document.documentElement.style.marginRight).toBe('420px');
     expect(document.documentElement.style.overflow).toBe('');
   });
@@ -364,5 +407,165 @@ describe('settings', () => {
     expect(document.documentElement.style.overflow).toBe('');
     await reader.current!.handle.ready;
     expect(reader.current!.handle.player.index).toBe(before);
+  });
+});
+
+describe('floating overlay over the faded page (R17, R29)', () => {
+  it('a veil in the page background at 1 - pageFade covers the viewport with a clear window over the block being read', async () => {
+    document.body.style.backgroundColor = 'rgb(10, 20, 30)';
+    const { reader } = make();
+    await reader.open('auto');
+    await reader.current!.handle.ready;
+    const veil = shadow().querySelector('.sr-veil') as HTMLElement;
+    const win = shadow().querySelector('.sr-window') as HTMLElement;
+    expect(veil).not.toBeNull();
+    expect(veil.style.pointerEvents).toBe('none');
+    expect(veil.compareDocumentPosition(shadow().querySelector('.sr-frame')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(win.style.boxShadow).toContain('rgba(10, 20, 30, 0.68)');
+    const p3 = document.getElementById('p3')!;
+    boxOf(p3, () => ({ top: 120, left: 40, width: 500, height: 48 }));
+    reader.current!.handle.player.jumpToBlock({ element: p3 });
+    frames.run();
+    const px = (v: string) => parseFloat(v);
+    expect(px(win.style.top)).toBeLessThanOrEqual(120);
+    expect(px(win.style.top) + px(win.style.height)).toBeGreaterThanOrEqual(168);
+    expect(px(win.style.left)).toBeLessThanOrEqual(40);
+    expect(px(win.style.left) + px(win.style.width)).toBeGreaterThanOrEqual(540);
+    document.body.style.backgroundColor = '';
+  });
+
+  it('a page with no background of its own is veiled in white', async () => {
+    const { reader } = make();
+    await reader.open('auto');
+    expect((shadow().querySelector('.sr-window') as HTMLElement).style.boxShadow).toContain('rgba(255, 255, 255, 0.68)');
+  });
+
+  it('the page is scrolled, eased, so the block being read settles at 10 % of the viewport height', async () => {
+    const { reader } = make();
+    await reader.open('auto');
+    await reader.current!.handle.ready;
+    const scroller = document.documentElement;
+    scroller.scrollTop = 0;
+    const p3 = document.getElementById('p3')!;
+    boxOf(p3, () => ({ top: 900 - scroller.scrollTop, left: 0, width: 400, height: 40 }));
+    reader.current!.handle.player.jumpToBlock({ element: p3 });
+    frames.run();
+    const first = scroller.scrollTop;
+    const target = 900 - window.innerHeight * 0.1;
+    // One 16 ms frame of an exponential ease with a 140 ms time constant.
+    expect(first).toBeCloseTo(target * (1 - Math.exp(-16 / FOLLOW_TAU_MS)), 0);
+    frames.run(200);
+    expect(Math.abs(scroller.scrollTop - target)).toBeLessThanOrEqual(1);
+    scroller.scrollTop = 0;
+  });
+
+  it('followStep eases by 1 - exp(-dt / 140) and stops within a pixel', () => {
+    expect(FOLLOW_TAU_MS).toBe(140);
+    expect(followStep(100, 16)).toBeCloseTo(100 * (1 - Math.exp(-16 / 140)));
+    expect(followStep(-100, 16)).toBeCloseTo(-100 * (1 - Math.exp(-16 / 140)));
+    expect(followStep(0.6, 16)).toBe(0);
+    expect(followStep(3, 1)).toBe(1);
+  });
+
+  it('a wheel event on the page side moves the reading position and is not scrolled, except over exhibits, settings and normal reading', async () => {
+    const { reader } = make();
+    await reader.open('auto');
+    await reader.current!.handle.ready;
+    const root = shadow().querySelector('.sr-reader')!;
+    const wheel = () => new WheelEvent('wheel', { deltaY: 130, bubbles: true, cancelable: true, composed: true });
+    const e = wheel();
+    root.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(true);
+    expect(reader.current!.handle.player.index).toBe(1);
+    for (const selector of ['.sr-exhibits', '.sr-reading']) {
+      const ev = wheel();
+      shadow().querySelector(selector)!.dispatchEvent(ev);
+      expect(ev.defaultPrevented, selector).toBe(false);
+    }
+    (shadow().querySelector('.sr-settings-button') as HTMLElement).click();
+    const ev = wheel();
+    shadow().querySelector('.sr-settings')!.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(false);
+    expect(reader.current!.handle.player.index).toBe(1);
+  });
+
+  it('ignores a page script’s wheel events by default', async () => {
+    const fake = fakeApi();
+    frames = fakeFrames();
+    reader = createReader({ api: fake.api, win: window, scope, frame: frames.source });
+    await reader.open('auto');
+    shadow().querySelector('.sr-reader')!.dispatchEvent(new WheelEvent('wheel', { deltaY: 500, bubbles: true, cancelable: true }));
+    expect(reader.current!.handle.player.index).toBe(0);
+  });
+
+  it('pageFade is in the settings panel, changes the veil at once and persists', async () => {
+    const { reader, data } = make({ [SETTINGS_KEY]: { pageFade: 0.4 } });
+    await reader.open('auto');
+    await reader.current!.handle.ready;
+    const win = shadow().querySelector('.sr-window') as HTMLElement;
+    expect(win.style.boxShadow).toContain('0.6)');
+    (shadow().querySelector('.sr-settings-button') as HTMLElement).click();
+    const control = shadow().querySelector('.sr-settings [name="pageFade"]') as HTMLInputElement;
+    expect(control.value).toBe('40');
+    control.value = '75';
+    control.dispatchEvent(new Event('input', { bubbles: true }));
+    await flush();
+    expect((data[SETTINGS_KEY] as { pageFade: number }).pageFade).toBe(0.75);
+    expect(win.style.boxShadow).toContain('0.25)');
+  });
+
+  it('closing removes the veil and the window, stops following and leaves the page at the block', async () => {
+    const { reader } = make();
+    await reader.open('auto');
+    const p3 = document.getElementById('p3')!;
+    reader.current!.handle.player.jumpToBlock({ element: p3 });
+    reader.current!.handle.player.close();
+    expect(hostEl()).toBeNull();
+    expect(document.querySelector('.sr-veil, .sr-window')).toBeNull();
+    expect(p3.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+    frames.run(3);
+    expect(frames.pending).toBe(0);
+  });
+});
+
+describe('dock and fixed page elements (p3-r16)', () => {
+  const FIXED = `
+    <header id="bar" style="position: fixed; top: 0; left: 0; right: 0; height: 48px;">Site</header>
+    <button id="fab" style="position: fixed; right: 16px; bottom: 16px;">Help</button>
+    <div id="left" style="position: fixed; left: 0; top: 60px; width: 100px;">Left</div>`;
+
+  it('moves fixed elements reaching into the 420 px strip and restores their inline styles exactly', async () => {
+    document.body.insertAdjacentHTML('beforeend', FIXED);
+    const vw = window.innerWidth;
+    const bar = document.getElementById('bar')!;
+    const fab = document.getElementById('fab')!;
+    const left = document.getElementById('left')!;
+    boxOf(bar, () => ({ top: 0, left: 0, width: vw, height: 48 }));
+    boxOf(fab, () => ({ top: 700, left: vw - 76, width: 60, height: 32 }));
+    boxOf(left, () => ({ top: 60, left: 0, width: 100, height: 20 }));
+    // Compared as parsed declarations (the CSSOM serializes `0` as `0px`).
+    const before = [bar, fab, left].map((el) => el.style.cssText);
+    const { reader } = make({ [SETTINGS_KEY]: { display: 'dock' } });
+    await reader.open('auto');
+    // Spanning the viewport: narrower by 420 px. At the right edge: moved in by 420 px.
+    expect(bar.style.getPropertyValue('right')).toBe('420px');
+    expect(bar.style.getPropertyValue('left')).toBe('0px');
+    expect(bar.style.getPropertyValue('width')).toBe('auto');
+    expect(bar.style.getPropertyPriority('right')).toBe('important');
+    expect(fab.style.getPropertyValue('right')).toBe(`${16 + 420}px`);
+    expect(fab.style.getPropertyValue('left')).toBe('auto');
+    expect(left.style.cssText).toBe(before[2]);
+    reader.close();
+    expect([bar, fab, left].map((el) => el.style.cssText)).toEqual(before);
+  });
+
+  it('the overlay leaves fixed elements alone', async () => {
+    document.body.insertAdjacentHTML('beforeend', FIXED);
+    const fab = document.getElementById('fab')!;
+    boxOf(fab, () => ({ top: 700, left: window.innerWidth - 76, width: 60, height: 32 }));
+    const before = fab.getAttribute('style');
+    const { reader } = make();
+    await reader.open('auto');
+    expect(fab.getAttribute('style')).toBe(before);
   });
 });

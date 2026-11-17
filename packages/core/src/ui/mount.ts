@@ -2,7 +2,7 @@ import type { Doc } from '../model';
 import { createPlayer, type Player, type Scheduler } from '../player';
 import { normalizeSettings, type Settings, type SettingsStore } from '../settings';
 import { buildTimeline, type Timeline } from '../timeline';
-import type { FrameSource, ReaderContext, Zone } from './context';
+import type { FrameSource, HostSetting, ReaderContext, Zone } from './context';
 import { builder, icon, ICONS } from './dom';
 import type { Host } from './host';
 import { createExhibits } from './exhibits';
@@ -30,6 +30,8 @@ export interface MountOptions {
    * stage and the exhibits are separate cards over a transparent root (spec section 13).
    */
   layout?: 'panel' | 'floating';
+  /** Settings only this host uses, shown in the settings panel (the browser overlay declares `pageFade`). */
+  hostSettings?: readonly HostSetting[];
   /** Animation frames for the position dial's coast; the window's by default. */
   frame?: FrameSource;
 }
@@ -140,6 +142,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     document: ownerDocument,
     scheduler,
     frame: options.frame ?? defaultFrame(win),
+    hostSettings: options.hostSettings ?? [],
     h,
     reader,
     accepts: (event) => !options.trustedEventsOnly || event.isTrusted,

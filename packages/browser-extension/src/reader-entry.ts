@@ -2,7 +2,7 @@
  * reader.js, injected on demand (spec section 7): resolves the container and start block,
  * extracts, and mounts the reader in a shadow root over (overlay) or beside (dock) the page.
  */
-import { blockWords, DEFAULT_SETTINGS, extract, extractRange, mountReader, normalizeSettings, type Block, type Doc, type ReaderHandle, type Settings, type SourceRef } from '@speed-read/core';
+import { blockWords, DEFAULT_SETTINGS, extract, extractRange, mountReader, normalizeSettings, type Block, type Doc, type MountOptions, type ReaderHandle, type Settings, type SourceRef } from '@speed-read/core';
 import { findContainer } from './adapters/index';
 import { ext, type ExtApi } from './ext';
 import { createBrowserHost } from './host';
@@ -17,11 +17,22 @@ const HOST_LAYOUT = {
   overlay: 'inset: 0 !important;',
   dock: `inset: 0 0 0 auto !important; width: ${DOCK_WIDTH_PX}px !important; box-shadow: -2px 0 16px rgba(0, 0, 0, 0.25) !important;`,
 } as const;
-const BACKDROP_STYLE = 'position: absolute; inset: 0; background: rgba(15, 23, 42, 0.6);';
-const FRAME_STYLE = {
-  overlay: 'position: absolute; inset: max(16px, 4vh) max(16px, 4vw); border-radius: 12px; overflow: hidden; box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);',
-  dock: 'position: absolute; inset: 0; overflow: hidden;',
-} as const;
+const FRAME_STYLE = 'position: absolute; inset: 0; overflow: hidden;';
+const VEIL_STYLE = 'position: absolute; inset: 0; overflow: hidden; pointer-events: none;';
+/** The clear window: its outside is painted by a spread shadow far larger than any viewport. */
+const WINDOW_STYLE = 'position: absolute; left: 50%; top: 50%; width: 0; height: 0; border-radius: 6px;';
+/** Room left around the block being read inside the clear window. */
+const WINDOW_PAD_PX = 6;
+/** Where the top of the block being read settles, as a fraction of the viewport height (spec section 13). */
+export const FOLLOW_AT = 0.1;
+/** Time constant of the eased page follow. */
+export const FOLLOW_TAU_MS = 140;
+const MAX_FRAME_MS = 50;
+/** The dock's fixed-element scan (spec section 13): depth below body and elements examined. */
+export const FIXED_SCAN_DEPTH = 6;
+export const FIXED_SCAN_LIMIT = 3000;
+/** Over these the wheel scrolls their own content instead of turning the dial. */
+const OWN_SCROLL = '.sr-exhibits, .sr-settings-backdrop, .sr-reading, .sr-expanded';
 /** Keys handled by the reader stay in it: they do not reach the page's own shortcuts. */
 const CONTAINED_EVENTS = ['keydown', 'keyup', 'keypress'];
 
@@ -47,6 +58,78 @@ export interface ReaderDeps {
   scope: object;
   /** Ignore input events a page script dispatched (default true: the reader shares the page with its scripts). */
   trustedEventsOnly?: boolean;
+  /** Animation frames (page follow, the dial's coast); the window's by default. */
+  frame?: FrameSource;
+}
+
+type FrameSource = NonNullable<MountOptions['frame']>;
+
+/** One frame of the eased page follow: the scroll that closes `delta` px over `dt` ms; 0 within a pixel. */
+export function followStep(delta: number, dt: number): number {
+  if (Math.abs(delta) < 1) return 0;
+  const eased = delta * (1 - Math.exp(-dt / FOLLOW_TAU_MS));
+  return Math.abs(eased) < 1 ? Math.sign(delta) : eased;
+}
+
+/** The first opaque background colour from `el` up to the root, as r, g, b; white when there is none. */
+export function pageBackground(el: Element | null, win: Window): [number, number, number] {
+  for (let at = el; at; at = at.parentElement) {
+    const m = win.getComputedStyle(at).backgroundColor.match(/rgba?\(([^)]+)\)/);
+    if (!m) continue;
+    const [r, g, b, a = 1] = m[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+    if (a > 0) return [r, g, b];
+  }
+  return [255, 255, 255];
+}
+
+/** Save an inline property (value and priority) for an exact restore. */
+type Saved = [el: HTMLElement, prop: string, value: string, priority: string];
+
+/**
+ * The dock (spec section 13, p3-r16): fixed elements whose box reaches into the dock's strip move
+ * out from under it: their `right` moved in by the dock width; one that spans the viewport is pinned
+ * at both sides instead, so its width is reduced by the dock width. Returns the exact restore. Elements added later are not tracked (known limit).
+ */
+export function shiftFixed(doc: Document, win: Window, skip: Element): () => void {
+  const vw = doc.documentElement.clientWidth || win.innerWidth;
+  const strip = vw - DOCK_WIDTH_PX;
+  const saved: Saved[] = [];
+  const set = (el: HTMLElement, prop: string, value: string) => {
+    saved.push([el, prop, el.style.getPropertyValue(prop), el.style.getPropertyPriority(prop)]);
+    el.style.setProperty(prop, value, 'important');
+  };
+  let examined = 0;
+  let level = [...doc.body.children];
+  scan: for (let depth = 1; depth <= FIXED_SCAN_DEPTH && level.length > 0; depth++) {
+    const next: Element[] = [];
+    for (const el of level) {
+      if (examined++ >= FIXED_SCAN_LIMIT) break scan;
+      if (el === skip) continue;
+      next.push(...el.children);
+      const style = (el as HTMLElement).style;
+      if (!style || win.getComputedStyle(el).position !== 'fixed') continue;
+      const box = el.getBoundingClientRect();
+      if ((box.width === 0 && box.height === 0) || box.right <= strip) continue;
+      const fixed = el as HTMLElement;
+      const right = `${Math.round(vw - box.right) + DOCK_WIDTH_PX}px`;
+      if (box.left <= 1 && box.right >= vw - 1) {
+        // Spanning the viewport: pinned at both sides, so its width shrinks by the dock's (padding included).
+        set(fixed, 'left', `${Math.round(box.left)}px`);
+        set(fixed, 'right', right);
+        set(fixed, 'width', 'auto');
+      } else {
+        set(fixed, 'right', right);
+        set(fixed, 'left', 'auto');
+      }
+    }
+    level = next;
+  }
+  return () => {
+    for (const [el, prop, value, priority] of saved.reverse()) {
+      if (value) el.style.setProperty(prop, value, priority);
+      else el.style.removeProperty(prop);
+    }
+  };
 }
 
 /** The blocks of `doc` from `start` on: what contains it, is it, or follows it in the page. */
@@ -89,7 +172,23 @@ type ListBlock = Extract<Block, { kind: 'list' }>;
 
 const elementOf = (node: Node): Element | null => (node.nodeType === 1 ? (node as Element) : node.parentElement);
 
-export function createReader({ api, win, scope, trustedEventsOnly = true }: ReaderDeps): Reader {
+function defaultFrames(win: Window): FrameSource {
+  if (typeof win.requestAnimationFrame === 'function') {
+    return { request: (fn) => win.requestAnimationFrame(fn), cancel: (h) => win.cancelAnimationFrame(h as number) };
+  }
+  return { request: (fn) => win.setTimeout(() => fn(win.performance.now()), 16), cancel: (h) => win.clearTimeout(h as number) };
+}
+
+/** The nearest ancestor that scrolls vertically, else the page's scrolling element. */
+function scrollerOf(el: Element, doc: Document, win: Window): Element {
+  for (let at = el.parentElement; at && at !== doc.body && at !== doc.documentElement; at = at.parentElement) {
+    const overflow = win.getComputedStyle(at).overflowY;
+    if ((overflow === 'auto' || overflow === 'scroll' || overflow === 'overlay') && at.scrollHeight > at.clientHeight) return at;
+  }
+  return doc.scrollingElement ?? doc.documentElement;
+}
+
+export function createReader({ api, win, scope, trustedEventsOnly = true, frame: frames = defaultFrames(win) }: ReaderDeps): Reader {
   const doc = win.document;
   const baseStore = extensionStore(api.storage.local);
   let current: (OpenReader & { teardown(): void; lastRef: SourceRef | null }) | null = null;
@@ -119,15 +218,18 @@ export function createReader({ api, win, scope, trustedEventsOnly = true }: Read
     return container ? { doc: extract(container), container } : null;
   }
 
-  function lockPage(mode: Settings['display']): () => void {
+  /** The dock's page margin and fixed-element shift; the overlay changes nothing on the page. */
+  function makeRoom(mode: Settings['display'], hostElement: Element): () => void {
+    if (mode !== 'dock') return () => {};
     const root = doc.documentElement.style;
-    const prop = mode === 'overlay' ? 'overflow' : 'margin-right';
-    const value = root.getPropertyValue(prop);
-    const priority = root.getPropertyPriority(prop);
-    root.setProperty(prop, mode === 'overlay' ? 'hidden' : `${DOCK_WIDTH_PX}px`, 'important');
+    const value = root.getPropertyValue('margin-right');
+    const priority = root.getPropertyPriority('margin-right');
+    const unshift = shiftFixed(doc, win, hostElement);
+    root.setProperty('margin-right', `${DOCK_WIDTH_PX}px`, 'important');
     return () => {
-      if (value) root.setProperty(prop, value, priority);
-      else root.removeProperty(prop);
+      unshift();
+      if (value) root.setProperty('margin-right', value, priority);
+      else root.removeProperty('margin-right');
     };
   }
 
@@ -135,12 +237,88 @@ export function createReader({ api, win, scope, trustedEventsOnly = true }: Read
     const style = (el as HTMLElement).style;
     if (!style) return;
     const before = [style.outline, style.outlineOffset];
-    if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'center' });
+    // The overlay has kept the block in view; the dock may not have: scroll only when it is out of view.
+    if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
     style.outline = '3px solid #f97316';
     style.outlineOffset = '2px';
     win.setTimeout(() => {
       [style.outline, style.outlineOffset] = before;
     }, CLOSE_MARK_MS);
+  }
+
+  /**
+   * The faded page (spec section 13): a veil in the page's own background colour at `1 - pageFade`
+   * with a clear window over the block being read, and the eased scroll that keeps that block's top
+   * at 10 % of the viewport height.
+   */
+  function createVeil(shadow: ShadowRoot, container: Element, pageFade: number) {
+    const veil = doc.createElement('div');
+    veil.className = 'sr-veil';
+    veil.style.cssText = VEIL_STYLE;
+    const clear = doc.createElement('div');
+    clear.className = 'sr-window';
+    clear.style.cssText = WINDOW_STYLE;
+    veil.append(clear);
+    shadow.append(veil);
+    const [r, g, b] = pageBackground(container, win);
+    const fade = (strength: number) => {
+      const alpha = Math.round((1 - strength) * 100) / 100;
+      clear.style.boxShadow = `0 0 0 200vmax rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+    fade(pageFade);
+
+    let block: Element | null = null;
+    let scroller: Element | null = null;
+    let following = false;
+    let last: number | null = null;
+    let pending: unknown = null;
+
+    function place() {
+      if (!block || !block.isConnected) return;
+      const box = block.getBoundingClientRect();
+      const vw = doc.documentElement.clientWidth || win.innerWidth;
+      const vh = win.innerHeight;
+      const clamp = (v: number, hi: number) => Math.min(hi + WINDOW_PAD_PX, Math.max(-WINDOW_PAD_PX, v));
+      const left = clamp(box.left - WINDOW_PAD_PX, vw);
+      const top = clamp(box.top - WINDOW_PAD_PX, vh);
+      const right = clamp(box.right + WINDOW_PAD_PX, vw);
+      const bottom = clamp(box.bottom + WINDOW_PAD_PX, vh);
+      Object.assign(clear.style, { left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${bottom - top}px` });
+    }
+
+    function tick(time: number) {
+      pending = null;
+      const dt = last === null ? 16 : Math.min(MAX_FRAME_MS, Math.max(0, time - last));
+      last = time;
+      if (following && block?.isConnected && scroller) {
+        const step = followStep(block.getBoundingClientRect().top - win.innerHeight * FOLLOW_AT, dt);
+        const before = scroller.scrollTop;
+        if (step !== 0) scroller.scrollTop = before + step;
+        // Settled, or the page cannot scroll further.
+        if (step === 0 || scroller.scrollTop === before) following = false;
+      }
+      place();
+      schedule();
+    }
+    function schedule() {
+      if (pending === null) pending = frames.request(tick);
+    }
+    schedule();
+
+    return {
+      fade,
+      follow(el: Element) {
+        if (el !== block) scroller = scrollerOf(el, doc, win);
+        block = el;
+        following = true;
+        place();
+      },
+      destroy() {
+        if (pending !== null) frames.cancel(pending);
+        pending = null;
+        veil.remove();
+      },
+    };
   }
 
   function mount(mode: Settings['display'], content: { doc: Doc; container: Element }, settings: Settings, at: SourceRef | null) {
@@ -151,23 +329,18 @@ export function createReader({ api, win, scope, trustedEventsOnly = true }: Read
     // Closed, so page scripts cannot reach the reader; open only in the browser-level test build.
     const shadow = hostElement.attachShadow({ mode: __SR_TEST__ ? 'open' : 'closed' });
     for (const type of CONTAINED_EVENTS) hostElement.addEventListener(type, (e) => e.stopPropagation());
-    if (mode === 'overlay') {
-      const backdrop = doc.createElement('div');
-      backdrop.className = 'sr-backdrop';
-      backdrop.style.cssText = BACKDROP_STYLE;
-      backdrop.addEventListener('click', () => finish());
-      shadow.append(backdrop);
-    }
+    const overlay = mode === 'overlay' ? createVeil(shadow, content.container, settings.pageFade) : null;
     const frame = doc.createElement('div');
     frame.className = 'sr-frame';
-    frame.style.cssText = FRAME_STYLE[mode];
+    frame.style.cssText = FRAME_STYLE;
     shadow.append(frame);
     doc.body.append(hostElement);
-    const unlock = lockPage(mode);
+    const unmakeRoom = makeRoom(mode, hostElement);
 
     const store = {
       load: baseStore.load,
       async save(next: Settings) {
+        overlay?.fade(next.pageFade);
         await baseStore.save(next);
         if (current && current.handle === handle && next.display !== mode) win.setTimeout(() => remount(next));
       },
@@ -175,10 +348,31 @@ export function createReader({ api, win, scope, trustedEventsOnly = true }: Read
     const host = createBrowserHost(hostElement, content.container, {
       onPosition: (ref) => {
         if (current) current.lastRef = ref;
+        if (ref.element) overlay?.follow(ref.element);
       },
       onClose: () => finish(),
     });
-    const handle = mountReader(frame, content.doc, { settings, store, host, trustedEventsOnly });
+    const handle = mountReader(frame, content.doc, {
+      settings,
+      store,
+      host,
+      trustedEventsOnly,
+      frame: frames,
+      layout: mode === 'overlay' ? 'floating' : 'panel',
+      hostSettings: ['pageFade'],
+    });
+    // Overlay: every wheel event on the page turns the dial, except where the reader scrolls its own content.
+    if (overlay) {
+      frame.addEventListener(
+        'wheel',
+        (e) => {
+          const target = e.target as Element | null;
+          if (!target || target.closest('.sr-stage') || target.closest(OWN_SCROLL)) return;
+          handle.wheel(e);
+        },
+        { passive: false },
+      );
+    }
     // A page that re-renders (an SPA) can remove the host element: restore the page as on close.
     const removal = new MutationObserver(() => {
       if (!hostElement.isConnected && current?.handle === handle) close();
@@ -193,9 +387,10 @@ export function createReader({ api, win, scope, trustedEventsOnly = true }: Read
       lastRef: at,
       teardown() {
         removal.disconnect();
+        overlay?.destroy();
         handle.destroy();
         hostElement.remove();
-        unlock();
+        unmakeRoom();
       },
     };
   }

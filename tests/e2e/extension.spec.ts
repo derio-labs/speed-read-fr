@@ -19,6 +19,7 @@ const STYLED = '/tests/fixtures/styled.html';
 const HOSTILE = '/tests/fixtures/hostile.html';
 const NAMED = '/tests/fixtures/named.html';
 const REMOTE = '/tests/fixtures/remote.html';
+const FIXED = '/tests/fixtures/fixed.html';
 /** Served by the test itself (a Playwright route); allowed only on page load, see the remote test. */
 const REMOTE_ORIGIN = 'https://remote.example/';
 const REMOTE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="160"><rect width="320" height="160" fill="#3d405b"/></svg>';
@@ -116,12 +117,12 @@ test('the reader opens on the main content only', async () => {
   await expect(clone).not.toContainText('Site navigation');
   await expect(clone).not.toContainText('Related reading');
   await expect(clone).not.toContainText('Footer text');
-  // Overlay: the page does not scroll while the reader is open; Esc restores it.
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflow)).toBe('hidden');
+  // Overlay: no scroll lock and no change to the page's own styles; Esc closes.
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflow)).toBe('visible');
+  expect(await page.evaluate(() => document.documentElement.getAttribute('style'))).toBeNull();
   await page.keyboard.press('Tab');
   await page.keyboard.press('Escape');
   await expect(host(page)).toHaveCount(0);
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflow)).toBe('visible');
 });
 
 test('with a selection it reads the selection', async () => {
@@ -417,10 +418,11 @@ test('the reading-view mark keeps a dark code block its own background', async (
 
 test('when the page removes the reader, the page is restored', async () => {
   const page = await openPage(ARTICLE);
+  await saveSettings({ display: 'dock' });
   await openReader(page, 'auto');
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflow)).toBe('hidden');
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).marginRight)).toBe('420px');
   await page.evaluate(() => document.querySelector('[data-speed-read-host]')!.remove());
-  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).overflow)).toBe('visible');
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).marginRight)).toBe('0px');
   // The reader can be opened again.
   await openReader(page, 'auto');
   await expect(host(page)).toHaveCount(1);
@@ -483,4 +485,116 @@ test('a remote picture shown in the reader is not fetched again', async () => {
   await expect(page.locator('[data-speed-read-host] .sr-reading')).toBeVisible();
   await page.waitForTimeout(500);
   expect(remoteRequests.slice(onLoad)).toEqual([]);
+});
+
+test.describe('floating overlay over the faded page (R17, R29)', () => {
+  const veilWindow = (page: Page) => page.locator('[data-speed-read-host] .sr-window');
+  /** The page block under the clear window: the p/li/h* whose box the window frames. */
+  const framed = (page: Page) =>
+    page.evaluate(() => {
+      const root = document.querySelector('[data-speed-read-host]')!.shadowRoot!;
+      const w = root.querySelector('.sr-window')!.getBoundingClientRect();
+      const blocks = [...document.querySelectorAll('#content :is(p, li, h1, h2, h3, pre, table, figure)')];
+      const hit = blocks.find((b) => {
+        const r = b.getBoundingClientRect();
+        return r.height > 0 && Math.abs(r.top - (w.top + 6)) <= 2 && Math.abs(r.bottom - (w.bottom - 6)) <= 2;
+      });
+      return hit ? { text: hit.textContent!.replace(/\s+/g, ' '), top: hit.getBoundingClientRect().top } : null;
+    });
+
+  test('the floating cards sit over a veil in the page colour with a clear window over the block being read, followed to 10 % of the viewport', async () => {
+    const page = await openPage(ARTICLE);
+    await openReader(page, 'auto');
+    await expect(reader(page)).toHaveAttribute('data-layout', 'floating');
+    await expect(page.locator('[data-speed-read-host] .sr-backdrop')).toHaveCount(0);
+    const shadow = await veilWindow(page).evaluate((el) => getComputedStyle(el).boxShadow);
+    expect(shadow).toContain('rgba(255, 255, 255, 0.68)');
+    // Into the second section by the wheel over the faded page (the dial), then let the page follow.
+    await page.mouse.move(60, 400);
+    for (let i = 0; i < 6; i++) {
+      await page.mouse.wheel(0, 130);
+      await page.waitForTimeout(450);
+    }
+    await page.waitForTimeout(1500);
+    const block = await framed(page);
+    expect(block, 'the window frames a block of the page').not.toBeNull();
+    const words = (await sentence(page).textContent())!.trim().split(/\s+/).slice(0, 2).join(' ');
+    if (words) expect(block!.text).toContain(words);
+    expect(Math.abs(block!.top - 800 * 0.1)).toBeLessThanOrEqual(3);
+    // Playing keeps the window on the block being read.
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(1200);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(800);
+    const playing = await framed(page);
+    expect(playing).not.toBeNull();
+  });
+
+  test('a wheel over the page turns the dial and never scrolls the page itself; over the exhibit pane it does not turn the dial', async () => {
+    const page = await openPage(ARTICLE);
+    await openReader(page, 'auto');
+    await page.mouse.move(60, 400);
+    // At the start a turn back moves nothing, so nothing may scroll.
+    await page.mouse.wheel(0, -400);
+    await page.waitForTimeout(400);
+    expect(await page.evaluate(() => scrollY)).toBe(0);
+    await expect(page.locator('[data-speed-read-host] .sr-display')).toHaveAttribute('data-kind', 'ready');
+    const pane = (await page.locator('[data-speed-read-host] .sr-exhibits').boundingBox())!;
+    await page.mouse.move(pane.x + pane.width / 2, pane.y + pane.height / 2);
+    await page.mouse.wheel(0, 130);
+    await page.waitForTimeout(300);
+    await expect(page.locator('[data-speed-read-host] .sr-display')).toHaveAttribute('data-kind', 'ready');
+    await page.mouse.move(60, 400);
+    await page.mouse.wheel(0, 130);
+    await expect(page.locator('[data-speed-read-host] .sr-display')).not.toHaveAttribute('data-kind', 'ready');
+  });
+
+  test('page fade is a setting of the browser reader: it changes the veil and persists', async () => {
+    const page = await openPage(ARTICLE);
+    await openReader(page, 'auto');
+    await page.locator('[data-speed-read-host] .sr-settings-button').click();
+    const control = page.locator('[data-speed-read-host] .sr-settings [name="pageFade"]');
+    await expect(control).toHaveValue('32');
+    await control.fill('60');
+    await expect.poll(() => veilWindow(page).evaluate((el) => getComputedStyle(el).boxShadow)).toContain('0.4)');
+    await expect.poll(() => worker.evaluate(async () => (await chrome.storage.local.get('settings')).settings?.pageFade)).toBe(0.6);
+  });
+
+  test('closing removes the veil and leaves the page at the block', async () => {
+    const page = await openPage(ARTICLE);
+    await openReader(page, 'auto');
+    await page.mouse.move(60, 400);
+    for (let i = 0; i < 8; i++) {
+      await page.mouse.wheel(0, 130);
+      await page.waitForTimeout(450);
+    }
+    await page.waitForTimeout(1200);
+    const before = await framed(page);
+    expect(before).not.toBeNull();
+    const scrolled = await page.evaluate(() => scrollY);
+    expect(scrolled).toBeGreaterThan(0);
+    await page.keyboard.press('Escape');
+    await expect(host(page)).toHaveCount(0);
+    expect(Math.abs((await page.evaluate(() => scrollY)) - scrolled)).toBeLessThanOrEqual(1);
+  });
+});
+
+test('the dock moves a header fixed across the top and a button fixed at the right edge out from under it, and restores them', async () => {
+  const page = await openPage(FIXED);
+  const styles = () => page.evaluate(() => ['topbar', 'help'].map((id) => (document.getElementById(id) as HTMLElement).style.cssText));
+  const before = await styles();
+  await saveSettings({ display: 'dock' });
+  await openReader(page, 'auto');
+  const bar = (await page.locator('#topbar').boundingBox())!;
+  const help = (await page.locator('#help').boundingBox())!;
+  expect(bar.x).toBe(0);
+  expect(bar.x + bar.width).toBeLessThanOrEqual(1280 - 420 + 1);
+  expect(help.x + help.width).toBeLessThanOrEqual(1280 - 420);
+  expect(help.x + help.width).toBeGreaterThan(1280 - 420 - 40);
+  await reader(page).focus();
+  await page.keyboard.press('Escape');
+  await expect(host(page)).toHaveCount(0);
+  expect(await styles()).toEqual(before);
+  const after = (await page.locator('#help').boundingBox())!;
+  expect(after.x + after.width).toBeGreaterThan(1280 - 30);
 });

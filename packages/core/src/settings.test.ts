@@ -83,3 +83,13 @@ describe('memoryStore', () => {
     expect((await store.load()).wpm).toBe(400);
   });
 });
+
+describe('pageFade (R29)', () => {
+  it('defaults to 0.32 and is clamped to 0.10-0.80', () => {
+    expect(DEFAULT_SETTINGS.pageFade).toBe(0.32);
+    expect(normalizeSettings({ pageFade: 0.01 }).pageFade).toBe(0.1);
+    expect(normalizeSettings({ pageFade: 0.95 }).pageFade).toBe(0.8);
+    expect(normalizeSettings({ pageFade: 0.5 }).pageFade).toBe(0.5);
+    expect(normalizeSettings({ pageFade: 'x' as never }).pageFade).toBe(0.32);
+  });
+});

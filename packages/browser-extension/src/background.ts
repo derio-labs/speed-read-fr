@@ -27,12 +27,15 @@ function open(tabId: number | undefined, mode: ReadMode): void {
 }
 
 /**
- * Firefox accepts `permissions.request` only while the user-input handler runs, so it is the
- * handler's first statement with nothing awaited before it. Granted or not, the reader opens:
- * `activeTab` covers the current tab.
+ * Firefox only (spec section 13, p3-r17): Firefox accepts `permissions.request` only while the
+ * user-input handler runs, so it is the handler's first statement with nothing awaited before it.
+ * Chrome is never asked: the toolbar press and the command already grant the tab through
+ * `activeTab`, and a request there would prompt on every press. Granted or not, the reader opens.
  */
+const IS_FIREFOX = api.runtime.getURL('').startsWith('moz-extension:');
+
 function requestHostAccess(): void {
-  api.permissions.request({ origins: ['<all_urls>'] }).catch(() => false);
+  if (IS_FIREFOX) api.permissions.request({ origins: ['<all_urls>'] }).catch(() => false);
 }
 
 async function activeTabId(tab?: Tab): Promise<number | undefined> {

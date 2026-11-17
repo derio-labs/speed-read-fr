@@ -34,6 +34,7 @@ export interface ExtApi {
     onInstalled: ExtEvent<() => void>;
     onMessage: ExtEvent<(message: unknown, sender: MessageSender) => unknown>;
     sendMessage(message: unknown): Promise<unknown>;
+    getURL(path: string): string;
   };
   scripting: { executeScript(options: { target: { tabId: number }; files: string[] }): Promise<unknown> };
   storage: { local: { get(key: string): Promise<Record<string, unknown>>; set(items: Record<string, unknown>): Promise<void> } };

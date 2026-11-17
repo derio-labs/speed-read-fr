@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A page with fixed elements</title>
+    <style>
+      body { margin: 0; font: 17px/1.6 Georgia, serif; color: #1f2328; background: #ffffff; }
+      #topbar { position: fixed; top: 0; left: 0; right: 0; height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: #24292f; color: #fff; font: 600 15px/1 system-ui, sans-serif; z-index: 10; }
+      #topbar nav { display: flex; gap: 16px; font-weight: 400; }
+      #help { position: fixed; right: 20px; bottom: 20px; padding: 10px 16px; border: 0; border-radius: 999px; background: #0969da; color: #fff; font: 600 14px/1 system-ui, sans-serif; z-index: 10; }
+      main { max-width: 680px; margin: 0 auto; padding: 84px 24px 120px; }
+      h1 { font-size: 2rem; line-height: 1.2; }
+    </style>
+  </head>
+  <body>
+    <!-- Our own test page: a header fixed across the top and a button fixed at the right edge, for the dock (p3-r16). -->
+    <header id="topbar"><span>Field notes</span><nav><span>Archive</span><span>About</span><span>Subscribe</span></nav></header>
+    <main id="content">
+      <h1>Notes on reading in the dock</h1>
+      <p>The docked reader sits beside the page in a panel 420 pixels wide. The page keeps working next to it: links can be followed and the page scrolls as usual.</p>
+      <p>Elements fixed to the right edge of the window would otherwise end up under the panel. The bar across the top would lose its right end, and the help button would be hidden.</p>
+      <h2>What moves</h2>
+      <p>When the dock opens, fixed elements whose box reaches into the panel's strip move out from under it. A bar that spans the window becomes narrower; a button at the right edge moves left by the panel's width.</p>
+      <p>When the dock closes, their own inline styles come back exactly as they were, so the page looks as it did before.</p>
+      <h2>What does not</h2>
+      <p>Elements the page adds after the dock opens are not moved. That is a known limit and the README says so.</p>
+    </main>
+    <button id="help" type="button">Help</button>
+  </body>
+</html>

@@ -21,6 +21,8 @@ export interface ReaderContext {
   readonly scheduler: Scheduler;
   /** Animation frames (the dial's coast); tests fake them. */
   readonly frame: FrameSource;
+  /** Settings only this host uses, shown in the panel when declared (`MountOptions.hostSettings`). */
+  readonly hostSettings: readonly HostSetting[];
   /** Whether an input event may act: with `trustedEventsOnly`, only events from the user do. */
   accepts(event: Event): boolean;
 }
@@ -36,3 +38,6 @@ export interface FrameSource {
   request(fn: (time: number) => void): unknown;
   cancel(handle: unknown): void;
 }
+
+/** A setting only some hosts use: `pageFade`, the browser overlay's page strength (R29). */
+export type HostSetting = 'pageFade';
