@@ -73,7 +73,7 @@ journal:
     review_scope: in
     state: fixed
     title: Outline rail hidden in the wide layout (found by e2e)
-    body: The container-query overrides preceded the base `.sr-outline { display: none }` rule, so the rail never showed at 900 px and up. Moved the wide-layout block to the end of the stylesheet.
+    body: "The container-query overrides preceded the base .sr-outline display-none rule, so the rail never showed at 900 px and up. Moved the wide-layout block to the end of the stylesheet."
   - kind: finding
     id: p2-v2-visual-fixes
     phase: 2
