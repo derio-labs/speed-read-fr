@@ -543,3 +543,6 @@ run_kind: none
 
 <!-- fr:journal kind=decision scope=spec id=d10-floating-overlay-dial created=2026-11-17T18:22:07+00:00 decided_by=operator -->
 ### d10-floating-overlay-dial · decision · Operator, after a working mockup: floating cards over the faded scrolling page, a position dial with acceleration in both directions, exhibit card pushes the stage down in narrow windows
+
+<!-- fr:journal kind=decision scope=spec id=d11-fix-out-of-scope-p3 created=2026-11-17T18:22:21+00:00 -->
+### d11-fix-out-of-scope-p3 · decision · Operator asked in the session: fix review findings p3-r16, p3-r17 and p3-r18 in this run (answered 'Fix all three' in the same question call as d10)
