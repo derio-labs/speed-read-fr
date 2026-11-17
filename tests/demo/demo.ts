@@ -32,7 +32,9 @@ function open() {
   const content = document.getElementById('content') as HTMLElement;
   container.hidden = false;
   const host = createCloneHost(content, { wrapperClass: 'doc', onClose: close });
-  handle = mountReader(container, extract(content), { settings: DEFAULT_SETTINGS, store, host });
+  // ?layout=floating mounts the floating cards (the browser overlay's layout) instead of the panel.
+  const layout = new URLSearchParams(location.search).get('layout') === 'floating' ? 'floating' : 'panel';
+  handle = mountReader(container, extract(content), { settings: DEFAULT_SETTINGS, store, host, layout });
   (window as unknown as { __reader?: ReaderHandle }).__reader = handle;
 }
 

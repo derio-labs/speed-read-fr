@@ -1,5 +1,5 @@
 import type { Doc } from '../model';
-import type { Player } from '../player';
+import type { Player, Scheduler } from '../player';
 import type { Settings } from '../settings';
 import type { Timeline } from '../timeline';
 import type { Build } from './dom';
@@ -17,6 +17,10 @@ export interface ReaderContext {
   readonly h: Build;
   /** The focus root of the reader. */
   readonly reader: HTMLElement;
+  /** The player's timers and clock. */
+  readonly scheduler: Scheduler;
+  /** Animation frames (the dial's coast); tests fake them. */
+  readonly frame: FrameSource;
   /** Whether an input event may act: with `trustedEventsOnly`, only events from the user do. */
   accepts(event: Event): boolean;
 }
@@ -25,4 +29,10 @@ export interface ReaderContext {
 export interface Zone {
   refresh?(): void;
   destroy(): void;
+}
+
+/** A frame callback source: the window's animation frames by default. */
+export interface FrameSource {
+  request(fn: (time: number) => void): unknown;
+  cancel(handle: unknown): void;
 }

@@ -58,6 +58,12 @@ export interface Player {
   close(): void;
   revealedExhibits(sectionId: string): TimelineExhibit[];
   /**
+   * The position dial: move by `steps` whole steps (negative is back), showing each landing without
+   * holding on stops or chapter cards. Playback pauses; 700 ms after the last movement it resumes
+   * with a fresh ramp if it was playing and the position is on a timed step. Returns the steps moved.
+   */
+  scrub(steps: number): number;
+  /**
    * Swap in a timeline rebuilt with new settings, keeping the position (the same source when it
    * still exists, else the first step at or after the old block), the play state, the reading
    * session and what has been revealed.
@@ -66,6 +72,8 @@ export interface Player {
 }
 
 const MIN_WPM = 100;
+/** Quiet time after the last dial movement before playback resumes (spec section 13). */
+export const SCRUB_RESUME_MS = 700;
 const MAX_WPM = 1000;
 
 const waitsForReader = (step: Step) => step.kind === 'stop' || step.kind === 'chapter';
@@ -108,6 +116,9 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
   let rampSlot = 0;
   /** True when the current stop was reached by playback, so navigation keeps playing. */
   let stopFromPlayback = false;
+  /** Pending resume after scrubbing, and whether playback was on when the scrub began. */
+  let resumeTimer: unknown = null;
+  let scrubWasPlaying = false;
 
   // Reading session: from the first play after idle to the end.
   let sessionActive = false;
@@ -142,6 +153,29 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
     generation++;
     if (timer !== null) scheduler.clearTimeout(timer);
     timer = null;
+    if (resumeTimer !== null) scheduler.clearTimeout(resumeTimer);
+    resumeTimer = null;
+  }
+
+  const isTimed = (step: Step | undefined) => !!step && !waitsForReader(step) && stepDuration(step, settings) !== null;
+
+  function scrub(delta: number): number {
+    if (state === 'closed' || state === 'reading' || steps.length === 0 || !Number.isFinite(delta)) return 0;
+    const whole = Math.trunc(delta);
+    if (whole === 0 || (index >= steps.length && whole > 0)) return 0;
+    const from = Math.min(index, steps.length);
+    const to = Math.max(0, Math.min(steps.length - 1, from + whole));
+    if (to === from) return 0;
+    const wasPlaying = resumeTimer !== null ? scrubWasPlaying : state === 'playing';
+    show(to, false);
+    // A listener may have closed the player.
+    if ((state as PlayerState) === 'closed') return 0;
+    scrubWasPlaying = wasPlaying;
+    resumeTimer = scheduler.setTimeout(() => {
+      resumeTimer = null;
+      if (scrubWasPlaying && isTimed(steps[index]) && (state === 'paused' || state === 'stopped')) play(index);
+    }, SCRUB_RESUME_MS);
+    return to - from;
   }
 
   function markPassed(at: number) {
@@ -366,6 +400,7 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
       cancelTimer();
       setState('closed');
     },
+    scrub,
     revealedExhibits(sectionId) {
       const section = sections.find((s) => s.id === sectionId);
       return section ? section.exhibits.filter((e) => revealed.has(exhibitKey(e))) : [];

@@ -211,6 +211,19 @@ export const READER_CSS = `
 .sr-sentence > span { opacity: .38; }
 .sr-sentence > .sr-current { opacity: 1; font-weight: 600; }
 
+/* Position dial: a tick strip that slides as the position moves, a centre needle, the multiplier. */
+.sr-dial-row { display: flex; align-items: center; gap: 12px; width: min(100%, 560px); margin: 14px auto 0; flex-shrink: 0; }
+.sr-dial {
+  position: relative; flex: 1 1 auto; height: 34px; border-radius: 8px; overflow: hidden; cursor: ew-resize; touch-action: none;
+  background-color: var(--sr-surface-2);
+  background-image: repeating-linear-gradient(90deg, var(--sr-faint) 0 1px, transparent 1px 12px), repeating-linear-gradient(90deg, var(--sr-text) 0 2px, transparent 2px 60px);
+  background-size: 12px 9px, 60px 16px; background-repeat: repeat-x;
+  background-position: var(--sr-dial-offset, 0px) 100%, var(--sr-dial-offset, 0px) 100%;
+}
+.sr-dial::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, var(--sr-surface-2), transparent 22%, transparent 78%, var(--sr-surface-2)); }
+.sr-dial-needle { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--sr-progress); pointer-events: none; }
+.sr-dial-gain { min-width: 3.4em; text-align: right; font-size: 13px; font-weight: 650; color: var(--sr-progress); font-variant-numeric: tabular-nums; }
+
 /* Cards that replace the chunk. */
 .sr-card { width: min(100%, 560px); padding: 26px 28px; border: 1px solid var(--sr-border); border-radius: 14px; background: var(--sr-surface); box-shadow: var(--sr-shadow); }
 .sr-card-eyebrow { font-size: 11px; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; color: var(--sr-accent); }

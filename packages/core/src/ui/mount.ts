@@ -2,7 +2,7 @@ import type { Doc } from '../model';
 import { createPlayer, type Player, type Scheduler } from '../player';
 import { normalizeSettings, type Settings, type SettingsStore } from '../settings';
 import { buildTimeline, type Timeline } from '../timeline';
-import type { ReaderContext, Zone } from './context';
+import type { FrameSource, ReaderContext, Zone } from './context';
 import { builder, icon, ICONS } from './dom';
 import type { Host } from './host';
 import { createExhibits } from './exhibits';
@@ -24,6 +24,13 @@ export interface MountOptions {
    * reader shares a page with untrusted scripts (the browser extension) sets it; default false.
    */
   trustedEventsOnly?: boolean;
+  /**
+   * `panel` (default): one opaque reader with its zones side by side. `floating`: the outline, the
+   * stage and the exhibits are separate cards over a transparent root (spec section 13).
+   */
+  layout?: 'panel' | 'floating';
+  /** Animation frames for the position dial's coast; the window's by default. */
+  frame?: FrameSource;
 }
 
 export interface ReaderHandle {
@@ -32,6 +39,8 @@ export interface ReaderHandle {
   ready: Promise<void>;
   /** Apply settings that changed outside the reader (a host's configuration); they are not saved back. */
   applySettings(settings: Settings): void;
+  /** Turn the position dial by a wheel event from outside the stage (the browser overlay's page). */
+  wheel(event: WheelEvent): void;
   destroy(): void;
 }
 
@@ -72,6 +81,13 @@ const defaultScheduler = (win: Window): Scheduler => ({
   now: () => win.performance?.now() ?? Date.now(),
 });
 
+function defaultFrame(win: Window): FrameSource {
+  if (typeof win.requestAnimationFrame === 'function') {
+    return { request: (fn) => win.requestAnimationFrame(fn), cancel: (handle) => win.cancelAnimationFrame(handle as number) };
+  }
+  return { request: (fn) => win.setTimeout(() => fn(win.performance?.now() ?? Date.now()), 16), cancel: (handle) => win.clearTimeout(handle as number) };
+}
+
 const sameExceptSpeed = (a: Settings, b: Settings) => JSON.stringify({ ...a, wpm: 0 }) === JSON.stringify({ ...b, wpm: 0 });
 
 /** Build the reader inside `root` (spec section 6). */
@@ -82,7 +98,8 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   const h = builder(ownerDocument);
   let settings = normalizeSettings(options.settings);
   let timeline: Timeline = buildTimeline(doc, settings);
-  const player = createPlayer(timeline, settings, options.scheduler ?? defaultScheduler(win));
+  const scheduler = options.scheduler ?? defaultScheduler(win);
+  const player = createPlayer(timeline, settings, scheduler);
 
   const reader = h('div', { class: 'sr-reader', tabindex: 0, 'aria-label': 'Speed reader', 'data-state': player.state });
   const layout = h('div', { class: 'sr-layout' });
@@ -113,6 +130,8 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       return settings;
     },
     document: ownerDocument,
+    scheduler,
+    frame: options.frame ?? defaultFrame(win),
     h,
     reader,
     accepts: (event) => !options.trustedEventsOnly || event.isTrusted,
@@ -120,8 +139,9 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   const outlineZone = createOutline(ctx, { outline, bar: outlineBar, layout });
   const exhibitZone = createExhibits(ctx, { pane: exhibits, main });
   const panel = createSettingsPanel(ctx, (next) => applySettings(next));
+  const stageZone = createStage(ctx, { stage, status, overallFill: overall.firstElementChild as HTMLElement });
   const zones: Zone[] = [
-    createStage(ctx, { stage, status, overallFill: overall.firstElementChild as HTMLElement }),
+    stageZone,
     outlineZone,
     exhibitZone,
     createReading(ctx, { reading, layout }),
@@ -187,6 +207,9 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     ready,
     applySettings(next) {
       if (!destroyed) applySettings(next, false);
+    },
+    wheel(event) {
+      if (!destroyed) stageZone.wheel(event);
     },
     destroy() {
       if (destroyed) return;

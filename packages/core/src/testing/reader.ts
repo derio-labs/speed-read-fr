@@ -25,12 +25,15 @@ export interface Harness {
   key(key: string, init?: KeyboardEventInit, target?: Element): KeyboardEvent;
   /** Let the store's load() settle. */
   settle(): Promise<void>;
+  /** Advance the clock by `ms` in 16 ms frames, running queued frame callbacks (the dial's coast). */
+  runFrames(ms: number): void;
 }
 
 export interface HarnessOptions {
   settings?: Partial<Settings>;
   saved?: Partial<Settings>;
   trustedEventsOnly?: boolean;
+  layout?: 'panel' | 'floating';
 }
 
 export function mountHarness(markup: string, opts: HarnessOptions = {}): Harness {
@@ -60,12 +63,24 @@ export function mountHarness(markup: string, opts: HarnessOptions = {}): Harness
   const base = memoryStore(opts.saved ?? {});
   const store = { load: vi.fn(() => base.load()), save: vi.fn((s: Settings) => base.save(s)) } as unknown as Harness['store'];
   const clock = fakeClock();
+  let frames: ((time: number) => void)[] = [];
+  const frame = {
+    request(fn: (time: number) => void) {
+      frames.push(fn);
+      return fn;
+    },
+    cancel(handle: unknown) {
+      frames = frames.filter((f) => f !== handle);
+    },
+  };
   const handle = mountReader(mount, doc, {
     settings: { ...DEFAULT_SETTINGS, ...opts.settings },
     store,
     host,
     scheduler: clock,
     trustedEventsOnly: opts.trustedEventsOnly,
+    layout: opts.layout,
+    frame,
   });
   const reader = mount.querySelector<HTMLElement>('.sr-reader')!;
   return {
@@ -88,6 +103,14 @@ export function mountHarness(markup: string, opts: HarnessOptions = {}): Harness
     },
     async settle() {
       await handle.ready;
+    },
+    runFrames(ms) {
+      for (let left = ms; left > 0; left -= 16) {
+        clock.advance(Math.min(16, left));
+        const due = frames;
+        frames = [];
+        for (const fn of due) fn(clock.now());
+      }
     },
   };
 }

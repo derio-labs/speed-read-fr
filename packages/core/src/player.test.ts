@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Doc } from './model';
-import { rampFactor } from './pacing';
+import { rampFactor, stepDuration } from './pacing';
 import { createPlayer, type PlayerEvents, type StepEvent } from './player';
 import { DEFAULT_SETTINGS, type Settings } from './settings';
 import { fakeClock } from './testing/clock';
@@ -604,5 +604,103 @@ describe('review p1-r7: skipped exhibits are revealed by position passed', () =>
     r.player.toggle();
     r.clock.advance(600000);
     expect(r.player.revealedExhibits('a').map((e) => e.block.kind)).toEqual(['code']);
+  });
+});
+
+describe('player: scrub (the position dial, spec section 13)', () => {
+  const d = () =>
+    doc(
+      section('a', { level: 1, text: 'A' }, prose('aa bb cc'), exhibit('code'), prose('dd ee')),
+      section('b', { level: 2, text: 'B' }, prose('ff gg hh ii')),
+    );
+  const kinds = (r: ReturnType<typeof setup>) => r.timeline.steps.map((s) => s.kind);
+
+  it('moves by whole steps across stops and chapter cards without holding, both ways', () => {
+    const r = setup(d());
+    const steps = r.timeline.steps;
+    expect(kinds(r)[0]).toBe('chapter');
+    expect(r.player.scrub(2)).toBe(2);
+    expect(r.player.index).toBe(2);
+    const stop = kinds(r).indexOf('stop');
+    const chapterB = kinds(r).lastIndexOf('chapter');
+    // Over the stop and the second chapter card in one movement.
+    expect(r.player.scrub(chapterB + 1 - 2)).toBe(chapterB + 1 - 2);
+    expect(r.player.index).toBe(chapterB + 1);
+    expect(stop).toBeLessThan(chapterB);
+    // Landing on a stop shows it; the next movement goes straight on.
+    r.player.scrub(stop - r.player.index);
+    expect(r.player.index).toBe(stop);
+    expect(r.steps.at(-1)!.step.kind).toBe('stop');
+    r.player.scrub(1);
+    expect(r.player.index).toBe(stop + 1);
+    r.player.scrub(-(stop + 1));
+    expect(r.player.index).toBe(0);
+    expect(steps[0].kind).toBe('chapter');
+  });
+
+  it('returns the steps actually moved: fewer at either end, 0 past them', () => {
+    const r = setup(d());
+    const last = r.timeline.steps.length - 1;
+    expect(r.player.scrub(-3)).toBe(0);
+    expect(r.player.scrub(last + 10)).toBe(last);
+    expect(r.player.index).toBe(last);
+    expect(r.player.scrub(1)).toBe(0);
+    expect(r.player.scrub(-2)).toBe(-2);
+  });
+
+  it('pauses playback and resumes 700 ms after the last movement with a fresh ramp', () => {
+    const r = setup(d());
+    r.player.toggle(); // chapter card: stopped
+    r.player.continue();
+    expect(r.player.state).toBe('playing');
+    r.player.scrub(1);
+    expect(r.player.state).toBe('paused');
+    r.clock.advance(400);
+    r.player.scrub(1);
+    r.clock.advance(699);
+    expect(r.player.state).toBe('paused');
+    const at = r.player.index;
+    const before = r.steps.length;
+    r.clock.advance(1);
+    expect(r.player.state).toBe('playing');
+    expect(r.player.index).toBe(at);
+    const resumed = r.steps[before];
+    expect(resumed.index).toBe(at);
+    expect(resumed.durationMs).toBeCloseTo(stepDuration(r.timeline.steps[at], one)! / rampFactor(0));
+  });
+
+  it('does not resume when it was not playing, or when the position is not on a timed step', () => {
+    const r = setup(d());
+    r.player.scrub(2);
+    r.clock.advance(2000);
+    expect(r.player.state).toBe('paused');
+
+    const p = setup(d());
+    p.player.toggle();
+    p.player.continue();
+    const stop = kinds(p).indexOf('stop');
+    p.player.scrub(stop - p.player.index);
+    p.clock.advance(2000);
+    expect(p.player.state).toBe('stopped');
+    expect(p.player.index).toBe(stop);
+  });
+
+  it('a command during the wait cancels the resume; close and reading ignore scrubs', () => {
+    const r = setup(d());
+    r.player.toggle();
+    r.player.continue();
+    r.player.scrub(1);
+    r.player.toggle(); // play at once
+    const playingAt = r.steps.length;
+    r.player.toggle(); // pause again
+    r.clock.advance(2000);
+    expect(r.player.state).toBe('paused');
+    expect(r.steps.length).toBe(playingAt);
+    r.player.toggleReading();
+    expect(r.player.scrub(1)).toBe(0);
+    r.player.toggleReading();
+    r.player.close();
+    expect(r.player.scrub(1)).toBe(0);
+    expect(r.clock.pending()).toBe(0);
   });
 });

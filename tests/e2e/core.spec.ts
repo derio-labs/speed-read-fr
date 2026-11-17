@@ -279,3 +279,63 @@ for (const colorScheme of ['light', 'dark'] as const) {
     expect(colours.row).not.toBe(colours.text);
   });
 }
+
+test.describe('position dial (R27)', () => {
+  const index = (page: Page) => page.evaluate(() => (window as unknown as { __reader: { player: { index: number } } }).__reader.player.index);
+
+  /** Move the mouse over the stage card's chunk display (the wheel acts there). */
+  async function overStage(page: Page) {
+    const box = (await page.locator('.sr-display').boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  }
+
+  test('real wheel input moves the position forwards and backwards', async ({ page }) => {
+    await openDemo(page);
+    await overStage(page);
+    await page.mouse.wheel(0, 130);
+    await expect.poll(() => index(page)).toBe(1);
+    await page.waitForTimeout(500);
+    await page.mouse.wheel(0, 130);
+    await expect.poll(() => index(page)).toBe(2);
+    await page.waitForTimeout(500);
+    await page.mouse.wheel(0, -130);
+    await expect.poll(() => index(page)).toBe(1);
+    await expect(page.locator('.sr-dial')).toHaveAttribute('role', 'slider');
+  });
+
+  test('a fast burst travels further per notch than slow notches', async ({ page }) => {
+    await openDemo(page);
+    await overStage(page);
+    for (let i = 0; i < 4; i++) {
+      await page.mouse.wheel(0, 100);
+      await page.waitForTimeout(450);
+    }
+    await page.waitForTimeout(800);
+    const slow = await index(page);
+    await page.reload();
+    await expect(page.locator('.sr-reader')).toBeFocused();
+    await overStage(page);
+    for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 100);
+    await page.waitForTimeout(1000);
+    const fast = await index(page);
+    expect(slow).toBeGreaterThanOrEqual(3);
+    expect(fast).toBeGreaterThan(slow * 2);
+  });
+
+  test('dragging the strip left moves forward, and playback resumes after scrubbing', async ({ page }) => {
+    await openDemo(page, { wpm: 200 });
+    await page.keyboard.press('Space'); // chapter card
+    await page.keyboard.press('Space'); // playing
+    await expect(state(page)).toHaveText('Playing');
+    const strip = (await page.locator('.sr-dial').boundingBox())!;
+    const y = strip.y + strip.height / 2;
+    const before = await index(page);
+    await page.mouse.move(strip.x + strip.width * 0.7, y);
+    await page.mouse.down();
+    await page.mouse.move(strip.x + strip.width * 0.7 - 80, y, { steps: 4 });
+    await expect(state(page)).toHaveText('Paused');
+    await page.mouse.up();
+    expect(await index(page)).toBeGreaterThan(before);
+    await expect(state(page)).toHaveText('Playing', { timeout: 3000 });
+  });
+});

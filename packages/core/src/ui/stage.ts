@@ -5,6 +5,7 @@ import { joinTokens } from '../text/chunks';
 import { orp } from '../text/orp';
 import type { Step } from '../timeline';
 import type { ReaderContext, Zone } from './context';
+import { createDialStrip, type DialStrip } from './dial-strip';
 import { replaceChildren, type Child } from './dom';
 import { EXHIBIT_LABELS, formatDuration, plural } from './format';
 
@@ -38,11 +39,17 @@ export interface StageElements {
 }
 
 /** The stage: the current chunk on the pivot axis, the faded sentence, cards, and the status line. */
-export function createStage(ctx: ReaderContext, { stage, status, overallFill }: StageElements): Zone {
+export interface StageZone extends Zone {
+  /** The position dial's wheel input (for a host that routes page wheel events to it). */
+  wheel: DialStrip['wheel'];
+}
+
+export function createStage(ctx: ReaderContext, { stage, status, overallFill }: StageElements): StageZone {
   const { h, player } = ctx;
   const display = h('div', { class: 'sr-display', 'aria-live': 'off' });
   const sentence = h('div', { class: 'sr-sentence', 'aria-hidden': 'true' });
   stage.append(display, sentence);
+  const dial = createDialStrip(ctx, stage);
 
   const kbd = (key: string) => h('span', { class: 'sr-kbd' }, key);
   const eyebrow = (text: string) => h('div', { class: 'sr-card-eyebrow' }, text);
@@ -283,12 +290,14 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
   resize?.observe(stage);
 
   return {
+    wheel: dial.wheel,
     refresh() {
       if (!shown) showReady();
       renderStatus();
     },
     destroy() {
       for (const o of off) o();
+      dial.destroy();
       resize?.disconnect();
     },
   };
