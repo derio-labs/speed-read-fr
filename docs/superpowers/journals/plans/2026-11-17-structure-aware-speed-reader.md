@@ -457,3 +457,8 @@ content.ts is one install function with a listener table; nothing to remove.
 ### no-refactor-p3-t6 · discovery · no-refactor-because P3.T6 (phase 3)
 
 background.ts routes every entry point through openReader plus two tiny helpers; the refactor step changed nothing.
+
+<!-- fr:journal kind=decision scope=plan id=p3-frames-known-limit created=2026-11-17T17:19:09+00:00 phase=3 decided_by=agent -->
+### p3-frames-known-limit · decision · Frames are a known limit of the browser reader (phase 3 review r11) (phase 3)
+
+The reader is injected into, and reads, the top frame only. A context-menu item used inside an iframe (info.frameId not 0) opens the reader on the top page's main content (mode 'main'), since neither the frame's selection nor the remembered target is visible to the top-frame reader. Alt-hover inside a frame is not handled: the content script runs per frame but the reader opens in the top frame. The remembered context-menu and hover targets are handed out once and only while still in the page. The README lists frames under known limits.
