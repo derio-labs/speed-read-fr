@@ -37,9 +37,12 @@ rows:
       items and nested items indented; a list of short items is shown whole.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R5
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/timeline.test.ts
+      - speed-read-fr:packages/core/src/ui/stage.test.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
   - id: non-prose-never-streamed
     capability: reader-core
     acceptance: 'Code, tables and display math are never streamed: per type the reader
