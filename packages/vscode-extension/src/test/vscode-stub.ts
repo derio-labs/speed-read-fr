@@ -29,6 +29,11 @@ export class Uri {
   static file(p: string) {
     return new Uri('file', p);
   }
+  static parse(value: string) {
+    const m = /^([a-z][a-z0-9+.-]*):\/\/(.*)$/i.exec(value);
+    if (!m) throw new Error(`stub Uri.parse: ${value}`);
+    return new Uri(m[1], m[2]);
+  }
   static joinPath(base: Uri, ...parts: string[]) {
     return new Uri(base.scheme, [base.path.replace(/\/$/, ''), ...parts].join('/'));
   }
@@ -166,6 +171,11 @@ function createState() {
     visibleTextEditors: [] as StubEditor[],
     activeTextEditor: undefined as StubEditor | undefined,
     workspaceFolders: [] as { uri: Uri; name: string; index: number }[],
+    textDocuments: [] as StubDocument[],
+    /** Documents `openTextDocument` can open that are not open yet. */
+    files: new Map<string, StubDocument>(),
+    activeEditorChanged: new EventEmitter<StubEditor | undefined>(),
+    infoMessages: [] as string[],
     focusCalls: 0,
   };
 }
@@ -227,11 +237,25 @@ export const window = {
   showTextDocument() {
     state.focusCalls++;
   },
+  onDidChangeActiveTextEditor: (listener: Listener<StubEditor | undefined>) => state.activeEditorChanged.event(listener),
+  async showInformationMessage(message: string) {
+    state.infoMessages.push(message);
+    return undefined;
+  },
 };
 
 export const workspace = {
   get workspaceFolders() {
     return state.workspaceFolders;
+  },
+  get textDocuments() {
+    return state.textDocuments.filter((d) => !d.isClosed);
+  },
+  async openTextDocument(uri: Uri) {
+    const doc = state.textDocuments.find((d) => d.uri.toString() === uri.toString()) ?? state.files.get(uri.toString());
+    if (!doc) throw new Error(`cannot open ${uri.toString()}`);
+    if (!state.textDocuments.includes(doc)) state.textDocuments.push(doc);
+    return doc;
   },
   getConfiguration(section?: string) {
     const prefix = section ? `${section}.` : '';
@@ -277,8 +301,17 @@ export const __stub = {
   get state() {
     return state;
   },
-  document(text: string, { path = '/work/notes/doc.md', languageId = 'markdown' } = {}): StubDocument {
-    return { uri: Uri.file(path), languageId, isClosed: false, lineCount: text.split('\n').length, getText: () => text };
+  /** An open text document (in `workspace.textDocuments`), or with `open: false` one only `openTextDocument` finds. */
+  document(text: string, { path = '/work/notes/doc.md', languageId = 'markdown', open = true } = {}): StubDocument {
+    const doc = { uri: Uri.file(path), languageId, isClosed: false, lineCount: text.split('\n').length, getText: () => text };
+    if (open) state.textDocuments.push(doc);
+    else state.files.set(doc.uri.toString(), doc);
+    return doc;
+  },
+  /** Focus moves to the webview: VS Code then reports no active text editor. */
+  focusWebview() {
+    state.activeTextEditor = undefined;
+    state.activeEditorChanged.fire(undefined);
   },
   /** An editor showing `doc`, visible and (by default) active, with the cursor at `line`. */
   editor(doc: StubDocument, { line = 0, active = true, selection }: { line?: number; active?: boolean; selection?: Selection } = {}): StubEditor {
@@ -291,7 +324,10 @@ export const __stub = {
       },
     };
     state.visibleTextEditors.push(editor);
-    if (active) state.activeTextEditor = editor;
+    if (active) {
+      state.activeTextEditor = editor;
+      state.activeEditorChanged.fire(editor);
+    }
     return editor;
   },
   setConfig(values: Record<string, unknown>, fire = true) {

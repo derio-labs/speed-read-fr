@@ -43,14 +43,14 @@ async function run(command: string, ...args: unknown[]) {
 }
 
 describe('CodeLens', () => {
-  it('yields one "▶ Read section" lens per heading invoking speedRead.readSection with its line', () => {
+  it('yields one "▶ Read section" lens per heading invoking speedRead.readSection with the document and its line', () => {
     const [{ selector, provider }] = __stub.state.codeLensProviders;
     expect(selector).toEqual({ language: 'markdown' });
     const lenses = provider.provideCodeLenses(__stub.document(TEXT));
     expect(lenses.map((l: vscode.CodeLens) => [l.range.start.line, l.command?.title, l.command?.command, l.command?.arguments])).toEqual([
-      [0, '▶ Read section', 'speedRead.readSection', [0]],
-      [5, '▶ Read section', 'speedRead.readSection', [5]],
-      [11, '▶ Read section', 'speedRead.readSection', [11]],
+      [0, '▶ Read section', 'speedRead.readSection', ['file:///work/notes/doc.md', 0]],
+      [5, '▶ Read section', 'speedRead.readSection', ['file:///work/notes/doc.md', 5]],
+      [11, '▶ Read section', 'speedRead.readSection', ['file:///work/notes/doc.md', 11]],
     ]);
   });
 });
@@ -61,7 +61,7 @@ describe('hover', () => {
     expect(selector).toEqual({ language: 'markdown' });
     return provider.provideHover(__stub.document(TEXT), new Position(line, character)) as vscode.Hover | undefined;
   };
-  const link = (line: number) => `[▶ Speed read from here](command:speedRead.readFromLine?${encodeURIComponent(JSON.stringify([line]))})`;
+  const link = (line: number) => `[▶ Speed read from here](command:speedRead.readFromLine?${encodeURIComponent(JSON.stringify(['file:///work/notes/doc.md', line]))})`;
 
   it('on a heading: a trusted link reading from the heading', () => {
     const h = hover(5)!;
@@ -112,13 +112,13 @@ describe('commands', () => {
 
   it('readSection(line): the heading to the line before the next same-or-higher heading', async () => {
     __stub.editor(doc());
-    expect(await run('speedRead.readSection', 5)).toMatchObject({ startLine: 5, endLine: 10 });
-    expect(await run('speedRead.readSection', 0)).toMatchObject({ startLine: 0, endLine: 12 });
+    expect(await run('speedRead.readSection', 'file:///work/notes/doc.md', 5)).toMatchObject({ startLine: 5, endLine: 10 });
+    expect(await run('speedRead.readSection', 'file:///work/notes/doc.md', 0)).toMatchObject({ startLine: 0, endLine: 12 });
   });
 
   it('readFromLine(line): from that block to the end', async () => {
     __stub.editor(doc());
-    const msg = await run('speedRead.readFromLine', 3);
+    const msg = await run('speedRead.readFromLine', 'file:///work/notes/doc.md', 3);
     expect(msg.startLine).toBe(2);
     expect(msg).not.toHaveProperty('endLine');
   });
@@ -126,7 +126,7 @@ describe('commands', () => {
   it('reuses one panel and reveals it in the column it is in', async () => {
     __stub.editor(doc());
     await run('speedRead.readFile');
-    await vscode.commands.executeCommand('speedRead.readFromLine', 5);
+    await vscode.commands.executeCommand('speedRead.readFromLine', 'file:///work/notes/doc.md', 5);
     await tick();
     expect(__stub.state.panels).toHaveLength(1);
     expect(lastRead().startLine).toBe(5);
@@ -145,9 +145,39 @@ describe('commands', () => {
     expect(msg.settings).toEqual({ ...DEFAULT_SETTINGS, wpm: 450, code: { mode: 'skip', dwellSeconds: 5 } });
   });
 
-  it('does nothing without an active editor', async () => {
+  it('with no source editor at all: no panel, an information message', async () => {
     await vscode.commands.executeCommand('speedRead.readFile');
     expect(__stub.state.panels).toHaveLength(0);
+    expect(__stub.state.infoMessages).toEqual(['Speed Read: open a file to read.']);
+  });
+
+  it('lens and hover commands read the document they name, while the reader has focus', async () => {
+    __stub.editor(doc());
+    const other = __stub.document('# Other\n\ntext', { path: '/work/notes/other.md' });
+    __stub.focusWebview();
+    expect(await run('speedRead.readSection', other.uri.toString(), 0)).toMatchObject({ markdown: '# Other\n\ntext', startLine: 0, endLine: 2 });
+    expect(await run('speedRead.readFromLine', 'file:///work/notes/doc.md', 3)).toMatchObject({ markdown: TEXT, startLine: 2 });
+  });
+
+  it('opens a named document that is not open yet', async () => {
+    const closed = __stub.document('para', { path: '/work/notes/closed.md', open: false });
+    expect(await run('speedRead.readFromLine', closed.uri.toString(), 0)).toMatchObject({ markdown: 'para', startLine: 0 });
+  });
+
+  it('palette commands fall back to the last source editor while the reader has focus', async () => {
+    __stub.editor(doc(), { line: 3 });
+    __stub.focusWebview();
+    expect((await run('speedRead.readFromCursor')).startLine).toBe(2);
+    expect(__stub.state.infoMessages).toEqual([]);
+  });
+
+  it('does not fall back to an editor whose document was closed', async () => {
+    const editor = __stub.editor(doc());
+    __stub.focusWebview();
+    editor.document.isClosed = true;
+    await vscode.commands.executeCommand('speedRead.readFile');
+    expect(__stub.state.panels).toHaveLength(0);
+    expect(__stub.state.infoMessages).toHaveLength(1);
   });
 
   it('registers every command and provider on the context', () => {
