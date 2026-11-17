@@ -29,16 +29,16 @@ export function endsClause(token: Token): boolean {
 export function chunkSentence(sentence: Sentence, { chunkWords, chunkChars }: ChunkOptions): Chunk[] {
   const groups: Token[][] = [];
   let current: Token[] = [];
-  let length = 0;
+  let joinedLength = 0;
   const flush = () => {
     if (current.length > 0) groups.push(current);
     current = [];
-    length = 0;
+    joinedLength = 0;
   };
+  const lengthWith = (token: Token) => (current.length === 0 ? 0 : joinedLength + 1) + token.text.length;
   for (const token of sentence.tokens) {
-    const grown = current.length === 0 ? token.text.length : length + 1 + token.text.length;
-    if (current.length > 0 && (current.length >= chunkWords || grown > chunkChars)) flush();
-    length = current.length === 0 ? token.text.length : length + 1 + token.text.length;
+    if (current.length > 0 && (current.length >= chunkWords || lengthWith(token) > chunkChars)) flush();
+    joinedLength = lengthWith(token);
     current.push(token);
     if (current.length >= 2 && endsClause(token)) flush();
   }
