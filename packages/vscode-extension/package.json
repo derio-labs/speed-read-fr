@@ -1,0 +1,86 @@
+{
+  "name": "speed-read-vscode",
+  "displayName": "Speed Read",
+  "description": "A structure-aware speed reader for Markdown: prose streamed in chunks, code, tables, math and diagrams shown as exhibits.",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "derio-net",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/derio-net/speed-read-fr"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "main": "./dist/extension.js",
+  "activationEvents": ["onLanguage:markdown"],
+  "contributes": {
+    "commands": [
+      { "command": "speedRead.readFile", "title": "Read File", "category": "Speed Read" },
+      { "command": "speedRead.readSelection", "title": "Read Selection", "category": "Speed Read" },
+      { "command": "speedRead.readFromCursor", "title": "Read From Cursor", "category": "Speed Read" },
+      { "command": "speedRead.readSection", "title": "Read Section", "category": "Speed Read" },
+      { "command": "speedRead.readFromLine", "title": "Read From Line", "category": "Speed Read" }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "speedRead.readSection", "when": "false" },
+        { "command": "speedRead.readFromLine", "when": "false" }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "speedRead.readSelection",
+        "key": "alt+shift+r",
+        "when": "editorTextFocus && editorLangId == markdown && editorHasSelection"
+      },
+      {
+        "command": "speedRead.readFile",
+        "key": "alt+shift+r",
+        "when": "editorTextFocus && editorLangId == markdown && !editorHasSelection"
+      }
+    ],
+    "configuration": {
+      "title": "Speed Read",
+      "properties": {
+        "speedRead.wpm": { "type": "number", "default": 300, "minimum": 100, "maximum": 1000, "description": "Reading speed in words per minute." },
+        "speedRead.chunkWords": { "type": "number", "default": 3, "minimum": 1, "maximum": 10, "description": "Words per chunk." },
+        "speedRead.chunkChars": { "type": "number", "default": 20, "minimum": 5, "maximum": 80, "description": "Maximum characters per chunk." },
+        "speedRead.stopLevels": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1, "maximum": 6 },
+          "default": [1, 2],
+          "description": "Heading levels that stop playback on a chapter card."
+        },
+        "speedRead.code.mode": { "type": "string", "enum": ["stop", "skip", "dwell"], "default": "stop", "description": "What the reader does at a code block." },
+        "speedRead.code.dwellSeconds": { "type": "number", "default": 5, "minimum": 1, "maximum": 60, "description": "Seconds a code block is shown when its mode is dwell." },
+        "speedRead.table.mode": { "type": "string", "enum": ["stop", "skip", "dwell"], "default": "stop", "description": "What the reader does at a table." },
+        "speedRead.table.dwellSeconds": { "type": "number", "default": 5, "minimum": 1, "maximum": 60, "description": "Seconds a table is shown when its mode is dwell." },
+        "speedRead.math.mode": { "type": "string", "enum": ["stop", "skip", "dwell"], "default": "stop", "description": "What the reader does at display math." },
+        "speedRead.math.dwellSeconds": { "type": "number", "default": 5, "minimum": 1, "maximum": 60, "description": "Seconds display math is shown when its mode is dwell." },
+        "speedRead.imageDwellSeconds": { "type": "number", "default": 3, "minimum": 1, "maximum": 60, "description": "Seconds images and diagrams are shown." },
+        "speedRead.display": { "type": "string", "enum": ["overlay", "dock"], "default": "overlay", "description": "Display mode of the browser reader. VS Code always reads in a panel beside the editor." },
+        "speedRead.pageFade": { "type": "number", "minimum": 0.1, "maximum": 0.8, "default": 0.32, "description": "Strength of the web page behind the browser's floating reader. Not used in VS Code." },
+        "speedRead.tts.enabled": { "type": "boolean", "default": false, "description": "Read aloud with text-to-speech." },
+        "speedRead.tts.voiceURI": { "type": ["string", "null"], "default": null, "description": "Text-to-speech voice; empty picks the first local voice." }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "package": "node build.mjs --package"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@speed-read/core": "0.1.0",
+    "@types/markdown-it": "^14.1.2",
+    "@types/vscode": "~1.90.0",
+    "@vscode/vsce": "^3.6.0",
+    "katex": "0.19.1",
+    "markdown-it": "^14.1.0",
+    "markdown-it-texmath": "^1.0.0",
+    "mermaid": "^11.12.0"
+  }
+}

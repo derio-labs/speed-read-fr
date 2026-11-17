@@ -1,0 +1,248 @@
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_SETTINGS, normalizeSettings, type Settings } from './settings';
+import { doc, exhibit, flatList, item, list, prose, section } from './testing/doc';
+import { buildTimeline } from './timeline';
+
+const settings = (over: Partial<Settings> = {}) => normalizeSettings({ ...DEFAULT_SETTINGS, ...over });
+const kinds = (d: ReturnType<typeof doc>, s = settings()) => buildTimeline(d, s).steps.map((st) => st.kind);
+
+describe('buildTimeline: headings', () => {
+  it('makes a chapter step for a heading at a stop level and a title step otherwise', () => {
+    const d = doc(
+      section('s1', { level: 1, text: 'Intro' }),
+      section('s2', { level: 3, text: 'Detail' }),
+      section('s3', { level: 2, text: 'Next' }),
+    );
+    const t = buildTimeline(d, settings());
+    expect(t.steps.map((s) => s.kind)).toEqual(['chapter', 'title', 'chapter']);
+    const title = t.steps[1];
+    expect(title.kind === 'title' && title.text).toBe('Detail');
+    expect(kinds(d, settings({ stopLevels: [3] }))).toEqual(['title', 'chapter', 'title']);
+  });
+
+  it('makes no step for an untitled section heading', () => {
+    expect(kinds(doc(section('s0', undefined, prose('Hello there.'))))).toEqual(['chunk']);
+  });
+
+  it('fills the chapter card: title, words, summary and direct sub-heading titles', () => {
+    const d = doc(
+      section(
+        'a',
+        { level: 1, text: 'Guide' },
+        prose('One two three.'),
+        prose('Four.'),
+        prose('Five.'),
+        prose('Six.'),
+        flatList('x', 'y'),
+        exhibit('code', { lines: 2 }),
+        exhibit('code', { lines: 3 }),
+        exhibit('table', { rows: 2, cols: 2 }),
+      ),
+      section('b', { level: 3, text: 'Deep' }, prose('B.')),
+      section('c', { level: 2, text: 'Setup' }, prose('C.')),
+      section('d', { level: 3, text: 'Inner' }, prose('D.')),
+      section('e', { level: 2, text: 'Usage' }, prose('E.')),
+      section('f', { level: 1, text: 'Other' }),
+    );
+    const first = buildTimeline(d, settings()).steps[0];
+    expect(first.kind).toBe('chapter');
+    if (first.kind !== 'chapter') return;
+    expect(first.card).toEqual({
+      title: 'Guide',
+      words: 8,
+      summary: '4 paragraphs, 1 list, 2 code blocks, 1 table',
+      subheadings: ['Deep', 'Setup', 'Usage'],
+    });
+  });
+
+  it('summarises formulas, images and diagrams with singular forms', () => {
+    const d = doc(
+      section('a', { level: 1, text: 'T' }, prose('P.'), exhibit('math'), exhibit('image'), exhibit('diagram'), exhibit('diagram')),
+    );
+    const first = buildTimeline(d, settings()).steps[0];
+    expect(first.kind === 'chapter' && first.card.summary).toBe('1 paragraph, 1 formula, 1 image, 2 diagrams');
+  });
+});
+
+describe('buildTimeline: prose', () => {
+  it('makes one chunk step per chunk with its sentence index', () => {
+    const t = buildTimeline(doc(section('s', undefined, prose('One two three four. Five six.'))), settings());
+    expect(
+      t.steps.map((s) => (s.kind === 'chunk' ? [s.chunk.text, s.sentenceIndex, s.sentenceStart] : s.kind)),
+    ).toEqual([
+      ['One two three', 0, true],
+      ['four.', 0, false],
+      ['Five six.', 1, true],
+    ]);
+  });
+
+  it('uses the chunk settings', () => {
+    expect(kinds(doc(section('s', undefined, prose('a b c d'))), settings({ chunkWords: 1 }))).toEqual([
+      'chunk',
+      'chunk',
+      'chunk',
+      'chunk',
+    ]);
+  });
+});
+
+describe('buildTimeline: lists', () => {
+  it('streams a list item by item with index, of and depth, and an item-gap after each item', () => {
+    const block = flatList('one two three four five six seven', 'short item');
+    const t = buildTimeline(doc(section('s', undefined, block)), settings());
+    expect(
+      t.steps.map((s) => (s.kind === 'item-chunk' ? [s.kind, s.chunk.text, s.index, s.of, s.depth] : [s.kind])),
+    ).toEqual([
+      ['item-chunk', 'one two three', 1, 2, 0],
+      ['item-chunk', 'four five six', 1, 2, 0],
+      ['item-chunk', 'seven', 1, 2, 0],
+      ['item-gap'],
+      ['item-chunk', 'short item', 2, 2, 0],
+      ['item-gap'],
+    ]);
+  });
+
+  it('shows a list whose items are all short as one list-whole step', () => {
+    const block = flatList('apples', 'two pears', 'one two three four five six');
+    const t = buildTimeline(doc(section('s', undefined, block)), settings());
+    expect(t.steps.map((s) => s.kind)).toEqual(['list-whole']);
+    const step = t.steps[0];
+    expect(step.kind === 'list-whole' && step.words).toBe(9);
+    expect(step.kind === 'list-whole' && step.block).toBe(block);
+  });
+
+  it('streams a short-item list with more than 8 items', () => {
+    const block = flatList('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i');
+    expect(kinds(doc(section('s', undefined, block)))[0]).toBe('item-chunk');
+    expect(kinds(doc(section('s', undefined, flatList('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'))))).toEqual(['list-whole']);
+  });
+
+  it('streams a nested list with one long item, carrying depths', () => {
+    const block = list([
+      item('top', 1, 2, 0),
+      item('nested one two three four five six seven', 1, 1, 1),
+      item('back', 2, 2, 0),
+    ]);
+    const t = buildTimeline(doc(section('s', undefined, block)), settings());
+    const chunks = t.steps.filter((s) => s.kind === 'item-chunk');
+    expect(chunks.map((s) => (s.kind === 'item-chunk' ? [s.index, s.of, s.depth] : null))).toEqual([
+      [1, 2, 0],
+      [1, 1, 1],
+      [1, 1, 1],
+      [1, 1, 1],
+      [2, 2, 0],
+    ]);
+    expect(t.steps.filter((s) => s.kind === 'item-gap')).toHaveLength(3);
+  });
+
+  it('gives item steps the item source', () => {
+    const block = flatList('one two three four five six seven');
+    const t = buildTimeline(doc(section('s', undefined, block)), settings());
+    if (block.kind !== 'list') throw new Error('list');
+    for (const s of t.steps) expect(s.source).toBe(block.items[0].source);
+  });
+});
+
+describe('buildTimeline: exhibits', () => {
+  it('stops on code, tables and math by default with a prompt naming the type and its size', () => {
+    const d = doc(
+      section(
+        's',
+        undefined,
+        exhibit('code', { lines: 24 }),
+        exhibit('code', { lines: 1 }),
+        exhibit('table', { rows: 4, cols: 3 }),
+        exhibit('table', { rows: 1, cols: 1 }),
+        exhibit('math'),
+      ),
+    );
+    const t = buildTimeline(d, settings());
+    expect(t.steps.map((s) => (s.kind === 'stop' ? [s.exhibit, s.prompt] : s.kind))).toEqual([
+      ['code', 'Code, 24 lines: Space to continue, E to expand'],
+      ['code', 'Code, 1 line: Space to continue, E to expand'],
+      ['table', 'Table, 4 rows by 3 columns: Space to continue, E to expand'],
+      ['table', 'Table, 1 row by 1 column: Space to continue, E to expand'],
+      ['math', 'Formula: Space to continue, E to expand'],
+    ]);
+  });
+
+  it('names only the type when the size is unknown', () => {
+    const t = buildTimeline(doc(section('s', undefined, exhibit('code'), exhibit('table'))), settings());
+    expect(t.steps.map((s) => s.kind === 'stop' && s.prompt)).toEqual([
+      'Code: Space to continue, E to expand',
+      'Table: Space to continue, E to expand',
+    ]);
+  });
+
+  it('dwells for the type seconds when set to dwell', () => {
+    const s = settings({ code: { mode: 'dwell', dwellSeconds: 7 }, math: { mode: 'dwell', dwellSeconds: 4 } });
+    const t = buildTimeline(doc(section('s', undefined, exhibit('code', { lines: 3 }), exhibit('math'))), s);
+    expect(t.steps.map((st) => (st.kind === 'dwell' ? [st.exhibit, st.seconds] : st.kind))).toEqual([
+      ['code', 7],
+      ['math', 4],
+    ]);
+  });
+
+  it('dwells on images and diagrams for imageDwellSeconds', () => {
+    const s = settings({ imageDwellSeconds: 6 });
+    const t = buildTimeline(doc(section('s', undefined, exhibit('image', { alt: 'cat' }), exhibit('diagram'))), s);
+    expect(t.steps.map((st) => (st.kind === 'dwell' ? [st.exhibit, st.seconds] : st.kind))).toEqual([
+      ['image', 6],
+      ['diagram', 6],
+    ]);
+  });
+
+  it('makes no step for a skipped type but lists it in the section exhibits with its reveal step', () => {
+    const s = settings({ table: { mode: 'skip', dwellSeconds: 5 } });
+    const table = exhibit('table', { rows: 2, cols: 2 });
+    const code = exhibit('code', { lines: 2 });
+    const d = doc(
+      section('a', { level: 1, text: 'A' }, prose('Before.'), table, prose('After.'), code),
+      section('b', { level: 1, text: 'B' }, prose('Next.'), exhibit('table')),
+    );
+    const t = buildTimeline(d, s);
+    expect(t.steps.map((st) => st.kind)).toEqual(['chapter', 'chunk', 'chunk', 'stop', 'chapter', 'chunk']);
+    expect(t.sections.map((sec) => sec.exhibits.map((e) => [e.block.kind, e.blockIndex, e.revealAt]))).toEqual([
+      [
+        ['table', 1, 2],
+        ['code', 3, 3],
+      ],
+      [['table', 1, 6]],
+    ]);
+    expect(t.sections[0].exhibits[0].block).toBe(table);
+  });
+});
+
+describe('buildTimeline: positions', () => {
+  it('ties every step to its section, block index and block source', () => {
+    const p = prose('Hello world.');
+    const c = exhibit('code', { lines: 1 });
+    const d = doc(section('x', { level: 2, text: 'X' }, p, c));
+    const t = buildTimeline(d, settings());
+    expect(t.steps.map((s) => [s.sectionId, s.blockIndex, s.source])).toEqual([
+      ['x', -1, d.sections[0].heading!.source],
+      ['x', 0, p.source],
+      ['x', 1, c.source],
+    ]);
+  });
+
+  it('records each section first step, title and level', () => {
+    const d = doc(section('a', undefined, prose('One.')), section('b', { level: 2, text: 'B' }, prose('Two.')), section('c', { level: 1, text: 'Empty' }));
+    const t = buildTimeline(d, settings());
+    expect(t.sections.map((s) => [s.id, s.firstStep, s.title, s.level])).toEqual([
+      ['a', 0, undefined, undefined],
+      ['b', 1, 'B', 2],
+      ['c', 3, 'Empty', 1],
+    ]);
+  });
+});
+
+describe('buildTimeline: heading sources', () => {
+  it('gives each heading step its own heading source', () => {
+    const d = doc(section('a', { level: 1, text: 'A' }), section('b', { level: 4, text: 'B' }));
+    const t = buildTimeline(d, settings());
+    expect(t.steps[0].source).toBe(d.sections[0].heading!.source);
+    expect(t.steps[1].source).toBe(d.sections[1].heading!.source);
+    expect(t.steps[0].source).not.toBe(t.steps[1].source);
+  });
+});

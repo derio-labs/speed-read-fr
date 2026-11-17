@@ -1,0 +1,251 @@
+schema_version: 11
+run: 2026-11-17-claude-exciting-cori-4x7e21
+workflow: fr-goal@1
+branch: claude/exciting-cori-4x7e21
+started: '2026-11-17T15:08:54+00:00'
+cursor: deliver
+steps:
+  brainstorm:
+    state: done
+    at: '2026-11-17T15:16:31+00:00'
+    answered_by: operator
+    emitted:
+      spec: docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md
+  spec-review:
+    state: done
+    at: '2026-11-17T15:27:42+00:00'
+    units:
+      step/spec-review:
+        attempts:
+        - dispatched: '2026-11-17T15:16:32+00:00'
+          agent: a8fd2a6e91ba6dc0b
+          agent_type: super-fr:fr-spec-reviewer
+          harness: claude-code
+          model: claude-opus-5-5
+          tier: hard
+          bound: opus
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T15:27:42+00:00'
+          outcome: done
+        evidence:
+          review: spec-review-2
+          reviewer: a8fd2a6e91ba6dc0b
+          findings: sr-r1,sr-r2,sr-r3,sr-r4,sr-r5,sr-r6,sr-r7,sr-r8,sr-r9,sr-r10,sr-r11,sr-r12,sr-r13,sr-r14,sr-r15,sr-r16,sr2-r1,sr2-r2,sr2-r3,sr2-r4,sr2-r5,sr2-r6,sr2-r7,sr2-r8,sr2-r9,sr2-r10,sr2-r11,sr2-r12,sr2-r13,sr2-r14
+  plan:
+    state: done
+    at: '2026-11-17T15:31:13+00:00'
+    emitted:
+      plan: docs/superpowers/plans/2026-11-17-structure-aware-speed-reader
+    units:
+      step/plan:
+        attempts:
+        - dispatched: '2026-11-17T15:27:43+00:00'
+          harness: claude-code
+          model: claude-fable-5-2
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T15:31:13+00:00'
+          outcome: done
+  plan-review:
+    state: done
+    at: '2026-11-17T15:31:14+00:00'
+    exit: 0
+    stdout: |
+      self-review passed
+  implement:
+    state: done
+    at: '2026-11-17T19:31:21+00:00'
+    members:
+    - implement-phase
+    - review-phase
+    units:
+      phase/1/implement-phase:
+        state: done
+        attempts:
+        - dispatched: '2026-11-17T15:31:15+00:00'
+          agent: af2e43b0cb4875b90
+          agent_type: super-fr:fr-phase-executor
+          harness: claude-code
+          model: claude-opus-5-5
+          tier: standard
+          bound: opus
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T15:43:15+00:00'
+          outcome: done
+        evidence:
+          tests: phase-1-suite.log@f7540fb66e08;tree=bd9869eae08073c2d5c95bfe07c2e7e48e9e527c5f90aab44137906f21af4a00
+          visual: none
+      phase/1/review-phase:
+        state: done
+        attempts:
+        - dispatched: '2026-11-17T15:43:16+00:00'
+          harness: claude-code
+          model: claude-fable-5-2
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T15:53:17+00:00'
+          outcome: done
+        evidence:
+          review: review-p1
+          reviewer: ad6508c2329752f5b
+          visual: none
+          findings: p1-r1,p1-r2,p1-r3,p1-r4,p1-r5,p1-r6,p1-r7,p1-r8,p1-r9
+      phase/2/implement-phase:
+        state: done
+        attempts:
+        - dispatched: '2026-11-17T15:53:17+00:00'
+          agent: a5a48e797a0b63a27
+          agent_type: super-fr:fr-phase-executor
+          harness: claude-code
+          model: claude-opus-5-5
+          tier: standard
+          bound: opus
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T16:23:58+00:00'
+          outcome: done
+        evidence:
+          visual: reader-three-zone-ui:8:7703c99c8fe7,reader-keys:1:e1f8412371b6,reader-settings:3:3de18ebd61de
+      phase/2/review-phase:
+        state: done
+        attempts:
+        - dispatched: '2026-11-17T16:23:58+00:00'
+          harness: claude-code
+          model: claude-fable-5-2
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T16:40:03+00:00'
+          outcome: done
+        evidence:
+          review: review-p2
+          reviewer: a4d825535d7af6fce
+          visual: reader-three-zone-ui:8:7703c99c8fe7,reader-keys:1:e1f8412371b6,reader-settings:3:3de18ebd61de
+          findings: p2-v1-wide-outline-hidden,p2-v2-visual-fixes,p2-r1,p2-r2,p2-r3,p2-r4,p2-r5,p2-r6,p2-r7,p2-r8
+      phase/3/implement-phase:
+        state: done
+        attempts:
+        - dispatched: '2026-11-17T16:40:03+00:00'
+          agent: ac0d4eca179210c51
+          agent_type: super-fr:fr-phase-executor
+          harness: claude-code
+          model: claude-opus-5-5
+          tier: hard
+          bound: opus
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T17:00:53+00:00'
+          outcome: done
+        evidence:
+          visual: browser-alt-hover:1:83426c6e7a7f,browser-exhibits-page-styled:1:2711e8034321,browser-overlay-and-dock:1:dc9efb0b49aa
+      phase/3/review-phase:
+        state: done
+        attempts:
+        - dispatched: '2026-11-17T17:00:53+00:00'
+          harness: claude-code
+          model: claude-fable-5-2
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T17:21:15+00:00'
+          outcome: done
+        evidence:
+          review: review-p3
+          reviewer: af539385a50f0fa26
+          visual: browser-alt-hover:1:83426c6e7a7f,browser-exhibits-page-styled:1:2711e8034321,browser-overlay-and-dock:1:dc9efb0b49aa
+          findings: p3-v1-visual-fixes,p3-r1,p3-r2,p3-r3,p3-r4,p3-r5,p3-r6,p3-r7,p3-r8,p3-r9,p3-r10,p3-r11,p3-r12,p3-r13,p3-r14,p3-r15,p3-r16,p3-r17,p3-r18
+      phase/4/implement-phase:
+        state: done
+        attempts:
+        - dispatched: '2026-11-17T17:21:15+00:00'
+          agent: a0df392f5c7f0c89e
+          agent_type: super-fr:fr-phase-executor
+          harness: claude-code
+          model: claude-opus-5-5
+          tier: standard
+          bound: opus
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T17:50:55+00:00'
+          outcome: done
+        evidence:
+          visual: vscode-webview-renders:3:b17009012429
+      phase/4/review-phase:
+        state: done
+        attempts:
+        - dispatched: '2026-11-17T17:50:56+00:00'
+          harness: claude-code
+          model: claude-fable-5-2
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T18:24:30+00:00'
+          outcome: done
+        evidence:
+          review: review-p4
+          reviewer: a197b53b216167eb6
+          visual: vscode-webview-renders:2:243496976a45
+          findings: p4-r1,p4-r2,p4-r3,p4-r4,p4-r5,p4-r6,p4-r7,p4-r8,p4-r9,p4-r10,p4-r11
+      phase/5/implement-phase:
+        state: done
+        attempts:
+        - dispatched: '2026-11-17T18:24:30+00:00'
+          agent: afd885890b55ca496
+          agent_type: super-fr:fr-phase-executor
+          harness: claude-code
+          model: claude-opus-5-5
+          tier: standard
+          bound: opus
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T18:59:28+00:00'
+          outcome: done
+        evidence:
+          visual: browser-overlay-and-dock:1:800ffa8b766c,browser-floating-overlay:3:f31c4bf5e1e5,tts-voices-offline-labels:1:26a4d204b8ae
+      phase/5/review-phase:
+        state: done
+        attempts:
+        - dispatched: '2026-11-17T18:59:28+00:00'
+          harness: claude-code
+          model: claude-fable-5-2
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T19:31:21+00:00'
+          outcome: done
+        evidence:
+          review: review-p5
+          reviewer: aa8646379353e464c
+          visual: browser-overlay-and-dock:1:800ffa8b766c,browser-floating-overlay:3:9b5c29c29064,tts-voices-offline-labels:1:1dfcc31c235c
+          findings: p5a-r1,p5a-r2,p5a-r3,p5a-r4,p5a-r5,p5a-r6,p5a-r7,p5a-r8,p5a-r9,p5a-r10,p5a-r11,p5a-r12,p5a-r13,p5b-r1,p5b-r2,p5b-r3,p5b-r4,p5b-r5,p5b-r6,p5b-r7,p5b-r8,p5b-r9,p5b-r10,p5b-r11,p5b-r12,p5b-r13,p5b-r14,p5b-r15
+  journal-check:
+    state: done
+    at: '2026-11-17T19:31:22+00:00'
+    exit: 0
+    stdout: |
+      6 out-of-scope finding(s): p3-r16, p3-r17, p3-r18, p4-r11, p5a-r12, p5a-r13
+  lens-review:
+    state: done
+    at: '2026-11-17T20:28:43+00:00'
+    units:
+      step/lens-review:
+        attempts:
+        - dispatched: '2026-11-17T19:31:22+00:00'
+          harness: claude-code
+          model: claude-fable-5-2
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T20:28:43+00:00'
+          outcome: done
+        evidence:
+          review: review-lenses
+          reviewer: errors=ac9d8702581cd2a85,security=a70f0a5954d40d159,tests=af1e6aa777ccbf342
+          findings: l-errors-r1,l-errors-r2,l-errors-r3,l-errors-r4,l-errors-r5,l-errors-r6,l-errors-r7,l-errors-r8,l-errors-r9,l-errors-r10,l-errors-r11,l-security-r1,l-security-r2,l-security-r3,l-security-r4,l-security-r5,l-tests-r1,l-tests-r2,l-tests-r3,l-tests-r4,l-tests-r5,l-tests-r6,l-tests-r7,l-tests-r8,l-security-r6,l-security-r7
+          lenses: errors=27:l-errors-r1,l-errors-r2,l-errors-r3,l-errors-r4,l-errors-r5,l-errors-r6,l-errors-r7,l-errors-r8,l-errors-r9,l-errors-r10,l-errors-r11;security=32:l-security-r6,l-security-r7;tests=36:l-tests-r1,l-tests-r2,l-tests-r3,l-tests-r4,l-tests-r5,l-tests-r6,l-tests-r7,l-tests-r8
+  deliver:
+    state: done
+    at: '2026-11-17T20:43:25+00:00'
+    emitted:
+      pr: https://github.com/derio-net/speed-read-fr/pull/1
+    units:
+      step/deliver:
+        attempts:
+        - dispatched: '2026-11-17T20:28:43+00:00'
+          harness: claude-code
+          model: claude-fable-5-2
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
+          returned: '2026-11-17T20:43:16+00:00'
+          outcome: done
+        evidence:
+          tests: deliver-full-suite-3.log@4d08cb0c4d35
+          walk: none
+          proportionality: 44d318c9f1df638c9679dc52f2805305b386417d:c0d56fa3d98a1b2a84113458accd21a8ae1a216235b60f553f234f3e815f1cf9
+          docs: none
+          visual: browser-alt-hover:1:83426c6e7a7f,browser-exhibits-page-styled:1:5a2129e7271a,browser-overlay-and-dock:1:800ffa8b766c,browser-floating-overlay:2:b7eb140e9b8d,reader-three-zone-ui:8:cc1d3bb0e939,reader-keys:1:2196dac43b22,reader-settings:3:af465c1a2bdd,tts-voices-offline-labels:1:1dfcc31c235c,vscode-webview-renders:1:964010a18bd2
+fr_version: 8.1.3
+pr: https://github.com/derio-net/speed-read-fr/pull/1

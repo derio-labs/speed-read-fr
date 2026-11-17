@@ -1,0 +1,261 @@
+schema_version: 2
+phase:
+  number: 5
+  title: Text-to-speech, README with install instructions, packaging in CI; floating overlay, position dial and
+    operator-decided fixes (R17, R22, R23, R25, R27-R29)
+  tag: agentic
+  depends_on:
+  - 3
+  - 4
+  tracking_issue: null
+  acceptance:
+  - tts-voices-offline-labels
+  - install-docs
+  - ci-builds-packages
+  - browser-floating-overlay
+  - reader-position-dial
+  - browser-overlay-and-dock
+  tier: standard
+  files:
+  - packages/core/**
+  - packages/browser-extension/**
+  - packages/vscode-extension/**
+  - tests/**
+  - scripts/**
+  - README.md
+  - .github/workflows/ci.yml
+  - package.json
+  - package-lock.json
+  estimate_lines: 3600
+tasks:
+- number: 1
+  title: Speech driver (spec section 9)
+  steps:
+  - id: P5.T1.S1
+    text: 'RED: `packages/core/src/tts.test.ts` with a fake `speechSynthesis` and fake clock: no API -> `available:
+      false`; voices are read at start and again on `voiceschanged`, and `noLocalVoice` is concluded only after
+      that event or 2 s; default voice = first local voice matching the language, else first local, never a network
+      voice; `speak(sentence, chunks, wpm)` creates one utterance with rate wpm/180 clamped 0.5-3 whose text omits
+      math atoms; each `boundary` charIndex selects the chunk containing it (math atom characters skipped in the
+      mapping) and calls `onChunk`; `end` calls `onEnd`; no boundary within 1 s -> `onWholeSentence` and after two
+      such sentences in a row the voice is treated as boundary-less for the session; `cancel()` cancels the utterance
+      and suppresses its callbacks.'
+  - id: P5.T1.S2
+    text: 'GREEN: implement `tts.ts`.'
+  - id: P5.T1.S3
+    text: 'REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the
+      spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why
+      in the step record''s `refactor:` field for this task.'
+- number: 2
+  title: Player and UI integration, voice panel
+  steps:
+  - id: P5.T2.S1
+    text: 'RED: extend `player.test.ts` and add `ui/tts-panel.test.ts`: with tts enabled prose sentences and list
+      items are driven by the driver (chunk display from `onChunk`, next sentence on `onEnd`, whole sentence shown
+      on `onWholeSentence`), titles are spoken, stops, dwells, pause, jumps and close cancel speech, continue starts
+      the next utterance, code, tables and math are never spoken. Panel: the toggle is off by default; with no API
+      it is disabled with a note; voices are listed with a `local` or `network` label; with no local voice the text
+      "No offline voice installed" is shown and the toggle cannot be turned on until a voice is picked; picking
+      a network voice shows "This voice needs a network connection"; the line "Offline speech uses voices installed
+      on this device" is always present; the choice is saved.'
+  - id: P5.T2.S2
+    text: 'GREEN: implement the integration in `player.ts`, `ui/stage.ts` and `ui/settings-panel.ts` (replacing
+      the phase 2 placeholder row); add the `speedRead.tts.*` configuration properties in the VS Code package.json
+      and keep its manifest test green.'
+  - id: P5.T2.S3
+    text: 'Browser-level: in `tests/e2e/core.spec.ts` inject a fake `speechSynthesis` with one local and one network
+      voice into the demo and assert the labels, the warning, and that chunks follow injected boundary events. Extend
+      `scripts/capture-visual.mjs` to write `.visual/phase-5/` for `speech settings with local and network voices`;
+      run it, open the screenshot, fill the step record''s `visual:` section.'
+- number: 3
+  title: 'README: install, use, limits (R23)'
+  steps:
+  - id: P5.T3.S1
+    text: 'RED: `tests/readme.test.ts` asserts README.md has the headings Install (with Chrome, Firefox and VS Code
+      subsections), Usage, Keys, Settings, Offline and text-to-speech, Known limits, Development, License, and that
+      every key of R11 and every setting of R12 is named.'
+  - id: P5.T3.S2
+    text: 'GREEN: write README.md: what it is; install for Chrome (build or download the zip, `chrome://extensions`,
+      Developer mode, Load unpacked `packages/browser-extension/dist/chrome`), Firefox 128+ (`about:debugging`,
+      Load Temporary Add-on, pick `dist/firefox/manifest.json`; removed on restart; a permanent install needs a
+      Mozilla-signed build or Developer Edition/Nightly with `xpinstall.signatures.required` off; granting access
+      to all sites for Alt-hover), VS Code (`code --install-extension dist/speed-read-vscode.vsix`, or Extensions:
+      Install from VSIX); usage per host including every entry point; keys table; settings table with defaults;
+      offline notes and the TTS voice rules; known limits exactly as the spec lists them (Linux Alt+clicking, selectors
+      by ancestor id, inline math shown as source, unrendered Mermaid on web pages, chat panels in VS Code, block-granular
+      cursor follow, physical entry points and chat sites verified by the operator after merge); development commands;
+      MIT.'
+  - id: P5.T3.S3
+    text: 'No refactor step: prose only; record `refactor: {P5.T3: "documentation, nothing to restructure"}`.'
+- number: 4
+  title: Packaging and CI artifacts (R25), final gate
+  steps:
+  - id: P5.T4.S1
+    text: 'RED: `tests/package.test.ts` (runs after `npm run package`, skipped with a clear message when dist is
+      absent): the three files `dist/speed-read-chrome.zip`, `dist/speed-read-firefox.zip`, `dist/speed-read-vscode.vsix`
+      exist and each archive lists its manifest (`manifest.json` / `extension/package.json`). Also assert `.github/workflows/ci.yml`
+      triggers on `pull_request` and on `push` to `main` and has an upload step covering the three paths.'
+  - id: P5.T4.S2
+    text: 'GREEN: make root `npm run package` build everything and produce all three; set the workflow''s upload
+      step to `if-no-files-found: error`; add `npm run package` before the package test in the workflow.'
+  - id: P5.T4.S3
+    text: 'REFACTOR + quality gate: `npm run typecheck`, `npm test` (Vitest, all workspaces), `npm run test:e2e`
+      (Playwright, Chromium), `npm run package`; then run the full suite after the last code commit into a log outside
+      the repository.'
+- number: 5
+  title: Position dial in the core stage (R27, spec section 13)
+  steps:
+  - id: P5.T5.S1
+    text: 'RED: `packages/core/src/dial.test.ts` on a fake clock and fake frame callback, for `createDial({ onMove,
+      now, requestFrame })`: a slow turn (one 100 px turn every 200 ms) moves about one step per turn; turns 20
+      ms apart reach a gain above 8 and never above 14; the formula of spec section 13 is followed exactly (dt clamp
+      8-250, speed smoothing 0.6/0.4, gain, 120 px per step, fractional accumulation); negative turns move backwards;
+      after input stops the dial coasts and decays with the 190 ms constant and stops; hitting either end of the
+      document zeroes the accumulator and the coast. Player side in `player.test.ts`: `scrub(steps)` moves the position
+      by whole steps across stops and chapter cards without holding, pauses playback, and 700 ms after the last
+      movement resumes with a fresh ramp only if it was playing and the step is timed.'
+  - id: P5.T5.S2
+    text: 'GREEN: implement `packages/core/src/dial.ts` and `player.scrub`; in `ui/stage.ts` add the dial strip
+      (tick strip, centre needle, multiplier readout, `role=slider` with value), pointer drag on it (2.2 px of turn
+      per pixel, left is forward) and `wheel` over the stage card; honour `trustedEventsOnly`. Unit tests in `ui/dial-ui.test.ts`;
+      extend `tests/e2e/core.spec.ts`: real wheel input moves forwards and backwards, a fast burst travels further
+      per notch than a slow one, playback resumes after scrubbing.'
+  - id: P5.T5.S3
+    text: 'REFACTOR: remove duplication and unclear names introduced by this task, re-run `npm test` (Vitest, all
+      workspaces) green. If nothing needs changing, record why in the step record''s `refactor:` field for this
+      task.'
+- number: 6
+  title: Floating layout, narrow exhibit push, full-width expand (R17, R28, p3-r18)
+  steps:
+  - id: P5.T6.S1
+    text: 'RED: `packages/core/src/ui/layout.test.ts` and e2e in `tests/e2e/core.spec.ts` with the demo mounted
+      with `layout: ''floating''`: the root has no opaque background and three separate cards; the outline card
+      collapses to the bar under 1180 px; under 900 px the exhibit card is above the stage, is as tall as its content
+      up to the room available, the stage''s top is at least 12 px below the card and inside the reader, and with
+      no exhibit the card is hidden and the stage is back at its resting position (assert boxes before, during a
+      code stop, and after moving to a section without exhibits); the same push applies to `layout: ''panel''` when
+      narrow; an expanded exhibit''s box is wider than the stage and within 92 % of the reader width.'
+  - id: P5.T6.S2
+    text: 'GREEN: add the `layout` mount option and the floating styles in `ui/styles.ts`, the push logic (ResizeObserver
+      on the exhibit card and the stage, CSS variables for the stage top and the card''s maximum height, 400 ms
+      ease, none under reduced motion) in `ui/exhibits.ts` or a new `ui/layout.ts`, and the full-reader expand.'
+  - id: P5.T6.S3
+    text: 'REFACTOR: remove duplication and unclear names introduced by this task, re-run `npm test` (Vitest, all
+      workspaces) green. If nothing needs changing, record why in the step record''s `refactor:` field for this
+      task.'
+- number: 7
+  title: Browser overlay over the faded page, dock and permission fixes (R17, R29, p3-r16, p3-r17)
+  steps:
+  - id: P5.T7.S1
+    text: 'RED: unit tests in `packages/browser-extension/src/reader-entry.test.ts` and e2e in `tests/e2e/extension.spec.ts`:
+      overlay mode mounts with `layout: ''floating''`, adds no backdrop and does not lock page scroll; a veil in
+      the page''s effective background colour at `1 - pageFade` opacity covers the viewport with a clear window
+      whose rectangle tracks the block being read; the page is scrolled by the host so that block''s top settles
+      near 10 % of the viewport height while playing and while scrubbing; a wheel event anywhere on the page moves
+      the reading position and does not scroll the page directly, except over the exhibit pane, the settings panel
+      and the normal-reading view; `pageFade` (0.10-0.80, default 0.32) is in the settings panel for the browser
+      host and persists; closing removes veil and window and leaves the page at the block. Dock: on a fixture with
+      a header fixed across the top and a button fixed at the right edge, opening the dock moves both out from under
+      the 420 px panel and closing restores their inline styles exactly. Permission: with a fake API whose extension
+      URL is `chrome-extension://…` the action and command handlers never call `permissions.request`; with `moz-extension://…`
+      it is their first statement.'
+  - id: P5.T7.S2
+    text: 'GREEN: implement in `reader-entry.ts` (veil, window, eased scroll follow driven by position events, page-level
+      wheel routing to the core dial), `settings.ts`/the panel for `pageFade` (shown only when the host declares
+      it), the dock''s fixed-element shift with exact restore, and the Firefox-only permission request in `background.ts`.
+      Update the phase 3 e2e and unit tests that asserted the dimmed backdrop and scroll lock.'
+  - id: P5.T7.S3
+    text: 'Visual evidence: extend the phase 5 capture in `scripts/capture-visual.mjs` to write into `.visual/phase-5/`
+      the states of row browser-floating-overlay (read their names in docs/acceptance/features/2026-11-17-structure-aware-speed-reader.yaml)
+      and re-capture `docked side panel beside page` for row browser-overlay-and-dock on the fixture with fixed
+      elements.'
+state:
+  steps:
+    P5.T1.S1:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T1.S2:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T1.S3:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T2.S1:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T2.S2:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T2.S3:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T3.S1:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T3.S2:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T3.S3:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T4.S1:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T4.S2:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T4.S3:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T5.S1:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T5.S2:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T5.S3:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T6.S1:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T6.S2:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T6.S3:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T7.S1:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T7.S2:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+    P5.T7.S3:
+      state: x
+      ticked_at: '2026-11-17T18:59:27+00:00'
+      note: null
+  completion:
+    at: '2026-11-17T18:59:27+00:00'
+    note: null
+    observed_prs: []

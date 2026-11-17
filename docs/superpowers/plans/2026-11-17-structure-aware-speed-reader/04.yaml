@@ -1,0 +1,173 @@
+schema_version: 2
+phase:
+  number: 4
+  title: 'VS Code extension: commands, CodeLens, hover, webview rendering, cursor
+    follow (R19-R21)'
+  tag: agentic
+  depends_on:
+  - 2
+  tracking_issue: null
+  acceptance:
+  - vscode-entry-points
+  - vscode-webview-renders
+  - vscode-cursor-follows
+  tier: standard
+  files:
+  - packages/vscode-extension/**
+  - packages/core/**
+  - tests/**
+  - scripts/**
+  - package.json
+  - package-lock.json
+  estimate_lines: 2400
+tasks:
+- number: 1
+  title: Package, manifest contributions, build and vsix
+  steps:
+  - id: P4.T1.S1
+    text: |-
+      RED: `packages/vscode-extension/src/manifest.test.ts`: package.json has publisher, repository, license MIT, `engines.vscode`, `main` `./dist/extension.js`, commands `speedRead.readFile`, `speedRead.readSelection`, `speedRead.readFromCursor`, `speedRead.readSection`, `speedRead.readFromLine`, the keybinding Alt+Shift+R when `editorLangId == markdown`, activation on markdown, and `contributes.configuration` with a `speedRead.*` property for every R12 setting whose default equals `DEFAULT_SETTINGS`.
+  - id: P4.T1.S2
+    text: |-
+      GREEN: create `packages/vscode-extension` (package.json with those fields, LICENSE, README.md, `.vscodeignore` keeping only dist, media, package.json, README.md, LICENSE; `build.mjs` bundling `src/extension.ts` to CJS with `vscode` external and `src/webview/main.ts` to an IIFE, copying KaTeX's CSS and fonts into `media/`; on `--package` running `vsce package --no-dependencies -o ../../dist/speed-read-vscode.vsix`; devDependencies `@vscode/vsce`, `@types/vscode`, markdown-it, markdown-it-texmath, katex, mermaid). Add a Vitest alias mapping `vscode` to `src/test/vscode-stub.ts`.
+  - id: P4.T1.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 2
+  title: Source ranges and Markdown structure (spec section 8 Commands)
+  steps:
+  - id: P4.T2.S1
+    text: |-
+      RED: `src/ranges.test.ts`: `findHeadings(text)` returns ATX and setext headings with line and level and ignores `#` lines inside fenced code; `sectionRange(headings, line, lineCount)` ends on the line before the next heading of the same or a higher level, else at the end; `blockStart(text, line)` returns the first line of the paragraph, list item or fence containing the line; `selectionRange(selection)` widens to whole lines; `isParagraphStart(text, line)`.
+  - id: P4.T2.S2
+    text: |-
+      GREEN: implement `src/ranges.ts` (pure, no vscode import).
+  - id: P4.T2.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 3
+  title: Providers and commands (R19)
+  steps:
+  - id: P4.T3.S1
+    text: |-
+      RED: `src/providers.test.ts` against the stub: the CodeLens provider yields one lens titled "▶ Read section" per heading invoking `speedRead.readSection` with its line; the hover provider returns, on headings and on paragraph text, a trusted MarkdownString containing a `command:speedRead.readFromLine?...` link labelled "▶ Speed read from here" and nothing inside fenced code; each command opens or reuses the panel and posts `{ markdown, startLine, endLine?, settings }` with the ranges of spec section 8 (file: whole; selection: whole lines; cursor: block start to end; section; from line); a non-Markdown file is sent as plain prose.
+  - id: P4.T3.S2
+    text: |-
+      GREEN: implement `src/extension.ts` (`activate` registering everything), `src/panel.ts` (one reused `WebviewPanel` beside the editor; HTML with a fresh nonce and exactly the CSP of spec section 8; `localResourceRoots` = dist, media, the document's folder and workspace folders) and `src/config.ts` (configuration <-> `Settings`, pushing changes to an open panel and writing back settings messages).
+  - id: P4.T3.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 4
+  title: Cursor follow (R21)
+  steps:
+  - id: P4.T4.S1
+    text: |-
+      RED: `src/panel.test.ts`: a `{ type: 'position', line }` message sets the source editor's selection to the start of that line and reveals it without focusing the editor; repeated identical lines do nothing; after the panel is disposed the selection stays; a message for a closed document is ignored.
+  - id: P4.T4.S2
+    text: |-
+      GREEN: implement in `src/panel.ts`.
+  - id: P4.T4.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 5
+  title: 'Webview: Markdown to DOM to reader (R20)'
+  steps:
+  - id: P4.T5.S1
+    text: |-
+      RED: `src/webview/render.test.ts` (jsdom): `renderMarkdown(md, { startLine, endLine })` uses markdown-it with `html: false` and `linkify: false` (a raw `<img onerror>` in the source appears as text); every paragraph, heading, list item, blockquote and table open tag carries `data-line` equal to its original source line even when a sub-range is rendered; fences and display math are wrapped in an element with `data-line`; `$x^2$`, `$$...$$`, `\\(...\\)` and `\\[...\\]` produce KaTeX markup; a `mermaid` fence becomes a pending diagram placeholder; an `http(s)` image becomes a placeholder with its alt text and a relative one is resolved through the supplied `resolveUri`.
+  - id: P4.T5.S2
+    text: |-
+      GREEN: implement `src/webview/render.ts` (the data-line core rule, texmath with dollars and brackets, image rule) and `src/webview/main.ts`: on the init message render into an attached container kept out of view, run `mermaid.render` per pending fence after `mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' })` (a failing fence stays code), await all, call the core `extract`, `mountReader` with a host that returns clones, post `{ type: 'position', line }` on position changes, post settings changes, apply pushed settings, and map VS Code theme variables onto the reader's CSS variables.
+  - id: P4.T5.S3
+    text: |-
+      REFACTOR: remove duplication and unclear names introduced by this task, keep the public types as the spec defines them, re-run `npm test` (Vitest, all workspaces) green. If nothing needs changing, record why in the step record's `refactor:` field for this task.
+- number: 6
+  title: Browser-level test of the built webview, offline check, visual evidence
+  steps:
+  - id: P4.T6.S1
+    text: |-
+      RED then GREEN: `tests/e2e/webview.spec.ts` serves a page that loads the built webview bundle and KaTeX CSS under the same CSP, with a stub `acquireVsCodeApi` recording posted messages, and sends an init message with `tests/fixtures/sample.md` (headings, paragraphs, both math delimiter families, a mermaid flowchart, a code block, a table, lists): the reader mounts; the math and the diagram appear as exhibits with real rendered size (an svg with non-zero box, `.katex` present); playing posts position messages whose lines match the source lines of the blocks read; no CSP violation is reported and no request leaves localhost.
+  - id: P4.T6.S2
+    text: |-
+      Extend `scripts/capture-visual.mjs` to write `.visual/phase-4/` for `webview reader with rendered math and mermaid exhibits`; run it, open the screenshot, fix what looks wrong, fill the step record's `visual:` section.
+  - id: P4.T6.S3
+    text: |-
+      REFACTOR + quality gate: `npm run typecheck`, `npm test` (Vitest, all workspaces), `npm run test:e2e` (Playwright, Chromium), `npm run package` (the .vsix exists and `unzip -l` shows no node_modules); then run the full suite after the last code commit into a log outside the repository.
+state:
+  steps:
+    P4.T1.S1:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T1.S2:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T1.S3:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T2.S1:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T2.S2:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T2.S3:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T3.S1:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T3.S2:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T3.S3:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T4.S1:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T4.S2:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T4.S3:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T5.S1:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T5.S2:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T5.S3:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T6.S1:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T6.S2:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+    P4.T6.S3:
+      state: x
+      ticked_at: '2026-11-17T17:50:55+00:00'
+      note: null
+  completion:
+    at: '2026-11-17T17:50:55+00:00'
+    note: null
+    observed_prs: []

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A hostile page</title>
+    <!-- Our own test page: rules that try to restyle everything, including the reader's host element. -->
+    <style>
+      * { font-family: "Comic Sans MS", cursive !important; letter-spacing: 4px !important; text-transform: uppercase !important; color: red !important; line-height: 3 !important; box-sizing: content-box !important; }
+      body { font-size: 32px !important; margin: 60px !important; background: yellow !important; }
+      div { padding: 30px !important; border: 4px solid lime !important; display: flex !important; position: relative !important; opacity: 0.6 !important; transform: rotate(1deg) !important; width: 300px !important; }
+      body > div { z-index: 1 !important; inset: 40px !important; }
+    </style>
+  </head>
+  <body>
+    <div class="content">
+      <article>
+        <h3>Shouting styles</h3>
+        <p>Every rule on this page tries to restyle everything it can reach. The reader's own interface must look the same as on any other page.</p>
+        <p>A second paragraph, so there is something to read after the first.</p>
+      </article>
+    </div>
+  </body>
+</html>
