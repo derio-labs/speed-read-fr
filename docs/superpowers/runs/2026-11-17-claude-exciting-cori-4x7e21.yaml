@@ -238,3 +238,4 @@ steps:
           model: claude-fable-5-2
           session: 304c235a-e6b6-566c-a451-2bef9b4242bd
 fr_version: 8.1.3
+pr: https://github.com/derio-net/speed-read-fr/pull/1
