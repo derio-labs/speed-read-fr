@@ -338,8 +338,10 @@ element or a shadow root) and returns a handle with `destroy()`.
     wrapper as inline style, and gives the wrapper the first non-transparent background
     colour found walking up from the container, so page text is never drawn in page colours
     on the reader's background.
-  - A `canvas` is cloned blank by the DOM, so it is replaced by an image of its pixels
-    (`toDataURL`); when that throws (tainted canvas) a placeholder is shown.
+  - A `canvas` is cloned blank by the DOM, and its pixels are never read by the extension
+    (in Firefox an extension with host access can read a canvas the page itself may not, and
+    the copy would sit where the page can read it), so a canvas is shown as the
+    "Shown on the page" placeholder (security lens finding l-security-r1).
   - Elements with a shadow root, and any `iframe`, `video`, `audio`, `object` or `embed`
     inside a clone, are replaced by a placeholder ("Shown on the page") so nothing is
     reloaded and no request is made.
