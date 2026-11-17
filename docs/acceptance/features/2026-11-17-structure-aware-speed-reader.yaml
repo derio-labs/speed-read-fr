@@ -247,9 +247,13 @@ rows:
       footers.
     origin:
     - spec:2026-11-17-structure-aware-speed-reader#R15
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/browser-extension/src/adapters/adapters.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/extension.spec.ts
+    status: ci
+    notes: Verified by the automated suite, which CI runs on every pull request
   - id: chrome-entry-points-in-browser
     capability: browser-extension
     acceptance: In Chrome the toolbar button, both context-menu items and Alt+Shift+R
