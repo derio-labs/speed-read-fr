@@ -67,7 +67,6 @@ export interface Timeline {
 const SHORT_LIST_ITEM_WORDS = 6;
 const SHORT_LIST_MAX_ITEMS = 8;
 const PROMPT_TAIL = ': Space to continue, E to expand';
-const HEADING_SOURCE: SourceRef = { element: null };
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -106,7 +105,8 @@ function directSubheadings(sections: Section[], at: number): string[] {
   const level = sections[at].heading?.level ?? 0;
   const titles: string[] = [];
   let shallowest = Infinity;
-  for (const s of sections.slice(at + 1)) {
+  for (let i = at + 1; i < sections.length; i++) {
+    const s = sections[i];
     if (!s.heading) continue;
     if (s.heading.level <= level) break;
     if (s.heading.level <= shallowest) titles.push(s.heading.text);
@@ -143,7 +143,7 @@ export function buildTimeline(doc: Doc, settings: Settings): Timeline {
     sections.push(entry);
 
     if (section.heading) {
-      const at = { sectionId, blockIndex: -1, source: HEADING_SOURCE };
+      const at = { sectionId, blockIndex: -1, source: section.heading.source };
       if (settings.stopLevels.includes(section.heading.level)) {
         const card: ChapterCard = {
           title: section.heading.text,

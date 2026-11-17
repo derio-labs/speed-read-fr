@@ -39,7 +39,7 @@ export const section = (
   ...blocks: Block[]
 ): Section => ({
   id,
-  ...(heading ? { heading } : {}),
+  ...(heading ? { heading: { ...heading, source: src() } } : {}),
   blocks,
   words: blocks.reduce((n, b) => n + blockWords(b), 0),
 });

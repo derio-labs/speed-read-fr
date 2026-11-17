@@ -220,7 +220,7 @@ describe('buildTimeline: positions', () => {
     const d = doc(section('x', { level: 2, text: 'X' }, p, c));
     const t = buildTimeline(d, settings());
     expect(t.steps.map((s) => [s.sectionId, s.blockIndex, s.source])).toEqual([
-      ['x', -1, { element: null }],
+      ['x', -1, d.sections[0].heading!.source],
       ['x', 0, p.source],
       ['x', 1, c.source],
     ]);
@@ -234,5 +234,15 @@ describe('buildTimeline: positions', () => {
       ['b', 1, 'B', 2],
       ['c', 3, 'Empty', 1],
     ]);
+  });
+});
+
+describe('buildTimeline: heading sources', () => {
+  it('gives each heading step its own heading source', () => {
+    const d = doc(section('a', { level: 1, text: 'A' }), section('b', { level: 4, text: 'B' }));
+    const t = buildTimeline(d, settings());
+    expect(t.steps[0].source).toBe(d.sections[0].heading!.source);
+    expect(t.steps[1].source).toBe(d.sections[1].heading!.source);
+    expect(t.steps[0].source).not.toBe(t.steps[1].source);
   });
 });
