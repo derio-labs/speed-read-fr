@@ -7,3 +7,4 @@ dist-test
 test-results
 playwright-report
 *.tsbuildinfo
+packages/vscode-extension/media

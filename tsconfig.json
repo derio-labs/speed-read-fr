@@ -1,4 +1,4 @@
 {
   "files": [],
-  "references": [{ "path": "packages/core" }, { "path": "packages/browser-extension" }]
+  "references": [{ "path": "packages/core" }, { "path": "packages/browser-extension" }, { "path": "packages/vscode-extension" }]
 }

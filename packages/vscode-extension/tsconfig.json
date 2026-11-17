@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "../../node_modules/.cache/tsc/vscode-extension",
+    "tsBuildInfoFile": "../../node_modules/.cache/tsc/vscode-extension.tsbuildinfo",
+    "types": ["node", "vscode"]
+  },
+  "include": ["src"],
+  "references": [{ "path": "../core" }]
+}
