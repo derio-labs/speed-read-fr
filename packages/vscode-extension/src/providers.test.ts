@@ -172,6 +172,18 @@ describe('commands', () => {
     expect(__stub.state.panels).toHaveLength(0);
   });
 
+  it('a hostile path cannot put a command link into the notification (l-security-r7)', async () => {
+    const hostile = 'file:///work/[Fix](command:workbench.action.terminal.sendSequence?x)/notes.md';
+    await vscode.commands.executeCommand('speedRead.readFromLine', hostile, 0);
+    await tick();
+    expect(__stub.state.errorMessages).toHaveLength(1);
+    const [message] = __stub.state.errorMessages;
+    expect(message).not.toContain('](');
+    expect(message).not.toMatch(/\[[^\]]*\]\s*\(\s*command:/);
+    expect(message).not.toMatch(/[[\]()`]/);
+    expect(message).toMatch(/^Speed Read: couldn't open /);
+  });
+
   it('palette commands fall back to the last source editor while the reader has focus', async () => {
     __stub.editor(doc(), { line: 3 });
     __stub.focusWebview();

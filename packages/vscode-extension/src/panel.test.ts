@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import { DEFAULT_SETTINGS } from '@speed-read/core';
-import { ReaderPanel } from './panel';
+import { notificationText, ReaderPanel } from './panel';
 import { __stub, Position, Selection, type StubEditor, type StubPanel } from './test/vscode-stub';
 
 const TEXT = ['# Title', '', 'one', '', 'two', '', 'three'].join('\n');
@@ -249,5 +249,52 @@ describe('a webview that could not render', () => {
   it('shows its error with showErrorMessage', () => {
     panel.webview.receive({ type: 'error', message: 'boom' });
     expect(__stub.state.errorMessages).toEqual(['Speed Read could not render this document: boom']);
+  });
+});
+
+describe('untrusted text in notifications (l-security-r7)', () => {
+  const LINK = '[Fix](command:workbench.action.terminal.sendSequence?x)';
+  const safe = (m: string) => {
+    expect(m).not.toContain('](');
+    expect(m).not.toMatch(/[[\]()`]/);
+  };
+
+  it('notificationText removes link syntax, collapses line breaks and caps the length', () => {
+    safe(notificationText(`a ${LINK} \`code\``));
+    expect(notificationText('one\n\n  two\r\nthree')).toBe('one two three');
+    const long = notificationText('x'.repeat(500));
+    expect(long.length).toBeLessThanOrEqual(200);
+    expect(notificationText(undefined)).toBe('');
+  });
+
+  it('the webview error message cannot carry a command link', () => {
+    panel.webview.receive({ type: 'error', message: `boom ${LINK}\nsecond line` });
+    expect(__stub.state.errorMessages).toHaveLength(1);
+    safe(__stub.state.errorMessages[0]);
+    expect(__stub.state.errorMessages[0]).not.toContain('\n');
+    expect(__stub.state.errorMessages[0]).toMatch(/^Speed Read could not render this document: boom /);
+  });
+
+  it('a refused settings write cannot carry a command link', async () => {
+    __stub.state.updateError = new Error(`denied ${LINK}`);
+    try {
+      panel.webview.receive({ type: 'settings', settings: { ...DEFAULT_SETTINGS, wpm: 410 } });
+      for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+      expect(__stub.state.warningMessages).toHaveLength(1);
+      safe(__stub.state.warningMessages[0]);
+    } finally {
+      __stub.state.updateError = undefined;
+    }
+  });
+
+  it('a hostile closed source path cannot carry a command link on Re-read', async () => {
+    const doc = __stub.document('text', { path: `/work/${LINK}/doc.md` });
+    reader.show({ document: doc as unknown as vscode.TextDocument, range: { startLine: 0 }, settings: DEFAULT_SETTINGS });
+    doc.isClosed = true;
+    __stub.state.textDocuments.length = 0;
+    panel.webview.receive({ type: 'reread', line: 0 });
+    for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+    expect(__stub.state.errorMessages).toHaveLength(1);
+    safe(__stub.state.errorMessages[0]);
   });
 });

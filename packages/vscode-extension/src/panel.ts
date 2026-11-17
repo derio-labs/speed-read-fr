@@ -19,8 +19,26 @@ export const SOURCE_CLOSED = 'Source document is closed';
 /** A path for messages: the file path, else the URI. */
 export const displayPath = (uri: vscode.Uri) => (uri.scheme === 'file' ? uri.fsPath : uri.toString());
 export const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
+/** The longest untrusted value put into a notification. */
+export const NOTIFICATION_VALUE_MAX = 200;
+const SAFE_CHARS: Record<string, string> = { '[': '‹', ']': '›', '(': '«', ')': '»', '`': "'" };
+
+/**
+ * Untrusted text (a path from the workspace, an exception's message, text the webview posted) made
+ * safe for a notification (l-security-r7): VS Code renders `[label](command:…)` there as a link that
+ * runs a command, so brackets, parentheses and backticks become plain substitutes, line breaks
+ * collapse to spaces, and the value is capped at 200 characters.
+ */
+export function notificationText(value: unknown): string {
+  const text = String(value ?? '')
+    .replace(/[[\]()`]/g, (c) => SAFE_CHARS[c])
+    .replace(/\s*[\r\n]+\s*/g, ' ')
+    .trim();
+  return text.length > NOTIFICATION_VALUE_MAX ? `${text.slice(0, NOTIFICATION_VALUE_MAX - 1)}…` : text;
+}
+
 /** The message shown when a document named by a lens, hover or Re-read cannot be opened. */
-export const couldNotOpen = (path: string, error: unknown) => `Speed Read: couldn't open ${path}: ${messageOf(error)}`;
+export const couldNotOpen = (path: string, error: unknown) => `Speed Read: couldn't open ${notificationText(path)}: ${notificationText(messageOf(error))}`;
 
 const dirname = (uri: vscode.Uri) => uri.with({ path: uri.path.replace(/\/[^/]*$/, '') || '/' });
 
@@ -125,7 +143,7 @@ export class ReaderPanel implements vscode.Disposable {
       this.post({ type: 'save-status', ok: true });
       return;
     }
-    if (!this.writeFailing) void vscode.window.showWarningMessage(`Speed Read: couldn't save settings: ${messageOf(error)}`);
+    if (!this.writeFailing) void vscode.window.showWarningMessage(`Speed Read: couldn't save settings: ${notificationText(messageOf(error))}`);
     this.writeFailing = true;
     this.post({ type: 'save-status', ok: false });
   }
@@ -263,7 +281,7 @@ export class ReaderPanel implements vscode.Disposable {
         void this.reread(message.line);
         break;
       case 'error':
-        void vscode.window.showErrorMessage(`Speed Read could not render this document: ${typeof message.message === 'string' ? message.message : 'unknown error'}`);
+        void vscode.window.showErrorMessage(`Speed Read could not render this document: ${notificationText(typeof message.message === 'string' ? message.message : 'unknown error')}`);
         break;
       case 'close':
         this.panel?.dispose();
