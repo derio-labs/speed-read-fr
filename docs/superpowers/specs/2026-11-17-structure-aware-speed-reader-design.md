@@ -37,7 +37,7 @@ R8. A heading at a stop level (default H1 and H2, configurable) stops playback o
 R9. After every stop or pause the speed ramps from a reduced rate back to the set speed over the next few chunks.
 R10. The reader shows three zones: an outline rail (headings, current one highlighted, per-section progress and estimated time, click to jump), a stage (chunk with optimal-recognition-point highlight, the current sentence faded below it), and an exhibit pane that reveals each non-prose block of the current section when playback reaches it and keeps passed ones visible; the pane sits right, or below the stage when the reader is narrow.
 R11. Keys: Space play/pause and continue, Left/Right previous/next sentence, Up/Down speed, N/P next/previous section, Tab toggles normal reading at the current position, E expands the current exhibit, Esc closes.
-R12. Settings: speed in WPM, words per chunk, maximum characters per chunk, heading levels that stop, behaviour per type for code, tables and math (stop, skip, or dwell with seconds), image dwell seconds, display mode, and text-to-speech; defaults are 300 WPM, 3 words, 20 characters; settings persist per host.
+R12. Settings: speed in WPM, words per chunk, maximum characters per chunk, heading levels that stop, behaviour per type for code, tables and math (stop, skip, or dwell with seconds), image dwell seconds, display mode, and text-to-speech; defaults are 300 WPM, 3 words, 20 characters, stop levels H1 and H2, stop for code, tables and math, 5 seconds when one of those is set to dwell, 3 seconds for images and diagrams (one shared setting), overlay display, text-to-speech off; settings persist per host.
 R13. Browser entry points: the toolbar button reads the selection, else the main content; context-menu items "Speed read selection" and "Speed read from here"; the shortcut Alt+Shift+R does what the toolbar button does.
 R14. Browser hover mode: while Alt is held the block under the pointer is outlined, and a click reads from that block to the end of its container; without Alt nothing is outlined or intercepted.
 R15. On claude.ai, ChatGPT and Gemini the container is one assistant reply; on any other site, and when no reply matches, the container is the page's main content (not navigation, sidebars or footers), found by a generic heuristic.
@@ -185,8 +185,13 @@ Durations, with `base = 60000 / wpm` ms per word:
 
 - chunk: `base × tokens`, plus `0.5 × base` if it ends in a comma-class mark, plus
   `1.2 × base` if it ends the sentence, plus `0.3 × base` per token longer than 8 characters.
-- Ramp: after a stop, a pause, a jump, or the start, the next six timed steps run at
-  60 %, 68 %, 76 %, 84 %, 92 %, 100 % of the set speed (duration divided by the factor).
+- Dwell defaults: images and diagrams 3 s (`imageDwellSeconds`, shared); code, tables and
+  math set to `dwell` 5 s each (`dwellSeconds` per type).
+- Ramp: the next six `chunk` or `item-chunk` steps run at 60 %, 68 %, 76 %, 84 %, 92 %,
+  100 % of the set speed (duration divided by the factor) after each of exactly these:
+  the start, play after a user pause, continue after a `stop` or `chapter` step, any
+  sentence, section or jump command, and return from normal reading. `item-gap`, `title`,
+  `dwell` and `list-whole` steps neither restart the ramp nor consume a ramp slot.
 - Section estimates (outline, chapter card) sum the timed durations without the ramp and
   count each stop as 3 s.
 
@@ -258,7 +263,10 @@ element or a shadow root) and returns a handle with `destroy()`.
 - Theme: light and dark from `prefers-color-scheme`; VS Code passes its theme colours in as
   CSS variables. Styles are a single string applied by `mountReader` through a constructable
   stylesheet (`adoptedStyleSheets`) on the root, so a strict page or webview CSP cannot
-  block it; a `<style>` element is the fallback where that API is missing. No external
+  block it. Having the API is not proof it worked (a sheet adopted from a Firefox content
+  script can be ignored), so after adopting, `mountReader` reads a sentinel custom property
+  with `getComputedStyle`; when adopting throws or the sentinel is absent it inserts a
+  `<style>` element in the root instead. No external
   stylesheet, no web font.
 
 ### 7. Browser extension
@@ -267,8 +275,13 @@ element or a shadow root) and returns a handle with `destroy()`.
   `background.scripts` and `browser_specific_settings.gecko` with a fixed `id` and
   `strict_min_version` 128.0 (the first ESR after host permissions became granted at
   install). The user can still revoke host access in Firefox: on a toolbar click or shortcut
-  the background checks `permissions.contains` for `<all_urls>` and, when it is missing,
-  calls `permissions.request` from that user gesture; the README says Alt-hover needs it.
+  the handler's first statement, with nothing awaited before it, is
+  `permissions.request({ origins: ['<all_urls>'] })`, because Firefox accepts that call only
+  while the user-input handler is still running; it resolves `true` at once when access is
+  already granted. When host access is withheld (declined in Firefox, or site access set to
+  "on click" in Chrome) the toolbar button, the shortcut and the context menu still work on
+  the current tab through `activeTab`; "Speed read from here" then has no remembered target
+  and reads the main content from its start; Alt-hover is unavailable. The README says so.
   Extension APIs are reached through one shim, `globalThis.browser ?? globalThis.chrome`,
   using promise-returning calls only. Permissions: `storage`,
   `contextMenus`, `scripting`, `activeTab`; host access `<all_urls>` for the always-on
@@ -278,7 +291,10 @@ element or a shadow root) and returns a handle with `destroy()`.
   last `contextmenu` event, answers the background's requests. Hover mode listens in the
   capture phase on `window`. While Alt is held and a block is outlined, `mousedown`,
   `mouseup`, `click` and `auxclick` on it are stopped with `preventDefault()` and
-  `stopImmediatePropagation()`, so a link is neither followed nor downloaded; the Alt
+  `stopImmediatePropagation()`, so a link is neither followed nor downloaded; the click
+  sends `{ type: 'read-from-hover' }` to the background, which injects `reader.js` into
+  `sender.tab.id` (a content script cannot call `scripting`; the `<all_urls>` grant covers
+  it) and tells it to read from the outlined block; the Alt
   `keyup` default is prevented after such a click so the menu bar is not focused. With Alt
   up no listener changes anything. Known limit for the README: desktops that reserve
   Alt+click for moving windows (common on Linux) never deliver it to the page.
@@ -299,7 +315,12 @@ element or a shadow root) and returns a handle with `destroy()`.
     selector matches, the generic heuristic is used, so a markup change degrades to generic
     behaviour instead of failing.
 - Mount and styling (R16): a host element appended to `body` holds a shadow root with the
-  reader UI, so page CSS cannot restyle the reader. For each `exhibit()` or `document()`
+  reader UI. A shadow root stops page selectors but not inheritance, and page rules such as
+  `*` or `body > div` can match the host element itself, so the host carries an inline
+  `style` of `all: initial !important` followed by its own `display`, `position`, `inset`
+  and `z-index` (all `!important`), and the UI's root inside the shadow tree sets every
+  inherited property it relies on. A test page with hostile `*`, `body` and `div` rules
+  covers this. For each `exhibit()` or `document()`
   call the browser host creates a uniquely named `<slot>`, returns it to the core, and
   appends the clone, with `slot` set to that name, to the host element's light DOM, where
   page stylesheet rules still match it. `release()` removes the clone.
@@ -324,15 +345,23 @@ element or a shadow root) and returns a handle with `destroy()`.
   Docked: a panel fixed to the right edge (420 px), the page stays usable and is given a
   matching right margin while the panel is open.
 - Close: the page scrolls to the last-read block and outlines it briefly.
-- Storage: `chrome.storage.local`. The `chrome.*` namespace with promises is used in both
-  browsers.
+- Storage: `storage.local`, reached through the shim.
 
 ### 8. VS Code extension
 
-- Commands: `speedRead.readFile`, `speedRead.readSelection`, `speedRead.readFromCursor`;
-  keybinding `Alt+Shift+R` (file, or selection when one exists) in Markdown editors.
-  CodeLens above every Markdown heading (`speedRead.readFromLine`). Hover provider on
-  headings and paragraphs with a trusted command link. Fenced code is ignored when finding
+- Commands and their source ranges, sent as `startLine` and optional `endLine` (inclusive,
+  zero-based; no `endLine` means the end of the file):
+  - `speedRead.readFile`: the whole file.
+  - `speedRead.readSelection`: the selection widened to whole lines.
+  - `speedRead.readFromCursor`: from the first line of the block containing the cursor.
+  - `speedRead.readSection(line)`, the CodeLens "▶ Read section" above every Markdown
+    heading: from the heading's line to the line before the next heading of the same or a
+    higher level, or the end of the file.
+  - `speedRead.readFromLine(line)`, the hover link "▶ Speed read from here" on headings and
+    paragraphs (a trusted command link): from that block's first line.
+  Keybinding `Alt+Shift+R` in Markdown editors runs `readSelection` when there is a
+  selection, else `readFile`. The webview renders only the lines in range, keeping their
+  original line numbers. Fenced code is ignored when finding
   headings.
 - Panel: one webview beside the editor, reused. The extension sends
   `{ markdown, startLine, endLine?, settings }`; the webview renders with markdown-it
@@ -369,7 +398,7 @@ element or a shadow root) and returns a handle with `destroy()`.
 ### 9. Text-to-speech
 
 `createSpeechDriver(synth = globalThis.speechSynthesis)`; absent API means the TTS controls
-are disabled with a note.
+are disabled with a note. Text-to-speech is off by default (D4).
 
 - With TTS on, the player hands timing to the driver: one utterance per sentence (or list
   item), rate `wpm / 180` clamped to 0.5–3. Each `boundary` event's `charIndex` selects the
@@ -456,7 +485,11 @@ gate: tester
 - vscode-extension-in-host: live — the suite runs the providers against a stub and the webview in Chromium; only a VS Code window shows the real host
 - tts-speaks-in-sync: live — speech output and real voice boundary events exist only on a machine with voices installed
 
-Every other row is verified before merge by the automated suite. R1 (one core used by all
+Every other row is verified before merge by the automated suite, with two exceptions that
+are checked on the pull request itself: `install-docs` by a test that the README has a
+section for each target, the keys, the settings and the limits, and by review of its text;
+`ci-builds-packages` by the pull request's own workflow run and its three uploaded
+packages, together with the workflow file's `push` trigger for `main`. R1 (one core used by all
 hosts) is a property of the build, proven by the browser and VS Code rows running the same
 core, and R24 and R26 are properties of the repository; none of the three has a row.
 
@@ -466,6 +499,6 @@ Post-merge, operator-driven, on an installed build:
 
 1. Chat sites: on claude.ai, ChatGPT and Gemini, open a long reply with code, a list and a table. Toolbar button reads the last reply only; Alt-hover then click inside an earlier reply reads from that block to the end of that reply; exhibits look as they do on the page.
 2. Chrome: load `dist/chrome` unpacked; on an article page the toolbar button reads the selection when there is one and the main content otherwise; both context-menu items and Alt+Shift+R open the reader on the expected content.
-3. Firefox: load `dist/firefox` as a temporary add-on; toolbar button, both context-menu items, Alt+Shift+R and Alt-hover work on an article page; settings persist after a restart.
+3. Firefox: load `dist/firefox` as a temporary add-on; toolbar button, both context-menu items, Alt+Shift+R and Alt-hover work on an article page; settings persist after reloading the add-on and the tab (a temporary add-on is removed when Firefox restarts).
 4. VS Code: install the `.vsix`; on a Markdown file with math and a Mermaid block run all three commands, the CodeLens and the hover link; the panel renders math and the diagram; the editor cursor follows and stays on the last line read after closing.
 5. Text-to-speech: with a local voice, turn TTS on in Chrome and in VS Code; the displayed chunk follows the voice; with networking disabled a local voice still speaks; a network voice shows the warning.
