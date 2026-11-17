@@ -1,7 +1,7 @@
 import type { SourceRef } from './model';
 import { isRamped, rampFactor, stepDuration } from './pacing';
 import type { Settings } from './settings';
-import type { Step, StepPosition, Timeline, TimelineExhibit } from './timeline';
+import type { Step, StepPosition, Timeline, TimelineExhibit, TimelineSection } from './timeline';
 
 /** Timer functions the player runs on; tests inject a fake clock. */
 export interface Scheduler {
@@ -52,10 +52,17 @@ export interface Player {
   jumpToSection(id: string): void;
   jumpToBlock(ref: SourceRef): void;
   speed(delta: number): void;
+  setSpeed(wpm: number): void;
   toggleReading(): void;
   expand(): void;
   close(): void;
   revealedExhibits(sectionId: string): TimelineExhibit[];
+  /**
+   * Swap in a timeline rebuilt with new settings, keeping the position (the same source when it
+   * still exists, else the first step at or after the old block), the play state, the reading
+   * session and what has been revealed.
+   */
+  replaceTimeline(timeline: Timeline, settings: Settings): void;
 }
 
 const MIN_WPM = 100;
@@ -82,21 +89,44 @@ function sourceMatches(ref: SourceRef, source: SourceRef): boolean {
   return target === el || (typeof target.contains === 'function' && target.contains(el));
 }
 
+/** Identity of an exhibit across rebuilt timelines: its DOM element, else its block. */
+const exhibitKey = (e: TimelineExhibit): unknown => e.block.source.element ?? e.block;
+
 /** The state machine over a timeline (spec section 5). */
-export function createPlayer(timeline: Timeline, initialSettings: Settings, scheduler: Scheduler): Player {
-  const { steps, sections } = timeline;
+export function createPlayer(initialTimeline: Timeline, initialSettings: Settings, scheduler: Scheduler): Player {
   type Listener = (payload: PlayerEvents[keyof PlayerEvents]) => void;
   const listeners = new Map<keyof PlayerEvents, Set<Listener>>();
+  let steps: Step[] = [];
+  let sections: TimelineSection[] = [];
   let state: PlayerState = 'idle';
   let settings = initialSettings;
   let index = 0;
   let lastPosition = -1;
   let timer: unknown = null;
+  /** Bumped whenever pending work is cancelled; a timer or an emit loop from an older generation stops. */
+  let generation = 0;
   let rampSlot = 0;
+  /** True when the current stop was reached by playback, so navigation keeps playing. */
+  let stopFromPlayback = false;
+
+  // Reading session: from the first play after idle to the end.
+  let sessionActive = false;
   let startedAt = 0;
   let visited = new Set<number>();
-  /** Per section, the furthest step index reached while in it (Infinity once read to its end). */
-  const reached = new Map<string, number>();
+  let carriedWords = 0;
+
+  // Exhibits are revealed once the reading position passes their reveal step, in timeline order.
+  let byReveal: TimelineExhibit[] = [];
+  let revealCursor = 0;
+  const revealed = new Set<unknown>();
+
+  function load(timeline: Timeline) {
+    steps = timeline.steps;
+    sections = timeline.sections;
+    byReveal = sections.flatMap((s) => s.exhibits).sort((a, b) => a.revealAt - b.revealAt);
+    revealCursor = 0;
+  }
+  load(initialTimeline);
 
   function emit<E extends keyof PlayerEvents>(event: E, payload: PlayerEvents[E]) {
     listeners.get(event)?.forEach((fn) => fn(payload));
@@ -109,71 +139,151 @@ export function createPlayer(timeline: Timeline, initialSettings: Settings, sche
   }
 
   function cancelTimer() {
+    generation++;
     if (timer !== null) scheduler.clearTimeout(timer);
     timer = null;
   }
 
-  function markReached(sectionId: string, at: number) {
-    reached.set(sectionId, Math.max(reached.get(sectionId) ?? -1, at));
+  function markPassed(at: number) {
+    while (revealCursor < byReveal.length && byReveal[revealCursor].revealAt <= at) {
+      revealed.add(exhibitKey(byReveal[revealCursor++]));
+    }
   }
+
+  function beginSession() {
+    if (sessionActive) return;
+    sessionActive = true;
+    startedAt = scheduler.now();
+    visited = new Set();
+    carriedWords = 0;
+  }
+
+  const wordsRead = () => [...visited].reduce((n, i) => n + stepWords(steps[i]), carriedWords);
 
   function finish() {
     cancelTimer();
+    const gen = generation;
     index = steps.length;
-    const words = [...visited].reduce((n, i) => n + stepWords(steps[i]), 0);
-    emit('step', { step: { kind: 'end', words, elapsedMs: scheduler.now() - startedAt }, index, durationMs: null });
-    setState('idle');
+    markPassed(index);
+    const end: EndStep = { kind: 'end', words: wordsRead(), elapsedMs: scheduler.now() - startedAt };
+    sessionActive = false;
+    const changed = state !== 'idle';
+    state = 'idle';
+    emit('step', { step: end, index, durationMs: null });
+    if (changed && gen === generation) emit('state', 'idle');
   }
 
-  /** Display step `at`; with `timed`, play it (scheduling the next step, or waiting at a stop). */
+  /**
+   * Display step `at`. With `timed`, play it: schedule the next step, or wait at a stop.
+   * All state is settled and the timer scheduled before any listener runs; if a listener
+   * changes the player, the remaining emits of this call are dropped.
+   */
   function show(at: number, timed: boolean) {
-    cancelTimer();
+    if (state === 'closed') return;
     if (at >= steps.length) return finish();
+    cancelTimer();
+    const gen = generation;
     index = at;
     const step = steps[at];
-    visited.add(at);
-    markReached(step.sectionId, at);
-    if (lastPosition !== at) {
-      lastPosition = at;
-      emit('position', { sectionId: step.sectionId, blockIndex: step.blockIndex, source: step.source, index: at });
+    if (timed) visited.add(at);
+    markPassed(at);
+    const positionChanged = lastPosition !== at;
+    lastPosition = at;
+
+    let durationMs: number | null = null;
+    let next = state;
+    if (timed) {
+      durationMs = stepDuration(step, settings);
+      if (durationMs !== null && isRamped(step)) durationMs /= rampFactor(rampSlot++);
+      next = waitsForReader(step) ? 'stopped' : 'playing';
+      stopFromPlayback = true;
+    } else if (state !== 'reading') {
+      next = waitsForReader(step) ? 'stopped' : 'paused';
+      stopFromPlayback = false;
     }
-    let durationMs = timed ? stepDuration(step, settings) : null;
-    if (durationMs !== null && isRamped(step)) durationMs /= rampFactor(rampSlot++);
-    if (timed) setState(waitsForReader(step) ? 'stopped' : 'playing');
+    const stateChanged = next !== state;
+    state = next;
+    if (durationMs !== null) {
+      timer = scheduler.setTimeout(() => {
+        if (gen === generation) advance();
+      }, durationMs);
+    }
+
+    if (positionChanged) {
+      emit('position', { sectionId: step.sectionId, blockIndex: step.blockIndex, source: step.source, index: at });
+      if (gen !== generation) return;
+    }
+    if (stateChanged) {
+      emit('state', next);
+      if (gen !== generation) return;
+    }
     emit('step', { step, index: at, durationMs });
-    if (durationMs !== null) timer = scheduler.setTimeout(() => advance(), durationMs);
   }
 
-  /** Move on to the next step in reading order, marking a section read when leaving it. */
   function advance() {
+    if (state === 'closed') return;
     timer = null;
-    const leaving = steps[index];
-    const next = steps[index + 1];
-    if (leaving && (!next || next.sectionId !== leaving.sectionId)) reached.set(leaving.sectionId, Infinity);
     show(index + 1, true);
+  }
+
+  function play(at: number) {
+    beginSession();
+    rampSlot = 0;
+    show(at, true);
   }
 
   function continueFromStop() {
     if (state !== 'stopped') return;
+    beginSession();
     rampSlot = 0;
     advance();
-  }
-
-  function play(at: number) {
-    rampSlot = 0;
-    show(at, true);
   }
 
   /** A navigation command: keep playing when playback was active, else show the target paused. */
   function moveTo(at: number) {
     if (state === 'closed' || at < 0 || at >= steps.length) return;
-    if (state === 'playing' || state === 'stopped') return play(at);
+    if (state === 'playing' || (state === 'stopped' && stopFromPlayback)) return play(at);
     show(at, false);
-    if (state !== 'reading') setState('paused');
   }
 
   /** Index in `sections` of the section holding step `at` (the last section at the end). */
   const sectionOf = (at: number) => sections.findIndex((s) => s.id === steps[Math.min(at, steps.length - 1)]?.sectionId);
+
+  /** The nearest landing at or before `from` (0 when there is none). */
+  function landingAtOrBefore(from: number): number {
+    for (let i = from; i >= 0; i--) if (isLanding(steps[i])) return i;
+    return 0;
+  }
+
+  /** Where the step `old` of a previous timeline sits in the current one. */
+  function locate(old: Step): number {
+    const sameSource = (s: Step) => s.source === old.source;
+    let at = -1;
+    if (old.kind === 'chunk' || old.kind === 'item-chunk') {
+      at = steps.findIndex(
+        (s) => sameSource(s) && s.kind === old.kind && s.sentenceIndex === old.sentenceIndex && s.sentenceStart,
+      );
+    }
+    if (at < 0) at = steps.findIndex((s) => sameSource(s) && s.kind === old.kind);
+    if (at < 0) at = steps.findIndex(sameSource);
+    if (at >= 0) return at;
+    const order = (id: string) => sections.findIndex((s) => s.id === id);
+    const oldSection = order(old.sectionId);
+    if (oldSection < 0) return 0;
+    at = steps.findIndex((s) => {
+      const o = order(s.sectionId);
+      return o > oldSection || (o === oldSection && s.blockIndex >= old.blockIndex);
+    });
+    return at < 0 ? steps.length : at;
+  }
+
+  function setSpeed(wpm: number) {
+    if (state === 'closed' || !Number.isFinite(wpm)) return;
+    const clamped = Math.min(MAX_WPM, Math.max(MIN_WPM, wpm));
+    if (clamped === settings.wpm) return;
+    settings = { ...settings, wpm: clamped };
+    emit('settings', settings);
+  }
 
   return {
     get state() {
@@ -203,24 +313,16 @@ export function createPlayer(timeline: Timeline, initialSettings: Settings, sche
       } else if (state === 'paused') {
         play(index);
       } else if (state === 'idle') {
-        if (index >= steps.length) index = 0;
-        visited = new Set();
-        startedAt = scheduler.now();
-        play(index);
+        play(index >= steps.length ? 0 : index);
       }
     },
     continue: continueFromStop,
     sentence(delta) {
       if (state === 'closed' || steps.length === 0) return;
-      let start = index;
-      while (start > 0 && !isLanding(steps[start])) start--;
       if (delta < 0) {
-        if (start === index && index > 0) {
-          let prev = index - 1;
-          while (prev > 0 && !isLanding(steps[prev])) prev--;
-          start = prev;
-        }
-        return moveTo(start);
+        if (index >= steps.length) return moveTo(landingAtOrBefore(steps.length - 1));
+        const start = landingAtOrBefore(index);
+        return moveTo(start === index && index > 0 ? landingAtOrBefore(index - 1) : start);
       }
       for (let next = index + 1; next < steps.length; next++) if (isLanding(steps[next])) return moveTo(next);
     },
@@ -237,17 +339,14 @@ export function createPlayer(timeline: Timeline, initialSettings: Settings, sche
       if (at >= 0) moveTo(at);
     },
     speed(delta) {
-      if (state === 'closed') return;
-      const wpm = Math.min(MAX_WPM, Math.max(MIN_WPM, settings.wpm + delta));
-      if (wpm === settings.wpm) return;
-      settings = { ...settings, wpm };
-      emit('settings', settings);
+      setSpeed(settings.wpm + delta);
     },
+    setSpeed,
     toggleReading() {
       if (state === 'closed') return;
       if (state === 'reading') {
         rampSlot = 0;
-        setState('paused');
+        setState(index >= steps.length ? 'idle' : 'paused');
       } else {
         cancelTimer();
         setState('reading');
@@ -269,8 +368,33 @@ export function createPlayer(timeline: Timeline, initialSettings: Settings, sche
     },
     revealedExhibits(sectionId) {
       const section = sections.find((s) => s.id === sectionId);
-      const upTo = reached.get(sectionId) ?? -1;
-      return section ? section.exhibits.filter((e) => e.revealAt <= upTo) : [];
+      return section ? section.exhibits.filter((e) => revealed.has(exhibitKey(e))) : [];
+    },
+    replaceTimeline(timeline, nextSettings) {
+      if (state === 'closed') return;
+      const old = steps[index];
+      carriedWords = wordsRead();
+      visited = new Set();
+      cancelTimer();
+      load(timeline);
+      settings = nextSettings;
+      const at = old ? locate(old) : steps.length;
+      markPassed(at);
+      lastPosition = -1;
+      if (state === 'playing' || (state === 'stopped' && stopFromPlayback)) {
+        rampSlot = 0;
+        show(at, true);
+      } else if (state === 'paused' || state === 'stopped') {
+        if (at < steps.length) show(at, false);
+        else index = at;
+      } else {
+        index = at;
+        if (state === 'reading' && at < steps.length) {
+          lastPosition = at;
+          const step = steps[at];
+          emit('position', { sectionId: step.sectionId, blockIndex: step.blockIndex, source: step.source, index: at });
+        }
+      }
     },
   };
 }

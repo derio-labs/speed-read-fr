@@ -324,7 +324,7 @@ describe('player: speed, reading, exhibits', () => {
     expect(kinds('b')).toEqual([]);
   });
 
-  it('does not reveal exhibits of a section jumped over', () => {
+  it('reveals the exhibits of a section the reader jumps past (position passed)', () => {
     const d = doc(
       section('a', undefined, prose('aa')),
       section('b', { level: 3, text: 'B' }, exhibit('image')),
@@ -332,8 +332,9 @@ describe('player: speed, reading, exhibits', () => {
     );
     const r = setup(d);
     r.player.toggle();
-    r.player.jumpToSection('c');
     expect(r.player.revealedExhibits('b')).toEqual([]);
+    r.player.jumpToSection('c');
+    expect(r.player.revealedExhibits('b').map((e) => e.block.kind)).toEqual(['image']);
   });
 });
 
@@ -358,5 +359,250 @@ describe('player: listeners and replay', () => {
     toggle();
     expect(r.texts()).toEqual(['aa', 'stop', 'end', 'aa']);
     expect(r.player.state).toBe('playing');
+  });
+});
+
+const skipAll: Settings = {
+  ...one,
+  code: { mode: 'skip', dwellSeconds: 5 },
+  table: { mode: 'skip', dwellSeconds: 5 },
+};
+const last = (r: ReturnType<typeof setup>) => r.texts()[r.texts().length - 1];
+
+describe('review p1-r1: commands after the end', () => {
+  const endDoc = () =>
+    doc(section('s0', undefined, prose('Aa bb. Cc dd.')), section('s1', { level: 4, text: 'T' }, prose('Ee.')), section('s2', undefined, exhibit('image')));
+
+  function atEnd() {
+    const r = setup(endDoc());
+    r.player.toggle();
+    r.clock.advance(600000);
+    expect(r.player.state).toBe('idle');
+    expect(r.player.index).toBe(r.timeline.steps.length);
+    return r;
+  }
+
+  it('sentence(-1) from the end goes to the last landing, sentence(+1) does nothing', () => {
+    const r = atEnd();
+    const count = r.steps.length;
+    r.player.sentence(1);
+    expect(r.steps).toHaveLength(count);
+    r.player.sentence(-1);
+    expect(last(r)).toBe('dwell');
+    expect(r.player.index).toBe(r.timeline.steps.length - 1);
+  });
+
+  it('section, expand, toggleReading and speed do not throw at the end', () => {
+    const r = atEnd();
+    expect(() => r.player.expand()).not.toThrow();
+    expect(() => r.player.toggleReading()).not.toThrow();
+    expect(() => r.player.toggleReading()).not.toThrow();
+    expect(() => r.player.speed(25)).not.toThrow();
+    r.player.section(-1);
+    expect(r.positions[r.positions.length - 1].sectionId).toBe('s1');
+  });
+});
+
+describe('review p1-r2: reading sessions', () => {
+  it('starts the session on the first play after a jump', () => {
+    const d = doc(section('a', undefined, prose('aa bb')), section('b', { level: 4, text: 'B' }, prose('cc dd')));
+    const r = setup(d);
+    r.clock.advance(5000);
+    r.player.jumpToSection('b');
+    r.clock.advance(1000);
+    r.player.toggle();
+    const startedAt = r.clock.now();
+    r.clock.advance(600000);
+    const end = r.steps[r.steps.length - 1].step;
+    expect(end.kind).toBe('end');
+    if (end.kind !== 'end') return;
+    expect(end.words).toBe(2);
+    expect(end.elapsedMs).toBeCloseTo(1200 + base / 0.6 + (base + 1.2 * base) / 0.68);
+    expect(startedAt).toBe(6000);
+  });
+
+  it('replay after the end starts a new session', () => {
+    const r = setup(doc(section('a', undefined, prose('aa bb'))));
+    r.player.toggle();
+    r.clock.advance(600000);
+    r.clock.advance(10000);
+    r.player.jumpToSection('a'); // replay through navigation, not toggle-from-idle
+    r.player.toggle();
+    r.clock.advance(600000);
+    const ends = r.steps.filter((e) => e.step.kind === 'end').map((e) => e.step);
+    expect(ends).toHaveLength(2);
+    const second = ends[1];
+    if (second.kind !== 'end') return;
+    expect(second.words).toBe(2);
+    expect(second.elapsedMs).toBeLessThan(5000);
+  });
+});
+
+describe('review p1-r3: listeners that change the player', () => {
+  it('a step listener that closes leaves no timer and the state closed', () => {
+    const r = setup(doc(section('s', undefined, prose(words(5)))));
+    r.player.on('step', () => r.player.close());
+    r.player.toggle();
+    expect(r.clock.pending()).toBe(0);
+    r.clock.advance(600000);
+    expect(r.player.state).toBe('closed');
+    expect(r.steps).toHaveLength(1);
+  });
+
+  it('a state listener that closes on playing stops everything', () => {
+    const r = setup(doc(section('s', undefined, prose(words(5)))));
+    r.player.on('state', (s) => s === 'playing' && r.player.close());
+    r.player.toggle();
+    r.clock.advance(600000);
+    expect(r.player.state).toBe('closed');
+    expect(r.clock.pending()).toBe(0);
+    expect(r.states).toEqual(['playing', 'closed']);
+  });
+
+  it('a step listener that pauses leaves no timer', () => {
+    const r = setup(doc(section('s', undefined, prose(words(5)))));
+    r.player.on('step', (e) => e.index === 1 && r.player.toggle());
+    r.player.toggle();
+    r.clock.advance(r.steps[0].durationMs!);
+    expect(r.player.state).toBe('paused');
+    expect(r.clock.pending()).toBe(0);
+    r.clock.advance(600000);
+    expect(r.texts()).toEqual(['w0', 'w1']);
+  });
+});
+
+describe('review p1-r4: landing on a stop while not playing', () => {
+  it('sets stopped with no timer, and one Space continues', () => {
+    const d = doc(section('s', undefined, prose('Aa.'), exhibit('code'), prose('Bb.')), section('c', { level: 1, text: 'C' }, prose('Cc.')));
+    const r = setup(d);
+    r.player.sentence(1); // from idle: Aa -> stop
+    expect(last(r)).toBe('stop');
+    expect(r.player.state).toBe('stopped');
+    expect(r.clock.pending()).toBe(0);
+    r.player.toggle();
+    expect(last(r)).toBe('Bb.');
+    expect(r.player.state).toBe('playing');
+    r.player.toggle(); // pause
+    r.player.section(1);
+    expect(last(r)).toBe('chapter');
+    expect(r.player.state).toBe('stopped');
+    r.player.toggle();
+    expect(last(r)).toBe('Cc.');
+  });
+});
+
+describe('review: navigation before the first play', () => {
+  it('sentence and section from idle show the target paused', () => {
+    const d = doc(section('s0', undefined, prose('Aa bb. Cc dd.')), section('s1', { level: 4, text: 'T' }, prose('Ee.')));
+    const r = setup(d);
+    r.player.sentence(1);
+    expect(last(r)).toBe('Cc');
+    expect(r.player.state).toBe('paused');
+    r.player.section(1);
+    expect(last(r)).toBe('title');
+    expect(r.player.state).toBe('paused');
+    expect(r.clock.pending()).toBe(0);
+    r.player.toggle();
+    expect(r.player.state).toBe('playing');
+  });
+
+  it('jumpToBlock with a heading position source lands on that heading', () => {
+    const d = doc(section('a', { level: 4, text: 'A' }, prose('Aa.')), section('b', { level: 4, text: 'B' }, prose('Bb.')));
+    const r = setup(d);
+    r.player.section(1);
+    const pos = r.positions[r.positions.length - 1];
+    r.player.jumpToSection('a');
+    r.player.jumpToBlock(pos.source);
+    expect(r.player.index).toBe(pos.index);
+    expect(r.positions[r.positions.length - 1].sectionId).toBe('b');
+  });
+});
+
+describe('review p1-r6: replaceTimeline and setSpeed', () => {
+  it('setSpeed sets and clamps wpm and emits settings', () => {
+    const r = setup(doc(section('s', undefined, prose('aa'))));
+    r.player.setSpeed(420);
+    r.player.setSpeed(5000);
+    r.player.setSpeed(1000);
+    expect(r.saved.map((s) => s.wpm)).toEqual([420, 1000]);
+  });
+
+  it('changing chunkWords mid-document keeps the section and the sentence', () => {
+    const d = doc(section('a', undefined, prose('Zz.')), section('b', { level: 4, text: 'B' }, prose('Aa bb cc dd. Ee ff gg hh.')));
+    const r = setup(d);
+    r.player.jumpToSection('b');
+    r.player.sentence(1);
+    r.player.sentence(1); // Ee
+    r.player.toggle();
+    r.clock.advance(r.steps[r.steps.length - 1].durationMs!); // ff
+    expect(last(r)).toBe('ff');
+    const two = { ...one, chunkWords: 2 };
+    r.player.replaceTimeline(buildTimeline(d, two), two);
+    expect(last(r)).toBe('Ee ff');
+    expect(r.player.state).toBe('playing');
+    expect(r.positions[r.positions.length - 1].sectionId).toBe('b');
+    expect(r.player.settings.chunkWords).toBe(2);
+    r.clock.advance(r.steps[r.steps.length - 1].durationMs!);
+    expect(last(r)).toBe('gg hh.');
+  });
+
+  it('a stop changed to skip while stopped on it moves on to the next block and keeps it revealed', () => {
+    const d = doc(section('a', undefined, prose('Aa.'), exhibit('code'), prose('Bb.')));
+    const r = setup(d);
+    r.player.toggle();
+    r.clock.advance(r.steps[0].durationMs!);
+    expect(r.player.state).toBe('stopped');
+    r.player.replaceTimeline(buildTimeline(d, skipAll), skipAll);
+    expect(last(r)).toBe('Bb.');
+    expect(r.player.state).toBe('playing');
+    expect(r.player.revealedExhibits('a').map((e) => e.block.kind)).toEqual(['code']);
+    r.clock.advance(600000);
+    const end = r.steps[r.steps.length - 1].step;
+    expect(end.kind === 'end' && end.words).toBe(2);
+  });
+
+  it('keeps a paused state and an idle player idle', () => {
+    const d = doc(section('a', undefined, prose('Aa bb.')));
+    const r = setup(d);
+    r.player.replaceTimeline(buildTimeline(d, one), one);
+    expect(r.player.state).toBe('idle');
+    r.player.toggle();
+    r.player.toggle();
+    r.player.replaceTimeline(buildTimeline(d, { ...one, chunkWords: 3 }), { ...one, chunkWords: 3 });
+    expect(r.player.state).toBe('paused');
+    expect(r.clock.pending()).toBe(0);
+    expect(last(r)).toBe('Aa bb.');
+  });
+});
+
+describe('review p1-r7: skipped exhibits are revealed by position passed', () => {
+  it('reveals a step-less section of skipped exhibits when playback passes it', () => {
+    const d = doc(
+      section('a', undefined, prose('aa')),
+      section('b', undefined, exhibit('table')),
+      section('c', { level: 4, text: 'C' }, prose('cc')),
+    );
+    const r = setup(d, skipAll);
+    r.player.toggle();
+    expect(r.player.revealedExhibits('b')).toEqual([]);
+    r.clock.advance(r.steps[0].durationMs!);
+    expect(r.player.revealedExhibits('b').map((e) => e.block.kind)).toEqual(['table']);
+  });
+
+  it('reveals a trailing skipped exhibit when the reader leaves with section(+1)', () => {
+    const d = doc(section('a', undefined, prose('aa'), exhibit('code')), section('b', { level: 4, text: 'B' }, prose('bb')));
+    const r = setup(d, skipAll);
+    r.player.toggle();
+    expect(r.player.revealedExhibits('a')).toEqual([]);
+    r.player.section(1);
+    expect(r.player.revealedExhibits('a').map((e) => e.block.kind)).toEqual(['code']);
+  });
+
+  it('reveals a trailing skipped exhibit of the last section at the end', () => {
+    const d = doc(section('a', undefined, prose('aa'), exhibit('code')));
+    const r = setup(d, skipAll);
+    r.player.toggle();
+    r.clock.advance(600000);
+    expect(r.player.revealedExhibits('a').map((e) => e.block.kind)).toEqual(['code']);
   });
 });
