@@ -45,7 +45,7 @@ export function createBrowserHost(hostElement: Element, container: Element, opts
   function placeholder(): HTMLElement {
     const el = doc.createElement('div');
     el.setAttribute('data-sr-placeholder', '');
-    el.setAttribute('style', PLACEHOLDER_STYLE);
+    el.style.cssText = PLACEHOLDER_STYLE;
     el.textContent = PLACEHOLDER_TEXT;
     return el;
   }
@@ -95,7 +95,7 @@ export function createBrowserHost(hostElement: Element, container: Element, opts
     for (const attr of el.attributes) {
       if (SHELL_ATTRIBUTES.has(attr.name) || attr.name.startsWith('data-')) copy.setAttribute(attr.name, attr.value);
     }
-    copy.setAttribute('style', SHELL_LAYOUT);
+    (copy as HTMLElement).style.cssText = SHELL_LAYOUT;
     return copy;
   }
 
@@ -111,7 +111,7 @@ export function createBrowserHost(hostElement: Element, container: Element, opts
   function wrap(source: Element | null, content: Element | null): HTMLElement {
     const wrapper = doc.createElement('div');
     wrapper.setAttribute('data-sr-clone', '');
-    wrapper.setAttribute('style', WRAPPER_STYLE);
+    wrapper.style.cssText = WRAPPER_STYLE;
     const style = computed(container);
     for (const prop of INHERITED) {
       const value = style?.getPropertyValue(prop);

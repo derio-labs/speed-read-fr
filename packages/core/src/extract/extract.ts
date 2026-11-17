@@ -346,7 +346,8 @@ function exhibitOf(el: Element): Block | null {
 
 const countWords = (sentences: Sentence[]) => sentences.reduce((n, s) => n + s.tokens.length, 0);
 
-const blockWords = (block: Block): number =>
+/** Words a prose or list block holds (exhibits hold none). */
+export const blockWords = (block: Block): number =>
   block.kind === 'prose'
     ? countWords(block.sentences)
     : block.kind === 'list'
