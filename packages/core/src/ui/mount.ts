@@ -6,7 +6,10 @@ import type { ReaderContext, Zone } from './context';
 import { builder, icon, ICONS } from './dom';
 import type { Host } from './host';
 import { createExhibits } from './exhibits';
+import { attachKeys } from './keys';
 import { createOutline } from './outline';
+import { createReading } from './reading';
+import { createSettingsPanel } from './settings-panel';
 import { createStage } from './stage';
 import { READER_CSS, SENTINEL_PROPERTY } from './styles';
 
@@ -67,7 +70,7 @@ const sameExceptSpeed = (a: Settings, b: Settings) => JSON.stringify({ ...a, wpm
 /** Build the reader inside `root` (spec section 6). */
 export function mountReader(root: Element | ShadowRoot, doc: Doc, options: MountOptions): ReaderHandle {
   const { store, host } = options;
-  const ownerDocument = (root instanceof Element ? root.ownerDocument : root.ownerDocument) as Document;
+  const ownerDocument = root.ownerDocument;
   const win = ownerDocument.defaultView as Window;
   const h = builder(ownerDocument);
   let settings = normalizeSettings(options.settings);
@@ -108,11 +111,22 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   };
   const outlineZone = createOutline(ctx, { outline, bar: outlineBar, layout });
   const exhibitZone = createExhibits(ctx, { pane: exhibits, main });
+  const panel = createSettingsPanel(ctx, (next) => applySettings(next));
   const zones: Zone[] = [
     createStage(ctx, { stage, status, overallFill: overall.firstElementChild as HTMLElement }),
     outlineZone,
     exhibitZone,
+    createReading(ctx, { reading, layout }),
+    panel,
   ];
+  const detachKeys = attachKeys({
+    player,
+    reader,
+    stage,
+    exhibits: exhibitZone,
+    closeDrawer: outlineZone.closeDrawer,
+    panel,
+  });
 
   const unsubscribe = [
     player.on('position', (e) => host.onPosition(e.source)),
@@ -149,6 +163,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     .catch(() => {});
 
   closeButton.addEventListener('click', () => player.close());
+  settingsButton.addEventListener('click', () => panel.open());
   reader.focus({ preventScroll: true });
 
   return {
@@ -158,6 +173,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       if (destroyed) return;
       destroyed = true;
       for (const off of unsubscribe) off();
+      detachKeys();
       player.close();
       for (const zone of zones) zone.destroy();
       reader.remove();

@@ -35,6 +35,7 @@ export function createOutline(ctx: ReaderContext, { outline, bar, layout }: Outl
   /** prefix[i]: estimated ms of the steps before step i. */
   let prefix: number[] = [];
   let ends: number[] = [];
+  let builtFor: unknown = null;
 
   function setDrawer(open: boolean) {
     if (open) layout.dataset.drawer = 'open';
@@ -44,6 +45,7 @@ export function createOutline(ctx: ReaderContext, { outline, bar, layout }: Outl
 
   function build() {
     const { steps, sections } = ctx.timeline;
+    builtFor = ctx.timeline;
     prefix = [0];
     for (const step of steps) prefix.push(prefix[prefix.length - 1] + sectionEstimate([step], ctx.settings));
     ends = sections.map((s, i) => (i + 1 < sections.length ? sections[i + 1].firstStep : steps.length));
@@ -73,6 +75,8 @@ export function createOutline(ctx: ReaderContext, { outline, bar, layout }: Outl
   }
 
   function update(index: number) {
+    // A step of a rebuilt timeline can arrive before `refresh`: rebuild first.
+    if (builtFor !== ctx.timeline) return build();
     const { steps, sections } = ctx.timeline;
     const at = Math.min(index, steps.length - 1);
     const current = sections.findIndex((s, i) => s.firstStep <= at && at < ends[i]);

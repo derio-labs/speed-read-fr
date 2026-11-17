@@ -59,3 +59,24 @@ export const ICONS = {
   close: ['M6 6l12 12', 'M18 6 6 18'],
   menu: ['M4 7h16', 'M4 12h16', 'M4 17h16'],
 } as const;
+
+const FOCUSABLE = 'button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+/** Elements inside `container` that Tab can reach, in document order (the container first when focusable). */
+export function focusables(container: HTMLElement): HTMLElement[] {
+  const all = [container, ...container.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    (el) => el.matches(FOCUSABLE) && !(el as HTMLButtonElement).disabled && !el.closest('[hidden]'),
+  );
+  // With layout, skip what CSS hides (e.g. the narrow-layout bar in the wide layout).
+  const laidOut = all.some((el) => el.getClientRects().length > 0);
+  return laidOut ? all.filter((el) => el.getClientRects().length > 0) : all;
+}
+
+/** Move focus to the next (or previous) focusable in `container`, wrapping. */
+export function cycleFocus(container: HTMLElement, backwards: boolean) {
+  const list = focusables(container);
+  if (list.length === 0) return;
+  const at = list.indexOf(container.ownerDocument.activeElement as HTMLElement);
+  const next = at < 0 ? (backwards ? list.length - 1 : 0) : (at + (backwards ? -1 : 1) + list.length) % list.length;
+  list[next].focus();
+}
