@@ -12,7 +12,17 @@ steps:
     emitted:
       spec: docs/superpowers/specs/2026-11-17-structure-aware-speed-reader-design.md
   spec-review:
-    state: pending
+    state: running
+    at: '2026-11-17T15:16:32+00:00'
+    units:
+      step/spec-review:
+        attempts:
+        - dispatched: '2026-11-17T15:16:32+00:00'
+          agent_type: super-fr:fr-spec-reviewer
+          harness: claude-code
+          tier: hard
+          bound: opus
+          session: 304c235a-e6b6-566c-a451-2bef9b4242bd
   plan:
     state: pending
   plan-review:
