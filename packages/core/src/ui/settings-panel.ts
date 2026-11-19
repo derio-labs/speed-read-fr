@@ -24,7 +24,7 @@ const MODES: [ExhibitMode, string][] = [
 let panels = 0;
 
 /** The settings panel (gear button or `,`): every R12 setting, applied at once through `onChange`. */
-export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Settings) => void): SettingsPanel {
+export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Settings) => void, limits?: { words: number; chars: number }): SettingsPanel {
   const { h, reader } = ctx;
   const titleId = `sr-settings-title-${++panels}`;
 
@@ -65,8 +65,8 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       {},
       h('legend', {}, 'Pacing'),
       field('Speed', 'words per minute', number('wpm', 100, 1000, 25)),
-      field('Words per chunk', null, number('chunkWords', 1, 10, 1)),
-      field('Characters per chunk', 'maximum', number('chunkChars', 5, 80, 1)),
+      field('Words per chunk', null, number('chunkWords', 1, limits?.words ?? 10, 1)),
+      field('Characters per chunk', 'maximum', number('chunkChars', 5, limits?.chars ?? 80, 1)),
     ),
     h('fieldset', {}, h('legend', {}, 'Stop at headings'), levels),
     h(
@@ -160,6 +160,8 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     else if (speech.failed) lines.push(['Speech failed: showing text only', 'warning']);
     if (speech.available && speech.noLocalVoice && !picked) lines.push(['No offline voice installed', 'warning']);
     if (missingVoice && !picked) lines.push(['Saved voice not found; using Automatic', 'info']);
+    const active = speech.currentVoice();
+    if (active && voice && active.uri !== voice.uri) lines.push([`Using ${active.name} after the selected voice failed to start`, 'info']);
     if (voice && !voice.local) lines.push(['This voice needs a network connection', 'warning']);
     lines.push(['Offline speech uses voices installed on this device', 'info']);
     ttsNotes.replaceChildren(...lines.map(([line, kind]) => h('p', { class: 'sr-tts-note sr-field-hint', 'data-kind': kind }, line)));

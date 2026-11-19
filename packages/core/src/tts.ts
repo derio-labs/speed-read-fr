@@ -1,6 +1,7 @@
 /**
  * Text-to-speech over the Web Speech API (spec section 9, R22). One utterance per sentence; word
- * boundaries pick the chunk on show; a voice without boundaries shows the whole sentence instead.
+ * boundaries pick the chunk on show. When there are no boundaries, either estimate chunk timing
+ * from the voice's start or show the whole sentence, depending on the host.
  */
 import type { Token } from './model';
 
@@ -72,7 +73,7 @@ export interface SpeechDriver {
   cancel(): void;
   /** An utterance of ours is being spoken. */
   readonly inFlight: boolean;
-  /** Two errors in a row: speech is off for the rest of the session ("Speech failed: showing text only"). */
+  /** Two errors in a row: speech is off until the reader changes voice or reopens. */
   readonly failed: boolean;
   /** The current voice sent no boundaries for two sentences in a row: it shows whole sentences from now on. */
   readonly boundaryless: boolean;
@@ -84,6 +85,8 @@ export interface SpeechDriverOptions {
   scheduler?: { setTimeout(fn: () => void, ms: number): unknown; clearTimeout(handle: unknown): void };
   /** Document or UI language for the default voice. */
   lang?: string;
+  /** Keep displaying chunks with estimated timing when the voice does not send word boundaries. */
+  estimateBoundaries?: boolean;
 }
 
 /** Wait for a first boundary before showing the whole sentence. */
@@ -123,6 +126,8 @@ export function createSpeechDriver(
   let raw: SpeechVoiceLike[] = [];
   let settled = false;
   let picked: string | null = null;
+  let fallback: string | null = null;
+  const failedStarts = new Set<string>();
   const withoutBoundaries = new Map<string, number>();
   /** Bumped on every speak and cancel: callbacks of an older utterance are dropped. */
   let generation = 0;
@@ -159,7 +164,7 @@ export function createSpeechDriver(
     const want = lang ? primary(lang) : null;
     return (want ? local.find((v) => primary(v.lang) === want) : undefined) ?? local[0] ?? null;
   }
-  const current = () => (picked ? raw.find((v) => v.voiceURI === picked) : undefined) ?? defaultVoice();
+  const current = () => raw.find((v) => v.voiceURI === (fallback ?? picked)) ?? defaultVoice();
   const voiceKey = () => current()?.voiceURI ?? '';
 
   /** The utterance in flight, held so the browser cannot collect it before it ends (p5b-r1). */
@@ -196,6 +201,12 @@ export function createSpeechDriver(
       return v ? info(v) : null;
     },
     setVoice(uri) {
+      if (picked !== uri) {
+        fallback = null;
+        failedStarts.clear();
+        errorsInRow = 0;
+        failed = false;
+      }
       picked = uri;
     },
     currentVoice() {
@@ -243,9 +254,10 @@ export function createSpeechDriver(
         timers.setTimeout(() => gen === generation && handlers.onEnd(), 0);
         return;
       }
-      const voice = current();
+      let voice = current();
       const key = voice?.voiceURI ?? '';
       const rate = speechRate(wpm);
+      const msPerWord = 60_000 / (180 * rate);
       let shown = 0;
       let whole = false;
       let heard = false;
@@ -254,8 +266,13 @@ export function createSpeechDriver(
         withoutBoundaries.set(key, (withoutBoundaries.get(key) ?? 0) + 1);
         handlers.onWholeSentence();
       };
+      const showChunk = (chunk: number) => {
+        if (chunk <= shown) return;
+        shown = chunk;
+        handlers.onChunk(chunk);
+      };
 
-      const speakPart = (n: number) => {
+      const speakPart = (n: number, retried = false) => {
         const { text, starts, words } = parts[n];
         const u = new Utterance!(text);
         u.rate = rate;
@@ -263,12 +280,27 @@ export function createSpeechDriver(
         if (voice) u.lang = voice.lang;
         /** Whether this utterance gave any sign of being spoken: its start or a boundary. */
         let spoke = false;
+        let finished = false;
+        let realBoundary = false;
+        function estimate(at: number) {
+          showChunk(starts[at].chunk);
+          if (gen !== generation || finished) return;
+          const next = starts.findIndex((st, i) => i > at && st.chunk !== starts[at].chunk);
+          if (next >= 0) wait = timers.setTimeout(() => {
+            wait = null;
+            if (gen === generation && !finished && !realBoundary) estimate(next);
+          }, (next - at) * msPerWord);
+        }
         u.onstart = () => {
+          if (spoke) return;
           spoke = true;
+          if (options.estimateBoundaries && gen === generation && !finished && !realBoundary) estimate(0);
         };
         u.onboundary = (e) => {
           spoke = true;
-          if (gen !== generation || whole || (e.name && e.name !== 'word')) return;
+          if (gen !== generation || finished || whole || (e.name && e.name !== 'word')) return;
+          realBoundary = true;
+          if (options.estimateBoundaries) stopWaiting();
           if (!heard) {
             heard = true;
             stopWaiting();
@@ -276,16 +308,13 @@ export function createSpeechDriver(
           }
           let chunk = starts[0].chunk;
           for (const st of starts) if (st.at <= e.charIndex) chunk = st.chunk;
-          if (chunk !== shown) {
-            shown = chunk;
-            handlers.onChunk(chunk);
-          }
+          showChunk(chunk);
         };
-        let finished = false;
         const done = () => {
           if (gen !== generation || finished) return;
           finished = true;
           stopWatchdog();
+          if (options.estimateBoundaries) stopWaiting();
           inFlight = null;
           if (n + 1 < parts.length) return speakPart(n + 1);
           generation++;
@@ -295,7 +324,24 @@ export function createSpeechDriver(
         };
         u.onend = done;
         /** Never advance on an error (p5b-r3): stop, report, and give up speech after two in a row. */
-        const fail = () => {
+        const fail = (error?: string) => {
+          if (gen !== generation || finished) return;
+          const canRetry = options.estimateBoundaries && !spoke && error !== 'not-allowed' && error !== 'interrupted' && error !== 'canceled';
+          if (canRetry && voice) failedStarts.add(voice.voiceURI);
+          const alternative = canRetry && !retried
+            ? raw.find((v) => v.localService && !failedStarts.has(v.voiceURI) && primary(v.lang) === primary(voice?.lang ?? options.lang ?? v.lang))
+            : null;
+          if (alternative) {
+            finished = true;
+            stopWatchdog();
+            stopWaiting();
+            if (!error) synth!.cancel(); // watchdog: the old utterance may still be queued
+            fallback = alternative.voiceURI;
+            voice = alternative;
+            notify();
+            if (gen !== generation) return;
+            return speakPart(n, true);
+          }
           cancel();
           errorsInRow++;
           if (errorsInRow >= FAILED_AFTER_ERRORS && !failed) {
@@ -305,29 +351,34 @@ export function createSpeechDriver(
           handlers.onError?.();
         };
         u.onerror = (e) => {
-          if (gen !== generation || finished || e.error === 'interrupted' || e.error === 'canceled') return;
-          fail();
+          if (!options.estimateBoundaries && (e.error === 'interrupted' || e.error === 'canceled')) return;
+          fail(e.error);
         };
         // The end may never come (a cut-off long utterance, a dropped speak): treat it as ended, unless
         // the voice never started at all (no start, no boundary): that is a voice that does not speak.
-        const estimate = (words / (180 * rate)) * 60_000;
+        const estimatedMs = words * msPerWord;
         watchdog = timers.setTimeout(() => {
           watchdog = null;
           if (gen !== generation) return;
           if (!spoke) return fail();
           if (available) synth!.cancel();
           done();
-        }, Math.max(WATCHDOG_MIN_MS, WATCHDOG_FACTOR * estimate));
+        }, Math.max(WATCHDOG_MIN_MS, WATCHDOG_FACTOR * estimatedMs));
         inFlight = u;
-        synth!.speak(u);
+        try {
+          synth!.speak(u);
+        } catch {
+          fail('synthesis-failed');
+        }
       };
 
-      if ((withoutBoundaries.get(key) ?? 0) >= BOUNDARYLESS_AFTER) showWhole();
-      else
-        wait = timers.setTimeout(() => {
+      if (!options.estimateBoundaries) {
+        if ((withoutBoundaries.get(key) ?? 0) >= BOUNDARYLESS_AFTER) showWhole();
+        else wait = timers.setTimeout(() => {
           wait = null;
           if (gen === generation && !heard) showWhole();
         }, BOUNDARY_WAIT_MS);
+      }
       speakPart(0);
     },
     cancel,

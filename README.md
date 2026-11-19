@@ -62,10 +62,11 @@ or, inside VS Code, run **Extensions: Install from VSIX…** from the command pa
 - **Alt-hover**: hold Alt, the block under the pointer is outlined; Alt+click reads from that
   block to the end of its container (inside a chat reply: to the end of that reply).
 
-The reader opens as three floating cards over the page: the outline on the left, the stage in
-the middle and the exhibits on the right. The page stays visible behind them, faded, and the
-block being read shows at full strength in the band above the stage; the page scrolls by itself
-so that block stays in view near the top. The **Page fade** setting chooses how strong the page
+In **Overlay** and **Side panel**, the speed-read box stays at the bottom with a fixed font
+size and focus point. Chapter cards and scrollable exhibits have their own space above it.
+In Overlay, the faded page stays visible behind the reader, and the current block is outlined at
+full contrast. The page scrolls smoothly to keep that block near the visible top, below sticky
+headers where possible. The **Page fade** setting chooses how strong the page
 behind is. Setting **Display** to **Side panel** docks the reader in a 420 px panel at the right
 edge instead; the page stays usable beside it, and page elements fixed to the right edge (a
 header bar, a help button) move out from under the panel while it is open.
@@ -88,14 +89,14 @@ editor cursor follows the block being read and stays on it when you pause or clo
 
 ### The position dial
 
-A tick strip under the sentence line moves the reading position in both directions. Drag it
+A tick strip under the speed-read text moves the reading position in both directions. Drag it
 (left moves forward) or turn the mouse wheel over the stage; in the browser overlay the wheel
 turns the dial anywhere on the page, except over the outline card, the exhibit card, the
 settings panel and the normal-reading view, which scroll their own content (and never hand the
 wheel on to the page behind). Ctrl+wheel and pinch still zoom the page, and a horizontal swipe
 still goes back or forward; only on the strip itself does a sideways turn move the dial. While
-you read, the page follows the block being read so it sits just below the top of the free band
-above the stage (below the exhibit card when that card sits above the stage). A slow turn moves one chunk at a time;
+you read in the overlay, the page follows the current block in the visible area above the reader.
+A slow turn moves one chunk at a time;
 faster turns accelerate up to fourteen-fold (the readout beside the strip shows the
 multiplier), and the dial coasts briefly when you let go. Playback pauses while you turn it and
 resumes on its own afterwards if it was playing. Chapter cards and stops are shown as you pass
@@ -104,12 +105,9 @@ them; they do not hold the dial.
 ### Narrow windows
 
 In the browser's floating overlay the outline card collapses into a bar with a drawer in the
-stage header when the window is narrower than 1180 px. When the reader is narrower than 900 px
-(a narrow window, the docked panel, a narrow VS Code panel) the outline is that bar in every
-layout, and the exhibit card moves above the stage. It takes the height its content needs, up
-to the room available (the stage card keeps only what it shows), and the card grows while the
-stage glides down to make room, then shrinks while the stage glides back when the card empties. **E** expands an exhibit over the
-whole reader in every layout.
+stage header when the window is narrower than 1180 px. The browser's Side panel always uses
+that bar. In a VS Code panel narrower than 900 px the exhibit card moves above the stage. **E** expands an
+exhibit over the whole reader in every layout.
 
 ## Keys
 
@@ -134,8 +132,8 @@ keeps them in the `speedRead.*` settings.
 | Setting | Default | Range |
 | --- | --- | --- |
 | Speed | 300 WPM | 100-1000 |
-| Words per chunk | 3 | 1-10 |
-| Characters per chunk | 20 (maximum) | 5-80 |
+| Words per chunk | 3 | Browser: 1-3; VS Code: 1-10 |
+| Characters per chunk | 20 (maximum) | Browser: 5-20; VS Code: 5-80 |
 | Stop at headings | H1 and H2 | any of H1-H6 |
 | Code | Stop (Dwell: 5 s) | Stop, Skip, or Dwell 1-60 s |
 | Tables | Stop (Dwell: 5 s) | Stop, Skip, or Dwell 1-60 s |
@@ -163,15 +161,15 @@ Text-to-speech uses the voices of the browser or the system (the Web Speech API)
   "This voice needs a network connection": that voice sends the text to its provider.
 - A saved voice that is no longer installed falls back to the automatic choice, and the panel
   says "Saved voice not found; using Automatic".
-- While it speaks, the chunk on the stage follows the voice's word boundaries. A voice that
-  reports no boundaries shows each sentence whole while it is spoken.
+- While it speaks, the chunk on the stage follows the voice's word boundaries. Without them,
+  the browser reader estimates chunk timing from the speaking rate; VS Code shows the sentence.
 - Code, tables and math are not spoken. Headings that do not stop are spoken; chapter cards
   (the headings that stop) are not. Inline math is left out of the spoken text, headings
   included.
-- If the voice fails (for example a network voice while offline, or a voice that never starts
-  speaking), that sentence is shown as text at your reading speed instead; after two failures in
-  a row speech is switched off for the session and the status line and the settings say
-  "Speech failed: showing text only".
+- If the voice fails to start, the browser tries another installed voice of the same language
+  when available. If speech still fails, the reader uses timed text. After two failed attempts in
+  a row, the status line and settings say "Speech failed: showing text only". Choose another voice
+  or reopen the reader to try again.
 
 ## Known limits
 
@@ -181,7 +179,7 @@ Text-to-speech uses the voices of the browser or the system (the Web Speech API)
   rendered blocks. Page rules that select by an ancestor's `id`, or that depend on a `body > …`
   child position, do not match the copy; `url(#id)` references inside a copied SVG resolve to the
   original on the page.
-- **Inline math is shown as source** in the chunks and the sentence line (display math is an
+- **Inline math is shown as source** in the chunks (and in VS Code's sentence line; display math is an
   exhibit). Headings that contain inline math show their TeX source in the outline and on cards.
 - **Canvas drawings in the browser** (charts and diagrams drawn on a `<canvas>`) are shown as a
   placeholder, "Shown on the page": the reader never reads a canvas's pixels, which may come

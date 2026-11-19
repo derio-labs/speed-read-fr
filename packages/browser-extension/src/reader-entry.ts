@@ -20,27 +20,23 @@ const HOST_LAYOUT = {
 const FRAME_STYLE = 'position: absolute; inset: 0; overflow: hidden;';
 const VEIL_STYLE = 'position: absolute; inset: 0; overflow: hidden; pointer-events: none;';
 /** The clear window: its outside is painted by a spread shadow far larger than any viewport. */
-const WINDOW_STYLE = 'position: absolute; left: 50%; top: 50%; width: 0; height: 0; border-radius: 6px;';
+const WINDOW_STYLE = 'position: absolute; left: 50%; top: 50%; width: 0; height: 0; border-radius: 6px; box-sizing: border-box;';
 /** Room left around the block being read inside the clear window. */
 const WINDOW_PAD_PX = 6;
 /** Where the top of the block being read settles, as a fraction of the viewport height (spec section 13). */
 export const FOLLOW_AT = 0.1;
 /** Time constant of the eased page follow. */
-export const FOLLOW_TAU_MS = 140;
+export const FOLLOW_TAU_MS = 95;
 const MAX_FRAME_MS = 50;
 /** The dock's fixed-element scan (spec section 13): depth below body and elements examined. */
 export const FIXED_SCAN_DEPTH = 6;
 export const FIXED_SCAN_LIMIT = 3000;
 /** Over these the wheel scrolls their own content instead of turning the dial. */
-const OWN_SCROLL = '.sr-exhibits, .sr-outline, .sr-settings-backdrop, .sr-reading, .sr-expanded';
+const OWN_SCROLL = '.sr-exhibits, .sr-outline, .sr-settings-backdrop, .sr-reading, .sr-expanded, .sr-stage-details';
 /** Frames in a row in which the block did not move before the follow gives up (a page end, scroll snap). */
 const STUCK_FRAMES = 3;
-/** The reader's push animation (400 ms) plus a margin: then the follow aims once more. */
-const LAYOUT_SETTLE_MS = 480;
 /** Gap between the free band's top and the block being read. */
 const BAND_GAP_PX = 8;
-/** Height of the block the free band must show to count as room for it. */
-const BAND_MIN_PX = 48;
 /** Veils for a page whose background cannot be read as one colour. */
 const DARK_VEIL: [number, number, number] = [22, 24, 29];
 const LIGHT_VEIL: [number, number, number] = [255, 255, 255];
@@ -249,6 +245,30 @@ function scrollerOf(el: Element, doc: Document, win: Window): Element {
   return doc.scrollingElement ?? doc.documentElement;
 }
 
+/** Fixed and sticky page chrome can cover an otherwise visible part of a scrollport. */
+function belowChrome(doc: Document, win: Window, block: Element, box: DOMRect, start: number): number {
+  if (typeof doc.elementsFromPoint !== 'function') return start;
+  const x = Math.min(win.innerWidth - 1, Math.max(0, box.left + box.width / 2));
+  let y = start;
+  for (let i = 0; i < 4 && y < win.innerHeight * 0.6; i++) {
+    let next = y;
+    const seen = new Set<Element>();
+    for (const hit of doc.elementsFromPoint(x, y)) {
+      if (hit.closest(READER_HOST)) continue;
+      for (let el: Element | null = hit; el && !seen.has(el) && !el.contains(block); el = el.parentElement) {
+        seen.add(el);
+        const { position } = win.getComputedStyle(el);
+        if (position !== 'fixed' && position !== 'sticky') continue;
+        const r = el.getBoundingClientRect();
+        if (r.top <= y && r.bottom > y && r.height < win.innerHeight * 0.5) next = Math.max(next, r.bottom + BAND_GAP_PX);
+      }
+    }
+    if (next === y) break;
+    y = next;
+  }
+  return y;
+}
+
 export function createReader({ api, win, scope, trustedEventsOnly = true, frame: frames = defaultFrames(win) }: ReaderDeps): Reader {
   const doc = win.document;
   const baseStore = extensionStore(api.storage.local);
@@ -351,22 +371,26 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
     let lastTop = Number.NaN;
     let stuck = 0;
     let pending: unknown = null;
-    /** One more aim after the reader's own layout has settled (the narrow push moves the free band). */
-    let settle: number | null = null;
-    /** Where the block's top should sit, in viewport px; 10 % of the viewport until the host says more. */
-    let target: (box: DOMRect) => number = () => win.innerHeight * FOLLOW_AT;
+    let bandBottom = () => win.innerHeight;
+    let chromeFloor = 0;
+    const reducedMotion = win.matchMedia?.('(prefers-reduced-motion: reduce)');
 
-    function place() {
-      if (!block || !block.isConnected) return;
-      const box = block.getBoundingClientRect();
+    function scrollport() {
+      return scroller && scroller !== (doc.scrollingElement ?? doc.documentElement) ? scroller.getBoundingClientRect() : null;
+    }
+
+    function place(box = block?.getBoundingClientRect()) {
+      if (!block?.isConnected || !box) return;
       const vw = doc.documentElement.clientWidth || win.innerWidth;
       const vh = win.innerHeight;
       const clamp = (v: number, hi: number) => Math.min(hi + WINDOW_PAD_PX, Math.max(-WINDOW_PAD_PX, v));
       const left = clamp(box.left - WINDOW_PAD_PX, vw);
-      const top = clamp(box.top - WINDOW_PAD_PX, vh);
+      const port = scrollport();
+      const top = Math.max(port?.top ?? -WINDOW_PAD_PX, clamp(box.top - WINDOW_PAD_PX, vh));
       const right = clamp(box.right + WINDOW_PAD_PX, vw);
-      const bottom = clamp(box.bottom + WINDOW_PAD_PX, vh);
-      Object.assign(clear.style, { left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${bottom - top}px` });
+      const bottom = Math.min(bandBottom(), port?.bottom ?? vh + WINDOW_PAD_PX, clamp(box.bottom + WINDOW_PAD_PX, vh));
+      const height = Math.max(0, bottom - top);
+      Object.assign(clear.style, { left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${height}px`, border: height > 2 ? '2px solid #ff7563' : '0' });
     }
 
     /** Scroll by `step` at once: an instant scroll, so a page's smooth scrolling cannot swallow it (p5a-r2). */
@@ -383,24 +407,36 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
         following = false;
         return;
       }
+      const firstFrame = last === null;
       const dt = last === null ? 16 : Math.min(MAX_FRAME_MS, Math.max(0, time - last));
       last = time;
       const box = block.getBoundingClientRect();
       // Arrival is judged by where the block is, never by the scroll offset read back.
       stuck = Math.abs(box.top - lastTop) < 0.5 ? stuck + 1 : 0;
       lastTop = box.top;
-      const step = followStep(box.top - target(box), dt);
+      const base = Math.max(win.innerHeight * FOLLOW_AT, (scrollport()?.top ?? -BAND_GAP_PX) + BAND_GAP_PX);
+      if (firstFrame) chromeFloor = belowChrome(doc, win, block, box, base);
+      const aim = Math.max(chromeFloor, base);
+      const delta = box.top - aim;
+      const step = reducedMotion?.matches && Math.abs(delta) >= 1 ? delta : followStep(delta, dt);
+      place(box);
       if (step === 0 || stuck >= STUCK_FRAMES) {
+        const floor = belowChrome(doc, win, block, box, aim);
+        if (floor > aim) {
+          chromeFloor = floor;
+          stuck = 0;
+          lastTop = Number.NaN;
+          pending = frames.request(tick);
+          return;
+        }
         following = false;
-        place();
         return;
       }
       scrollBy(scroller, step);
-      place();
       pending = frames.request(tick);
     }
 
-    const onMove = () => place();
+    const onMove = () => { if (!following) place(); };
     win.addEventListener('scroll', onMove, { capture: true, passive: true });
     win.addEventListener('resize', onMove);
     const Resize = (win as unknown as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver;
@@ -408,39 +444,27 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
 
     return {
       fade,
-      /** The host's target for the block's top (the free band above the stage). */
-      aim(fn: (box: DOMRect) => number) {
-        target = fn;
+      /** Clip large blocks to the page area above the reader's cards. */
+      setBandBottom(fn: () => number) {
+        bandBottom = fn;
       },
       follow(el: Element) {
-        if (el !== block) {
-          scroller = scrollerOf(el, doc, win);
-          if (block) resize?.unobserve(block);
-          resize?.observe(el);
-        }
+        if (el === block) return;
+        scroller = scrollerOf(el, doc, win);
+        if (block) resize?.unobserve(block);
+        resize?.observe(el);
         block = el;
+        chromeFloor = 0;
         following = true;
         stuck = 0;
         lastTop = Number.NaN;
         last = null;
-        place();
         if (pending === null) pending = frames.request(tick);
-        if (settle !== null) win.clearTimeout(settle);
-        settle = win.setTimeout(() => {
-          settle = null;
-          if (!block?.isConnected || following) return;
-          following = true;
-          stuck = 0;
-          lastTop = Number.NaN;
-          last = null;
-          if (pending === null) pending = frames.request(tick);
-        }, LAYOUT_SETTLE_MS);
       },
       destroy() {
         if (pending !== null) frames.cancel(pending);
         pending = null;
         following = false;
-        if (settle !== null) win.clearTimeout(settle);
         win.removeEventListener('scroll', onMove, { capture: true });
         win.removeEventListener('resize', onMove);
         resize?.disconnect();
@@ -449,11 +473,6 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
     };
   }
 
-  /**
-   * Where the block being read should sit (p5a-r8): just below the free band's top (below the
-   * exhibit card when it sits above the stage), never above 10 % of the viewport; when the band
-   * cannot show it, below the stage if there is room, else at the band's top.
-   */
   function routeWheel(e: WheelEvent, handle: ReaderHandle) {
     if (e.ctrlKey || e.metaKey) return;
     const target = e.target as Element | null;
@@ -476,20 +495,6 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       if (at === own) break;
     }
     return false;
-  }
-
-  function aimFor(handle: ReaderHandle) {
-    return (box: DOMRect) => {
-      const vh = win.innerHeight;
-      const fallback = vh * FOLLOW_AT;
-      const band = handle.freeBand();
-      if (!band || !(band.bottom > band.top)) return fallback;
-      const top = Math.max(fallback, band.top + BAND_GAP_PX);
-      const need = Math.min(box.height, BAND_MIN_PX);
-      if (top + need <= band.bottom) return top;
-      if (band.below + BAND_GAP_PX + need <= vh) return band.below + BAND_GAP_PX;
-      return band.top + BAND_GAP_PX;
-    };
   }
 
   function mount(mode: Settings['display'], content: { doc: Doc; container: Element }, settings: Settings, at: SourceRef | null) {
@@ -556,12 +561,16 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       trustedEventsOnly,
       frame: frames,
       layout: mode === 'overlay' ? 'floating' : 'panel',
+      bottomStage: true,
       hostSettings: ['pageFade'],
     });
     // Overlay: every wheel event on the page turns the dial, except where the reader scrolls its own
     // content; zoom (ctrl/meta) and horizontal swipes stay the browser's.
     if (overlay) {
-      overlay.aim(aimFor(handle));
+      overlay.setBandBottom(() => {
+        const band = handle.freeBand();
+        return band.bottom > band.top ? band.bottom : win.innerHeight;
+      });
       frame.addEventListener('wheel', (e) => routeWheel(e, handle), { passive: false });
     }
     // A page that re-renders (an SPA) can remove the host element: restore the page as on close.
