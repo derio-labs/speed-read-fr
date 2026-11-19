@@ -16,3 +16,10 @@ amendments:
       the outlined current block near the visible top of the scroll area.
     why: GitLab feedback replaces the moving browser stage with a fixed bottom reading
       box.
+  - row: browser-floating-overlay
+    op: drop-level
+    base: 1
+    level: unit
+    ref: speed-read-fr:packages/core/src/ui/layout.test.ts
+    why: The legacy stage-push unit suite covers non-browser layouts; the browser fixture
+      now verifies fixed stage geometry.
