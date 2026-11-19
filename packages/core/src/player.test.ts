@@ -865,6 +865,15 @@ describe('review p5b: speech errors and titles', () => {
     expect(r.steps.some((e) => r.text(e) === 'ff.')).toBe(true);
   });
 
+  it('switches to timed text at the current chunk if speech fails mid-sentence', () => {
+    const r = speaking(doc(section('s', undefined, prose('Aa bb cc.'))));
+    r.player.toggle();
+    r.speech.spoken[0].boundary(3);
+    r.speech.spoken[0].fail('synthesis-failed');
+    expect(r.text(r.steps.at(-1)!)).toBe('bb');
+    expect(r.steps.at(-1)!.durationMs).not.toBeNull();
+  });
+
   it('a title is spoken from its tokens, without inline math (p5b-r8)', () => {
     const s = section('s', { level: 4, text: 'Area x^2 here' }, prose('Aa.'));
     s.heading = { ...s.heading!, tokens: [{ kind: 'word', text: 'Area' }, { kind: 'atom', atom: 'math', text: 'x^2' }, { kind: 'word', text: 'here' }] };

@@ -440,6 +440,73 @@ export const READER_CSS = `
 @media (prefers-reduced-motion: reduce) {
   .sr-reader .sr-stage, .sr-reader .sr-main, .sr-reader .sr-exhibits { transition: none !important; }
 }
+/* Browser only: content takes the spare room, never the chunk box's room. */
+.sr-reader[data-bottom-stage] { --sr-axis: 50%; min-height: 0; }
+.sr-reader[data-bottom-stage] .sr-main { min-height: 0; }
+.sr-reader[data-bottom-stage] .sr-toolbar { padding-block: 5px; }
+.sr-reader[data-bottom-stage] .sr-status-wpm { white-space: nowrap; }
+.sr-reader[data-bottom-stage] .sr-stage {
+  flex: none; width: min(420px, 100%); min-height: 0; margin: 0 auto; padding: 6px 12px 10px;
+  justify-content: flex-start; overflow: hidden;
+}
+.sr-reader[data-bottom-stage] .sr-stage .sr-display { height: 80px; min-height: 80px; }
+.sr-reader[data-bottom-stage] .sr-axis { left: 50%; }
+.sr-reader[data-bottom-stage] .sr-axis::before { top: 10px; height: 10px; }
+.sr-reader[data-bottom-stage] .sr-axis::after { bottom: 10px; height: 10px; }
+.sr-reader[data-bottom-stage] .sr-chunk {
+  position: absolute; inset: 0; margin: 0; display: grid; align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  font-size: 24px; line-height: 1.4; letter-spacing: normal; white-space: pre;
+}
+.sr-reader[data-bottom-stage] .sr-before { text-align: right; overflow: hidden; }
+.sr-reader[data-bottom-stage] .sr-after { overflow: hidden; text-overflow: ellipsis; }
+.sr-reader[data-bottom-stage] .sr-chunk .sr-atom { font-size: inherit; padding: 0; background: none; }
+.sr-reader[data-bottom-stage] .sr-item-counter { top: 0; left: 12px; transform: none; }
+.sr-reader[data-bottom-stage] .sr-dial-row { margin-top: 4px; }
+.sr-reader[data-bottom-stage] .sr-dial { height: 28px; }
+.sr-reader[data-bottom-stage] .sr-stage-support { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 8px; }
+.sr-reader[data-bottom-stage] .sr-stage-details { flex: 0 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.sr-reader[data-bottom-stage] .sr-stage-details .sr-card { margin: 0; width: 100%; }
+.sr-reader[data-bottom-stage] .sr-stage-details :is(.sr-card-stop, .sr-card-dwell) { padding: 8px 14px; }
+.sr-reader[data-bottom-stage] .sr-stage-details :is(.sr-card-stop, .sr-card-dwell) .sr-card-title { margin: 0; font-size: 18px; }
+.sr-reader[data-bottom-stage] .sr-stage-details :is(.sr-card-stop, .sr-card-dwell) .sr-card-hint { margin-top: 4px; }
+.sr-reader[data-bottom-stage] .sr-stage-details .sr-card-title-step { padding: 12px 18px; }
+.sr-reader[data-bottom-stage] .sr-exhibits {
+  position: static; width: auto; height: auto; max-height: none; transform: none; visibility: visible;
+  border: 1px solid var(--sr-border); border-radius: 12px; overflow: hidden;
+}
+.sr-reader[data-bottom-stage] .sr-exhibits[data-empty] { display: none; }
+.sr-reader[data-bottom-stage] .sr-exhibit-body { max-height: none; }
+.sr-reader[data-bottom-stage] .sr-layout[data-mode="reading"] .sr-stage-support { display: none; }
+.sr-reader[data-bottom-stage][data-layout="panel"] .sr-layout { grid-template: minmax(0, 1fr) / minmax(0, 1fr); grid-template-areas: "main"; }
+.sr-reader[data-bottom-stage][data-layout="panel"] .sr-main { grid-area: main; }
+.sr-reader[data-bottom-stage][data-layout="panel"] .sr-outline { position: absolute; inset: 0 auto 0 0; }
+.sr-reader[data-bottom-stage][data-layout="panel"] .sr-stage-support { flex: 1; padding: 10px 12px; overflow: hidden; }
+.sr-reader[data-bottom-stage][data-layout="floating"] .sr-layout {
+  display: grid; grid-template: minmax(0, 1fr) auto auto / minmax(0, 1fr); padding: 8px 8px 12px;
+}
+.sr-reader[data-bottom-stage][data-layout="floating"] .sr-main {
+  grid-area: 3 / 1; position: relative; inset: auto; transform: none; width: min(420px, 100%); max-height: none;
+  justify-self: center;
+}
+.sr-reader[data-bottom-stage][data-layout="floating"] .sr-stage-support {
+  grid-area: 2 / 1; justify-self: center; width: min(880px, 100%); max-height: min(48vh, max(0px, calc(100vh - 245px)));
+}
+.sr-reader[data-bottom-stage][data-layout="floating"] .sr-stage-support:not(:has(> [hidden] + [data-empty])) { margin-bottom: 8px; }
+.sr-reader[data-bottom-stage][data-layout="floating"] .sr-stage-details { width: min(540px, 100%); align-self: center; }
+.sr-reader[data-bottom-stage][data-layout="floating"] .sr-outline {
+  grid-area: 1 / 1; position: relative; inset: auto; align-self: end; justify-self: start;
+  margin-bottom: 8px; transform: none; max-height: min(100%, 42vh);
+}
+.sr-reader[data-bottom-stage] .sr-layout[data-outline="none"] .sr-outline { display: none; }
+.sr-reader[data-bottom-stage][data-layout="floating"] .sr-layout[data-mode="reading"] .sr-main {
+  grid-area: 1 / 1 / -1; top: auto; height: 100%; width: min(760px, 100%);
+}
+@container sr-reader (max-width: 1179px) {
+  .sr-reader[data-bottom-stage][data-layout="floating"] .sr-layout[data-drawer="open"] .sr-outline {
+    grid-area: 1 / 1 / 3; position: absolute; inset: auto auto 8px 8px; margin: 0; max-height: min(100%, 55vh);
+  }
+}
 /* A scroller of the reader's own never hands its wheel on to the page behind (p5a-r3). */
 .sr-exhibit-list, .sr-settings, .sr-reading, .sr-expanded-body, .sr-outline-list, .sr-exhibit-body { overscroll-behavior: contain; }
 `;

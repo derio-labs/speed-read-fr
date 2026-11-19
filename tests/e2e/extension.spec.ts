@@ -20,6 +20,7 @@ const HOSTILE = '/tests/fixtures/hostile.html';
 const NAMED = '/tests/fixtures/named.html';
 const REMOTE = '/tests/fixtures/remote.html';
 const FIXED = '/tests/fixtures/fixed.html';
+const READER_DOCK = '/tests/fixtures/reader-dock.html';
 /** Served by the test itself (a Playwright route); allowed only on page load, see the remote test. */
 const REMOTE_ORIGIN = 'https://remote.example/';
 const REMOTE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="160"><rect width="320" height="160" fill="#3d405b"/></svg>';
@@ -94,7 +95,7 @@ async function openReader(page: Page, mode: 'auto' | 'selection' | 'from-here' |
 
 const host = (page: Page) => page.locator('[data-speed-read-host]');
 const reader = (page: Page) => page.locator('[data-speed-read-host] .sr-reader');
-const sentence = (page: Page) => page.locator('[data-speed-read-host] .sr-sentence');
+const currentChunk = (page: Page) => page.locator('[data-speed-read-host] .sr-chunk');
 const outlineRows = (page: Page) => page.locator('[data-speed-read-host] .sr-outline-row');
 
 async function saveSettings(settings: Record<string, unknown>) {
@@ -134,7 +135,7 @@ test('with a selection it reads the selection', async () => {
   await openReader(page, 'auto');
   await expect(outlineRows(page)).toHaveCount(0);
   await page.keyboard.press('Space');
-  await expect(sentence(page)).toContainText('This page is the demo the tests drive.');
+  await expect(currentChunk(page)).toHaveText('This page is');
 });
 
 test("'from-here' after a real context-menu event reads from that block", async () => {
@@ -145,7 +146,7 @@ test("'from-here' after a real context-menu event reads from that block", async 
   await page.keyboard.press('Escape');
   await openReader(page, 'from-here');
   await page.keyboard.press('Space');
-  await expect(sentence(page)).toContainText('Tables are treated the same way');
+  await expect(currentChunk(page)).toHaveText('Tables are treated');
   // From that block to the end: the later section is in the outline, the earlier ones are not.
   await expect(outlineRows(page)).toHaveText([/Pictures and diagrams/]);
 });
@@ -174,7 +175,7 @@ test('Alt+hover outlines a block and Alt+click on a link in it reads from there 
   expect(page.url()).toBe(baseURL + ARTICLE);
   await expect(page.locator('[data-speed-read-hover]')).toHaveCount(0);
   await page.keyboard.press('Space');
-  await expect(sentence(page)).toContainText('This page is the demo the tests drive.');
+  await expect(currentChunk(page)).toHaveText('This page is');
 });
 
 test('without Alt nothing is outlined and a pointer press on a link navigates', async () => {
@@ -310,7 +311,7 @@ test('a nested list item read from Alt+click starts at that item with its own co
   await expect(reader(page)).toBeFocused();
   await page.keyboard.press('Space');
   await expect(page.locator('[data-speed-read-host] .sr-item-counter')).toHaveText(/item 2\/2/);
-  await expect(sentence(page)).toContainText('Speed read from here starts');
+  await expect(currentChunk(page)).toHaveText('Speed read from');
 });
 
 test('elements named like the extension globals break nothing', async () => {
@@ -327,19 +328,19 @@ test('elements named like the extension globals break nothing', async () => {
   await expect(reader(page)).toBeFocused();
   expect(page.url()).toBe(baseURL + NAMED);
   await page.keyboard.press('Space');
-  await expect(sentence(page)).toContainText('The second paragraph');
+  await expect(currentChunk(page)).toHaveText('The second paragraph');
   await page.keyboard.press('Escape');
   // From here, after a real context-menu event.
   await page.locator('#second').click({ button: 'right' });
   await page.keyboard.press('Escape');
   await openReader(page, 'from-here');
   await page.keyboard.press('Space');
-  await expect(sentence(page)).toContainText('The second paragraph');
+  await expect(currentChunk(page)).toHaveText('The second paragraph');
   await page.keyboard.press('Escape');
   // The toolbar path.
   await openReader(page, 'auto');
   await page.keyboard.press('Space');
-  await expect(sentence(page)).toContainText('The first paragraph');
+  await expect(currentChunk(page)).toHaveText('The first paragraph');
 });
 
 test('page scripts cannot drive the reader: synthetic keys change nothing in storage', async () => {
@@ -384,7 +385,7 @@ test('a page script cannot outline a block or open the reader by dispatching Alt
   await expect(reader(page)).toBeFocused();
   await expect(host(page)).toHaveCount(1);
   await page.keyboard.press('Space');
-  await expect(sentence(page)).toContainText('So you can read it all in one go');
+  await expect(currentChunk(page)).toHaveText('So you can');
 });
 
 test('Tab moves through the settings panel control by control with the real keyboard, and wraps (l-tests-r1)', async () => {
@@ -540,19 +541,65 @@ test('when the page removes the reader, the page is restored', async () => {
   await expect(host(page)).toHaveCount(1);
 });
 
-test('in the dock at 800 px the whole chapter card is in view', async () => {
-  const page = await openPage(ARTICLE);
-  await saveSettings({ display: 'dock' });
+for (const display of ['dock', 'overlay']) {
+  test(`${display} keeps the chunk stage fixed below chapter and exhibit content`, async () => {
+    const page = await openPage(READER_DOCK);
+    await saveSettings({ display, chunkWords: 10, chunkChars: 80 });
+    await openReader(page, 'auto');
+    const locate = (selector: string) => page.locator(`[data-speed-read-host] ${selector}`);
+    const stage = locate('.sr-stage');
+    const initial = (await stage.boundingBox())!;
+    expect(initial.y + initial.height).toBeGreaterThan(780);
+    await page.keyboard.press('Space');
+    const chapter = locate('.sr-card-chapter');
+    await expect(chapter).toBeVisible();
+    const c = (await chapter.boundingBox())!;
+    expect(c.y + c.height).toBeLessThan(initial.y);
+    expect(await stage.boundingBox()).toEqual(initial);
+    await page.keyboard.press('ArrowRight');
+    const chunk = locate('.sr-chunk');
+    const axis = locate('.sr-axis');
+    const font = await chunk.evaluate((el) => getComputedStyle(el).fontSize);
+    const position = await axis.boundingBox();
+    await expect(chunk).toHaveText('Short opening');
+    await page.keyboard.press('ArrowRight');
+    await expect(chunk).toHaveText('LONG_REPOSITORY_IDENTIFIER');
+    await expect(chunk).toHaveCSS('white-space', 'pre');
+    expect(await chunk.locator('.sr-atom').first().evaluate((el) => getComputedStyle(el).fontSize)).toBe(font);
+    expect(await chunk.locator('.sr-before, .sr-after').evaluateAll((sides) => sides.every((el) => el.scrollWidth <= el.clientWidth))).toBe(true);
+    for (let i = 0; i < 5; i++) {
+      await page.keyboard.press('ArrowRight');
+      await expect(chunk).toHaveCSS('font-size', font);
+      expect(await axis.boundingBox()).toEqual(position);
+      expect(await stage.boundingBox()).toEqual(initial);
+    }
+    await expect(locate('.sr-sentence')).not.toBeVisible();
+    for (let i = 0; i < 10 && !(await locate('.sr-card-stop').isVisible()); i++) await page.keyboard.press('ArrowRight');
+    await expect(locate('.sr-card-stop')).toBeVisible();
+    const exhibit = (await locate('.sr-exhibits').boundingBox())!;
+    expect(exhibit.width).toBeGreaterThan(display === 'overlay' ? 600 : 350);
+    expect(exhibit.y + exhibit.height).toBeLessThan(initial.y);
+    expect(await stage.boundingBox()).toEqual(initial);
+  });
+}
+
+test('overlay follows a paragraph inside a nested scroll area below a fixed toolbar', async () => {
+  const page = await openPage(READER_DOCK);
   await openReader(page, 'auto');
   await page.keyboard.press('Space');
-  const card = page.locator('[data-speed-read-host] .sr-card-chapter');
-  await expect(card).toBeVisible();
-  const [c, s] = await Promise.all([card.boundingBox(), page.locator('[data-speed-read-host] .sr-stage').boundingBox()]);
-  expect(c!.y).toBeGreaterThanOrEqual(s!.y);
-  expect(c!.y + c!.height).toBeLessThanOrEqual(s!.y + s!.height);
-  const hint = page.locator('[data-speed-read-host] .sr-card-chapter .sr-card-hint');
-  const h = (await hint.boundingBox())!;
-  expect(h.y + h.height).toBeLessThanOrEqual(s!.y + s!.height);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(currentChunk(page)).toHaveText('LONG_REPOSITORY_IDENTIFIER');
+  const position = () => page.evaluate(() => {
+    const p = document.querySelector('#identifier')!.getBoundingClientRect();
+    const bar = document.querySelector('header')!.getBoundingClientRect();
+    const mark = document.querySelector('[data-speed-read-host]')!.shadowRoot!.querySelector('.sr-window')!;
+    const r = mark.getBoundingClientRect();
+    return { top: Math.round(p.top), mark: Math.round(r.top), header: bar.bottom, nested: document.querySelector('.preview')!.scrollTop, page: scrollY };
+  });
+  await expect.poll(async () => (await position()).top).toBe(136);
+  expect(await position()).toMatchObject({ mark: 130, header: 128, page: 0 });
+  expect((await position()).nested).toBeGreaterThan(0);
 });
 
 test("on a hostile page the normal-reading clone is not rotated, faded or narrowed by the page's div rules", async () => {
@@ -635,8 +682,8 @@ test.describe('floating overlay over the faded page (R17, R29)', () => {
     await page.waitForTimeout(1500);
     const block = await framed(page);
     expect(block, 'the window frames a block of the page').not.toBeNull();
-    const words = (await sentence(page).textContent())!.trim().split(/\s+/).slice(0, 2).join(' ');
-    expect(words, 'the sentence line shows the sentence being read').not.toBe('');
+    const words = (await currentChunk(page).textContent())!.trim();
+    expect(words, 'the current chunk contains words').not.toBe('');
     expect(block!.text).toContain(words);
     expect(Math.abs(block!.top - 800 * 0.1)).toBeLessThanOrEqual(3);
     // Playing keeps the window on the block being read.
@@ -648,7 +695,7 @@ test.describe('floating overlay over the faded page (R17, R29)', () => {
     expect(playing).not.toBeNull();
   });
 
-  test('a wheel over the page turns the dial and never scrolls the page itself; over the exhibit pane it does not turn the dial', async () => {
+  test('a wheel over the page turns the dial and never scrolls the page itself', async () => {
     const page = await openPage(ARTICLE);
     await openReader(page, 'auto');
     await page.mouse.move(640, 40);
@@ -656,11 +703,6 @@ test.describe('floating overlay over the faded page (R17, R29)', () => {
     await page.mouse.wheel(0, -400);
     await page.waitForTimeout(400);
     expect(await page.evaluate(() => scrollY)).toBe(0);
-    await expect(page.locator('[data-speed-read-host] .sr-display')).toHaveAttribute('data-kind', 'ready');
-    const pane = (await page.locator('[data-speed-read-host] .sr-exhibits').boundingBox())!;
-    await page.mouse.move(pane.x + pane.width / 2, pane.y + pane.height / 2);
-    await page.mouse.wheel(0, 130);
-    await page.waitForTimeout(300);
     await expect(page.locator('[data-speed-read-host] .sr-display')).toHaveAttribute('data-kind', 'ready');
     await page.mouse.move(640, 40);
     await page.mouse.wheel(0, 130);
@@ -748,8 +790,12 @@ test.describe('overlay review fixes (p5a)', () => {
   }
 
   test('wheels over the settings panel and the exhibit card never scroll the page (p5a-r3)', async () => {
-    const page = await openPage(ARTICLE);
+    const page = await openPage(STYLED);
+    await saveSettings({ wpm: 1000 });
     await openReader(page, 'auto');
+    await page.keyboard.press('Space');
+    await expect(page.locator('[data-speed-read-host] .sr-card-stop')).toBeVisible({ timeout: 15_000 });
+    const start = await page.evaluate(() => scrollY);
     const pane = (await page.locator('[data-speed-read-host] .sr-exhibits').boundingBox())!;
     await page.mouse.move(pane.x + pane.width / 2, pane.y + pane.height / 2);
     for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 600);
@@ -758,7 +804,7 @@ test.describe('overlay review fixes (p5a)', () => {
     await page.mouse.move(panel.x + panel.width / 2, panel.y + panel.height / 2);
     for (let i = 0; i < 8; i++) await page.mouse.wheel(0, 900);
     await page.waitForTimeout(400);
-    expect(await page.evaluate(() => scrollY)).toBe(0);
+    expect(await page.evaluate(() => scrollY)).toBe(start);
   });
 
   test('ctrl+wheel and a horizontal swipe are left to the browser (p5a-r4)', async () => {
@@ -787,7 +833,8 @@ test.describe('overlay review fixes (p5a)', () => {
     await page.waitForTimeout(2000);
     const card = (await page.locator('[data-speed-read-host] .sr-exhibits').boundingBox())!;
     const w = await windowBox(page);
-    expect(w.top >= card.y + card.height || w.bottom <= card.y).toBe(true);
+    expect(w.height).toBeGreaterThan(12);
+    expect(w.bottom).toBeLessThanOrEqual(card.y);
     await page.setViewportSize({ width: 1280, height: 800 });
   });
 });

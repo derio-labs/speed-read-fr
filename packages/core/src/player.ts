@@ -222,7 +222,7 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
         if (gen !== generation) return;
         speaking = false;
         textOnly = { from: at, to: last };
-        show(at, true);
+        show(Math.max(at, index), true);
       },
       onEnd() {
         if (gen !== generation) return;

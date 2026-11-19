@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Reader dock regression</title>
+<style>
+  body { margin: 0; font: 16px/1.5 system-ui; }
+  header { position: fixed; height: 128px; inset: 0 0 auto; background: #222; color: white; z-index: 1; }
+  .preview { position: absolute; inset: 100px 0 0; overflow-y: auto; }
+  main { max-width: 860px; margin: 160px auto 80vh; padding: 0 24px; }
+  p, table { margin-block: 36px; }
+  table { width: 100%; }
+</style>
+<header>Repository preview toolbar</header>
+<div class="preview">
+  <main>
+    <h1>Repository notes</h1>
+    <p id="first">Short opening sentence.</p>
+    <p id="identifier"><code>LONG_REPOSITORY_IDENTIFIER</code> does not belong on two lines.</p>
+    <p>A longer sentence should not shift the guides, no matter how many words appear in the rest of the paragraph.</p>
+    <p>One more paragraph. Here is another sentence. The table comes next. It is an exhibit.</p>
+    <table><thead><tr><th>Setting</th><th>Description</th></tr></thead><tbody><tr><td>Speed</td><td>Words per minute</td></tr></tbody></table>
+  </main>
+</div>
+</html>

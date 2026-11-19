@@ -12,10 +12,10 @@ const LOCAL_EN = voice('Local English', 'en-US', true);
 const LOCAL_DE = voice('Local German', 'de-DE', true);
 const NET_EN = voice('Network English', 'en-GB', false);
 
-function setup(voices = [LOCAL_DE, LOCAL_EN, NET_EN], { late = false } = {}) {
+function setup(voices = [LOCAL_DE, LOCAL_EN, NET_EN], { late = false, estimateBoundaries = false } = {}) {
   const clock = fakeClock();
   const speech = fakeSpeech(late ? [] : voices);
-  const driver = createSpeechDriver(speech.synth, { Utterance: speech.Utterance, scheduler: clock, lang: 'en' });
+  const driver = createSpeechDriver(speech.synth, { Utterance: speech.Utterance, scheduler: clock, lang: 'en', estimateBoundaries });
   const handlers = { onChunk: vi.fn(), onEnd: vi.fn(), onWholeSentence: vi.fn() };
   return { clock, speech, driver, handlers, voices };
 }
@@ -72,6 +72,43 @@ describe('speech driver: availability and voices (spec section 9)', () => {
 
 describe('speech driver: speaking a sentence', () => {
   const chunks = [{ tokens: [w('The'), w('sum'), math('x^2')] }, { tokens: [w('is'), code('f(x)'), w('here.')] }];
+
+  it('estimates chunk timing from speech start when a browser voice sends no boundaries', () => {
+    const { driver, speech, handlers, clock } = setup(undefined, { estimateBoundaries: true });
+    driver.speak([...chunks, { tokens: [w('Next.')] }], 300, handlers);
+    speech.spoken[0].start();
+    clock.advance(400);
+    expect(handlers.onChunk).toHaveBeenLastCalledWith(1);
+    clock.advance(600);
+    expect(handlers.onChunk).toHaveBeenLastCalledWith(2);
+    expect(handlers.onWholeSentence).not.toHaveBeenCalled();
+    speech.spoken[0].end();
+    expect(handlers.onEnd).toHaveBeenCalledOnce();
+  });
+
+  it('tries another local voice on a startup failure and never picks a network fallback', () => {
+    const alternate = voice('Alternate English', 'en-GB', true);
+    const { driver, speech, handlers } = setup([LOCAL_EN, NET_EN, alternate], { estimateBoundaries: true });
+    driver.speak(chunks, 300, handlers);
+    speech.spoken[0].onerror!({ error: 'synthesis-failed' });
+    expect(speech.spoken[1].voice?.voiceURI).toBe(alternate.voiceURI);
+    speech.spoken[1].end();
+    expect(handlers.onEnd).toHaveBeenCalledOnce();
+    expect(driver.currentVoice()?.uri).toBe(alternate.voiceURI);
+  });
+
+  it('lets real boundaries take over from the estimate without jumping back', () => {
+    const { driver, speech, handlers, clock } = setup(undefined, { estimateBoundaries: true });
+    driver.speak([...chunks, { tokens: [w('Next.')] }], 300, handlers);
+    const u = speech.spoken[0];
+    u.start();
+    clock.advance(400);
+    u.boundary(0);
+    clock.advance(600);
+    expect(handlers.onChunk.mock.calls).toEqual([[1]]);
+    u.boundary(u.text.indexOf('Next.'));
+    expect(handlers.onChunk.mock.calls).toEqual([[1], [2]]);
+  });
 
   it('one utterance at rate wpm / 180 clamped to 0.5-3, its text without math atoms', () => {
     const { driver, speech, handlers } = setup();

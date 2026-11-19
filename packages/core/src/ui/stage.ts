@@ -36,6 +36,7 @@ export interface StageElements {
   stage: HTMLElement;
   status: HTMLElement;
   overallFill: HTMLElement;
+  details?: HTMLElement;
 }
 
 /** The stage: the current chunk on the pivot axis, the faded sentence, cards, and the status line. */
@@ -46,11 +47,12 @@ export interface StageZone extends Zone {
   note(text: string | null): void;
 }
 
-export function createStage(ctx: ReaderContext, { stage, status, overallFill }: StageElements): StageZone {
+export function createStage(ctx: ReaderContext, { stage, status, overallFill, details }: StageElements): StageZone {
   const { h, player } = ctx;
   const display = h('div', { class: 'sr-display', 'aria-live': 'off' });
   const sentence = h('div', { class: 'sr-sentence', 'aria-hidden': 'true' });
-  stage.append(display, sentence);
+  stage.append(display);
+  if (!details) stage.append(sentence);
   const dial = createDialStrip(ctx, stage);
   /** A note set through `note()`: a host's message, such as a failed settings save. */
   let hostNote: string | null = null;
@@ -85,7 +87,19 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
     display.dataset.kind = kind;
     delete display.dataset.wrap;
     display.style.removeProperty('--sr-depth');
-    replaceChildren(display, ...children);
+    if (details) {
+      const prose = kind === 'chunk' || kind === 'item-chunk';
+      if (prose) {
+        if (!details.hidden) {
+          replaceChildren(details);
+          details.hidden = true;
+        }
+      } else {
+        replaceChildren(details, ...children);
+        details.hidden = false;
+      }
+      replaceChildren(display, ...(prose ? children : []));
+    } else replaceChildren(display, ...children);
   }
 
   function card(kind: string, ...children: Child[]) {
@@ -95,19 +109,26 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
   function showChunk(step: ChunkStep, index: number) {
     const tokens = step.chunk.tokens;
     const text = joinTokens(tokens);
-    const split = orp(text);
+    let split = orp(text);
+    if (details && (split.before.length > 12 || split.after.length > 12)) {
+      // Balance long words/identifiers across the same axis without scaling or inserting breaks.
+      const chars = Array.from(text);
+      const mid = Math.floor(chars.length / 2);
+      split = { before: chars.slice(0, mid).join(''), pivot: chars[mid], after: chars.slice(mid + 1).join('') };
+    }
     const b = split.before.length;
     const p = b + split.pivot.length;
     const before = h('span', { class: 'sr-before' }, ...tokenNodes(tokens, 0, b));
     const pivot = h('span', { class: 'sr-pivot' }, ...tokenNodes(tokens, b, p));
     const after = h('span', { class: 'sr-after' }, ...tokenNodes(tokens, p));
-    const chunk = h('div', { class: 'sr-chunk' }, before, pivot, after);
+    const chunk = h('div', { class: 'sr-chunk', title: details ? text : null }, before, pivot, after);
     const counter =
       step.kind === 'item-chunk'
         ? h('div', { class: 'sr-item-counter' }, h('span', { class: 'sr-depth-mark' }), `item ${step.index}/${step.of}`)
         : null;
     setDisplay(step.kind, h('div', { class: 'sr-axis' }), counter, chunk);
     if (step.kind === 'item-chunk') display.style.setProperty('--sr-depth', String(step.depth));
+    if (details) return;
     aligned = { chunk, before, pivot, depth: step.kind === 'item-chunk' ? step.depth : 0 };
     align();
     showSentence(step, index);
@@ -265,6 +286,9 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
   function renderStatus() {
     const total = ctx.timeline.steps.length;
     const pct = total === 0 ? 0 : Math.round((Math.min(player.index, total) / total) * 100);
+    const signature = JSON.stringify([player.settings.wpm, player.state, pct, ctx.speech.failed, hostNote]);
+    if (signature === lastStatus) return;
+    lastStatus = signature;
     replaceChildren(
       status,
       h('span', { class: 'sr-status-wpm' }, `${player.settings.wpm} WPM`),
@@ -272,14 +296,16 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
       h('span', { class: 'sr-status-state' }, STATE_LABELS[player.state]),
       h('span', { class: 'sr-status-sep' }, ' · '),
       h('span', { class: 'sr-status-progress' }, `${pct}%`),
-      ctx.speech.failed ? h('span', { class: 'sr-status-note' }, 'Speech failed: showing text only') : null,
+      ctx.speech.failed ? h('span', { class: 'sr-status-note', title: 'Speech failed: showing text only. Try another voice in Settings.' }, 'Speech failed: showing text only') : null,
       hostNote ? h('span', { class: 'sr-status-note', 'data-note': 'host', role: 'status' }, hostNote) : null,
     );
     overallFill.style.width = `${pct}%`;
   }
+  let lastStatus = '';
 
   /** Speech without word boundaries: the sentence's chunks together, wrapped. */
   function showWhole({ from, to }: { from: number; to: number }) {
+    if (details) return; // A custom driver may still emit this; never replace the browser's chunk with a sentence.
     const tokens = ctx.timeline.steps.slice(from, to + 1).flatMap((s) => (isChunk(s) ? s.chunk.tokens : []));
     aligned = null;
     setDisplay('whole', h('div', { class: 'sr-chunk sr-chunk-whole' }, ...tokenNodes(tokens)));
@@ -304,7 +330,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill }: 
   showReady();
   renderStatus();
   const Observer = (ctx.document.defaultView as (Window & { ResizeObserver?: typeof ResizeObserver }) | null)?.ResizeObserver ?? globalThis.ResizeObserver;
-  const resize = Observer ? new Observer(() => align()) : null;
+  const resize = !details && Observer ? new Observer(() => align()) : null;
   resize?.observe(stage);
 
   return {

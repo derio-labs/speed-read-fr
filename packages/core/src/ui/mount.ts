@@ -31,6 +31,8 @@ export interface MountOptions {
    * stage and the exhibits are separate cards over a transparent root (spec section 13).
    */
   layout?: 'panel' | 'floating';
+  /** Browser reader: pin the chunk stage below a separate chapter/exhibit area. */
+  bottomStage?: boolean;
   /** Settings only this host uses, shown in the settings panel (the browser overlay declares `pageFade`). */
   hostSettings?: readonly HostSetting[];
   /** Animation frames for the position dial's coast; the window's by default. */
@@ -47,11 +49,11 @@ export interface ReaderHandle {
   applySettings(settings: Settings): void;
   /** Turn the position dial by a wheel event from outside the stage (the browser overlay's page). */
   wheel(event: WheelEvent): void;
-  /** Recompute the narrow exhibit push now (it also follows resizes by itself). */
+  /** Recompute the narrow exhibit push in layouts that use it (also follows resizes). */
   relayout(): void;
   /**
-   * The unobstructed band above the stage in viewport px (below the exhibit card when it sits above
-   * the stage), and the stage's bottom: where a host can show the block being read (p5a-r8).
+   * The unobstructed band in viewport px, plus the stage's bottom: where a host can show the
+   * block being read. The bottom-stage browser layout reserves the area above its support cards.
    */
   freeBand(): FreeBand;
   /**
@@ -117,7 +119,16 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   const ownerDocument = root.ownerDocument;
   const win = ownerDocument.defaultView as Window;
   const h = builder(ownerDocument);
-  let settings = normalizeSettings(options.settings);
+  const limits = options.bottomStage ? { words: 3, chars: 20 } : undefined;
+  function readSettings(value: Settings) {
+    const s = normalizeSettings(value);
+    if (limits) {
+      s.chunkWords = Math.min(s.chunkWords, limits.words);
+      s.chunkChars = Math.min(s.chunkChars, limits.chars);
+    }
+    return s;
+  }
+  let settings = readSettings(options.settings);
   let timeline: Timeline = buildTimeline(doc, settings);
   const scheduler = options.scheduler ?? defaultScheduler(win);
   const ownSpeech = !options.speech;
@@ -127,12 +138,14 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     createSpeechDriver(speechWin.speechSynthesis, {
       Utterance: speechWin.SpeechSynthesisUtterance,
       lang: ownerDocument.documentElement.lang || win.navigator?.language,
+      estimateBoundaries: options.bottomStage,
     });
   speech.setVoice(settings.tts.voiceURI);
   const player = createPlayer(timeline, settings, scheduler, speech);
 
   const floating = options.layout === 'floating';
   const reader = h('div', { class: 'sr-reader', tabindex: 0, 'aria-label': 'Speed reader', 'data-state': player.state, 'data-layout': floating ? 'floating' : 'panel' });
+  if (options.bottomStage) reader.setAttribute('data-bottom-stage', '');
   const layout = h('div', { class: 'sr-layout' });
   const outlineBar = h('div', { class: 'sr-outline-bar' });
   const outline = h('nav', { class: 'sr-outline', 'aria-label': 'Outline' });
@@ -147,7 +160,16 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   // Empty from the start, so a narrow reader does not show the card fading out as it mounts.
   const exhibits = h('section', { class: 'sr-exhibits', role: 'region', 'aria-label': 'Exhibits', 'data-empty': true });
   // Floating: the outline bar (used when the outline card has no room) heads the stage card.
-  if (floating) {
+  const details = options.bottomStage ? h('div', { class: 'sr-stage-details', hidden: true }) : undefined;
+  const support = details ? h('div', { class: 'sr-stage-support' }, details, exhibits) : null;
+  if (support && floating) {
+    main.prepend(outlineBar);
+    layout.append(outline, support, main);
+  } else if (support) {
+    main.prepend(outlineBar);
+    stage.before(support);
+    layout.append(outline, main);
+  } else if (floating) {
     main.prepend(outlineBar);
     layout.append(outline, main, exhibits);
   } else layout.append(outlineBar, outline, main, exhibits);
@@ -176,8 +198,8 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   };
   const outlineZone = createOutline(ctx, { outline, bar: outlineBar, layout });
   const exhibitZone = createExhibits(ctx, { pane: exhibits, root: layout });
-  const panel = createSettingsPanel(ctx, (next) => applySettings(next));
-  const stageZone = createStage(ctx, { stage, status, overallFill: overall.firstElementChild as HTMLElement });
+  const panel = createSettingsPanel(ctx, (next) => applySettings(next), limits);
+  const stageZone = createStage(ctx, { stage, status, details, overallFill: overall.firstElementChild as HTMLElement });
   const zones: Zone[] = [
     stageZone,
     outlineZone,
@@ -185,8 +207,8 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     createReading(ctx, { reading, layout }),
     panel,
   ];
-  const push = createLayout({ reader, floating, main, stage, overall, exhibits, list: exhibits.querySelector<HTMLElement>('.sr-exhibit-list')! });
-  zones.push(push);
+  const push = support ? null : createLayout({ reader, floating, main, stage, overall, exhibits, list: exhibits.querySelector<HTMLElement>('.sr-exhibit-list')! });
+  if (push) zones.push(push);
   const detachKeys = attachKeys({
     accepts: ctx.accepts,
     player,
@@ -212,7 +234,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
 
   /** Apply new settings at once: speed alone goes to the player, anything else rebuilds the timeline. */
   function applySettings(next: Settings, save = true) {
-    next = normalizeSettings(next);
+    next = readSettings(next);
     if (sameExceptSpeed(next, settings)) {
       saving = save;
       try {
@@ -278,9 +300,15 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       if (!destroyed) stageZone.wheel(event);
     },
     relayout() {
-      if (!destroyed) push.update();
+      if (!destroyed) push?.update();
     },
-    freeBand: () => push.freeBand(),
+    freeBand() {
+      if (push) return push.freeBand();
+      const dock = main.getBoundingClientRect();
+      const top = reader.getBoundingClientRect().top;
+      const card = support?.getBoundingClientRect();
+      return { top, bottom: card?.height ? card.top : dock.top, below: dock.bottom };
+    },
     setStatusNote(text) {
       if (destroyed) return;
       noteIsSave = false;

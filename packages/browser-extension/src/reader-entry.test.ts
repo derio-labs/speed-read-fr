@@ -509,7 +509,7 @@ describe('floating overlay over the faded page (R17, R29)', () => {
     frames.run();
     const first = scroller.scrollTop;
     const target = 900 - window.innerHeight * 0.1;
-    // One 16 ms frame of an exponential ease with a 140 ms time constant.
+    // One 16 ms frame of the exponential ease.
     expect(first).toBeCloseTo(target * (1 - Math.exp(-16 / FOLLOW_TAU_MS)), 0);
     frames.run(200);
     expect(Math.abs(scroller.scrollTop - target)).toBeLessThanOrEqual(1);
@@ -518,10 +518,9 @@ describe('floating overlay over the faded page (R17, R29)', () => {
     scroller.scrollTop = 0;
   });
 
-  it('followStep eases by 1 - exp(-dt / 140) and stops within a pixel', () => {
-    expect(FOLLOW_TAU_MS).toBe(140);
-    expect(followStep(100, 16)).toBeCloseTo(100 * (1 - Math.exp(-16 / 140)));
-    expect(followStep(-100, 16)).toBeCloseTo(-100 * (1 - Math.exp(-16 / 140)));
+  it('followStep eases exponentially and stops within a pixel', () => {
+    expect(followStep(100, 16)).toBeCloseTo(100 * (1 - Math.exp(-16 / FOLLOW_TAU_MS)));
+    expect(followStep(-100, 16)).toBeCloseTo(-100 * (1 - Math.exp(-16 / FOLLOW_TAU_MS)));
     expect(followStep(0.6, 16)).toBe(0);
     expect(followStep(3, 1)).toBe(1);
   });
