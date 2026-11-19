@@ -60,3 +60,8 @@ After recording the Mac scroll metrics and adjusting the edge comparison, the sa
 ### e8f3191a8225-resolved · finding [fixed] · resolves e8f3191a8225: Full Linux e2e run still fails after the Mac rounding fix
 
 After the isolated suite was run alone, all 75 e2e tests passed with the edge-rounding fix. The targeted test also passed repeatedly; the repeat run failures after two passes were separate test-server connection refusals.
+
+<!-- fr:journal kind=review scope=debug id=c68c657f6554 created=2026-11-19T15:02:14+00:00 -->
+### c68c657f6554 · review · Reviewed the fractional scroll-edge fix
+
+Reviewed updateClip rounding and the existing wide-equation e2e assertion. The change is limited to classifying the right-edge position against integer scroll dimensions; no additional findings.
