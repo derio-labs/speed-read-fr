@@ -16,6 +16,7 @@ ticks:
   - P1.T3.S3
   - P1.T4.S1
   - P1.T4.S2
+  - P1.T4.S3
 refactor:
   P1.T1: "The browser stores already serialize complete Settings objects, while VS Code flattens the shared defaults; using those paths keeps mode normalization centralized."
   P1.T3: "The selector reuses the panel's shared select/read/apply/save flow, so no redundant control wiring remains."
@@ -27,4 +28,26 @@ journal:
     body: "The browser extension persists a complete Settings value through its existing storage key, and VS Code derives flattened configuration keys from DEFAULT_SETTINGS. A single shared readingMode field and normalization therefore preserve old saved values as chunk without host-specific mode logic."
     phase: 1
 resolves: []
-evidence: {}
+evidence:
+  tests: /private/var/folders/dr/4tnkgxrd5gv_j0njc75yd9q00000gp/T/opencode/three-row-flow-full-suite.log
+visual:
+  - row: reader-three-row-flow
+    shots:
+      - path: .visual/three-row-flow/chunk-playing.png
+        shows: [chunk mode playing with the existing display, existing-mode default]
+      - path: .visual/three-row-flow/flow-playing.png
+        shows: [flow mode playing with three rows and centered focus]
+      - path: .visual/three-row-flow/flow-progressed.png
+        shows: [upward progression through the center focus]
+      - path: .visual/three-row-flow/flow-paused.png
+        shows: [flow mode paused]
+      - path: .visual/three-row-flow/flow-resumed.png
+        shows: [flow mode resumed]
+      - path: .visual/three-row-flow/flow-sentence-jump.png
+        shows: [next sentence while in flow mode]
+      - path: .visual/three-row-flow/flow-chapter-card.png
+        shows: [chapter card while flow mode is selected]
+      - path: .visual/three-row-flow/flow-structured-stop.png
+        shows: [structured-content stop while flow mode is selected]
+      - path: .visual/three-row-flow/settings-saved-flow.png
+        shows: [Reading mode selector showing the saved flow choice after reopening]
