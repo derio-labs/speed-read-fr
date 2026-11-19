@@ -18,8 +18,10 @@ steps:
       step/spec-review:
         attempts:
         - dispatched: '2026-11-19T23:01:51+00:00'
-          agent_type: super-fr:fr-spec-reviewer
+          agent: ses_e09f3adf8ffePKNVB9FXmUOXz9
+          agent_type: fr-spec-reviewer-hard
           harness: opencode
+          model: github-copilot/claude-opus-5.5
           tier: hard
           bound: github-copilot/claude-opus-5.5
           session: ses_e0a2bd278ffevD9K3wovxgARj9
