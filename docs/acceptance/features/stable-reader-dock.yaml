@@ -1,0 +1,18 @@
+# Acceptance rows owned by one feature (spec 2026-11-04-repo-feature-settings R16).
+# The effective matrix is a fold over every fragment in this directory
+# (`fr acceptance status`); it is never stored. Write rows with
+# `fr acceptance add` / `set-status`, never by hand. Keep `rows:` before
+# `amendments:`.
+schema_version: 2
+feature: stable-reader-dock
+repo: derio-net/speed-read-fr
+rows:
+amendments:
+  - row: browser-floating-overlay
+    op: reword
+    base: 0
+    acceptance: In Overlay, the speed-read box stays at the bottom with steady typography
+      and guides, with chapters and exhibits above it. The faded page scrolls to show
+      the outlined current block near the visible top of the scroll area.
+    why: GitLab feedback replaces the moving browser stage with a fixed bottom reading
+      box.
