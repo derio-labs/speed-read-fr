@@ -15,3 +15,8 @@ Regression coverage uses a Markdown-like preview with fixed chrome, a nested scr
 ### e3689a4bd643 · finding [fixed] · Fixed geometry, clipped source highlight and chunk-based speech fallback
 
 The browser uses a fixed stage and distinct support area; CSS aligns chunks without per-word geometry measurement or resizing. Overlay follow aims below page chrome and clamps the highlight to the visible area above support cards. Speech uses an estimate when there are no timings, tries another same-language local voice on startup errors, and switches to timed text at the same chunk on failure. Chromium fixtures and fake speech cover the changed paths.
+
+<!-- fr:journal kind=review scope=debug id=08f6cf2fe8d6 created=2026-11-19T20:07:03+00:00 -->
+### 08f6cf2fe8d6 · review · Verified browser regressions and package integrity
+
+Self-review identified a large-block outline that extended behind the exhibit card; clipped it to the free band and checked it in a narrow Chromium window. Typecheck passed, full Playwright run passed 77 tests, final targeted Chromium run passed 4 tests, and rebuilt packages passed all 635 Vitest tests. Acceptance check passed with the existing live checks still owed; original GitLab instance and OS voice were not tested.
