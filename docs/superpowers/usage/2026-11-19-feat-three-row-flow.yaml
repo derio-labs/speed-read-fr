@@ -1,0 +1,61 @@
+schema_version: 2
+run: 2026-11-19-feat-three-row-flow
+captures:
+- host: h-2370c8fe
+  harness: opencode
+  mode: devcontainer
+  captured_at: '2026-11-19T23:01:49+00:00'
+  at:
+  - resolve:brainstorm
+  sessions:
+  - session: ses_e0a2bd278ffevD9K3wovxgARj9
+    role: main
+    models:
+      gpt-6-luna:
+        input: 251
+        cache_write: 186653
+        cache_read: 1287012
+        output: 16611
+        usd: 0.040079110500000015
+        usd_source: estimated
+    activity:
+      implementation:
+        usd: 0.004125584812500001
+        turns: 3
+      other:
+        usd: 0.027895788562500006
+        turns: 15
+      paperwork:
+        usd: 0.008057737125
+        turns: 10
+    steps:
+      (outside run):
+        usd: 0.0018876510000000002
+        turns: 2
+        input: 6
+        cache_write: 12580
+        cache_read: 41129
+        output: 226
+      brainstorm:
+        usd: 0.03819145950000001
+        turns: 19
+        input: 245
+        cache_write: 174073
+        cache_read: 1245883
+        output: 16385
+    steps_by_role:
+      main:
+        (outside run):
+          usd: 0.0018876510000000002
+          turns: 2
+          input: 6
+          cache_write: 12580
+          cache_read: 41129
+          output: 226
+        brainstorm:
+          usd: 0.03819145950000001
+          turns: 19
+          input: 245
+          cache_write: 174073
+          cache_read: 1245883
+          output: 16385
