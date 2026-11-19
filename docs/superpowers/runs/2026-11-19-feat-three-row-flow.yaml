@@ -61,8 +61,10 @@ steps:
         state: running
         attempts:
         - dispatched: '2026-11-19T23:08:55+00:00'
-          agent_type: super-fr:fr-phase-executor
+          agent: ses_e09ed4a3bffelJuz6NLnJm2uN0
+          agent_type: fr-phase-executor-standard
           harness: opencode
+          model: github-copilot/gpt-6-luna
           tier: standard
           bound: github-copilot/gpt-6-luna
           session: ses_e0a2bd278ffevD9K3wovxgARj9
