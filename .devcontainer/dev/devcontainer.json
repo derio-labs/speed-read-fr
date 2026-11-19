@@ -1,0 +1,24 @@
+{
+  "name": "speed-read-fr — dev",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    }
+  },
+  "postCreateCommand": "git config --global --add safe.directory \"$PWD\" || true; uv tool install --with 'git+https://github.com/derio-net/super-fr#subdirectory=packages/fr-claude-cloud' --with 'git+https://github.com/derio-net/super-fr#subdirectory=packages/fr-cncd' --with 'git+https://github.com/derio-net/super-fr#subdirectory=packages/fr-herdr' 'git+https://github.com/derio-net/super-fr#subdirectory=packages/fr'",
+  "workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind",
+  "workspaceFolder": "${localWorkspaceFolder}",
+  "runArgs": [
+    "--env-file",
+    "${localEnv:HOME}/.config/fr/secrets/speed-read-fr/dev.env"
+  ],
+  "customizations": {
+    "fr": {
+      "profile": "dev",
+      "purpose": "Node 22 development and CI: npm ci; npm run typecheck; npm test; npx playwright install --with-deps chromium; npm run test:e2e; npm run build; npm run package"
+    }
+  }
+}
