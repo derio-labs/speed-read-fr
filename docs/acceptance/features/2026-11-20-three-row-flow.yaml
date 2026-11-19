@@ -18,10 +18,17 @@ rows:
     - spec:2026-11-20-three-row-flow#R2
     - spec:2026-11-20-three-row-flow#R3
     - spec:2026-11-20-three-row-flow#R4
-    levels: {}
-    status: not-implemented
-    notes: ''
-    verify: client-live
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/settings.test.ts
+      - speed-read-fr:packages/core/src/ui/stage.test.ts
+      - speed-read-fr:packages/core/src/ui/settings-panel.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Verified by normalization, host persistence, Settings, flow-stage and Playwright
+      tests.
+    verify: none
     visual:
       states:
       - chunk mode playing with the existing display

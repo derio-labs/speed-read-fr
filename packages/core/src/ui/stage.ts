@@ -88,7 +88,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     delete display.dataset.wrap;
     display.style.removeProperty('--sr-depth');
     if (details) {
-      const prose = kind === 'chunk' || kind === 'item-chunk';
+      const prose = kind === 'chunk' || kind === 'item-chunk' || kind === 'flow' || kind === 'whole';
       if (prose) {
         if (!details.hidden) {
           replaceChildren(details);
@@ -106,7 +106,45 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     return h('div', { class: `sr-card sr-card-${kind}` }, ...children);
   }
 
+  function flowRow(step: ChunkStep | undefined, position: 'top' | 'middle' | 'bottom', tokens = step?.chunk.tokens): HTMLElement {
+    if (!step || !tokens) return h('div', { class: 'sr-flow-row', 'data-position': position });
+    if (position !== 'middle') return h('div', { class: 'sr-flow-row', 'data-position': position }, h('span', { class: 'sr-flow-text' }, ...tokenNodes(tokens)));
+    const text = joinTokens(tokens);
+    const split = orp(text);
+    const before = split.before.length;
+    const pivotEnd = before + split.pivot.length;
+    return h(
+      'div',
+      { class: 'sr-flow-row sr-flow-current', 'data-position': position },
+      h('span', { class: 'sr-flow-before' }, ...tokenNodes(tokens, 0, before)),
+      h('span', { class: 'sr-flow-pivot' }, ...tokenNodes(tokens, before, pivotEnd)),
+      h('span', { class: 'sr-flow-after' }, ...tokenNodes(tokens, pivotEnd)),
+    );
+  }
+
+  /** Show the current chunk between its immediate text neighbours; cards remain their own stage. */
+  function showFlow(step: ChunkStep, index: number, currentTokens = step.chunk.tokens) {
+    const neighbor = (direction: -1 | 1): ChunkStep | undefined => {
+      for (let at = index + direction; at >= 0 && at < ctx.timeline.steps.length; at += direction) {
+        const candidate = ctx.timeline.steps[at];
+        if (candidate.kind === 'item-gap') continue;
+        return isChunk(candidate) ? candidate : undefined;
+      }
+      return undefined;
+    };
+    aligned = null;
+    replaceChildren(sentence);
+    setDisplay(
+      'flow',
+      h('div', { class: 'sr-flow-axis', 'aria-hidden': 'true', style: 'left: 50%' }),
+      flowRow(neighbor(-1), 'top'),
+      flowRow(step, 'middle', currentTokens),
+      flowRow(neighbor(1), 'bottom'),
+    );
+  }
+
   function showChunk(step: ChunkStep, index: number) {
+    if (player.settings.readingMode === 'flow') return showFlow(step, index);
     const tokens = step.chunk.tokens;
     const text = joinTokens(tokens);
     let split = orp(text);
@@ -305,8 +343,10 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
 
   /** Speech without word boundaries: the sentence's chunks together, wrapped. */
   function showWhole({ from, to }: { from: number; to: number }) {
-    if (details) return; // A custom driver may still emit this; never replace the browser's chunk with a sentence.
+    if (details && player.settings.readingMode !== 'flow') return; // Keep browser chunk semantics outside flow mode.
     const tokens = ctx.timeline.steps.slice(from, to + 1).flatMap((s) => (isChunk(s) ? s.chunk.tokens : []));
+    const current = ctx.timeline.steps[player.index];
+    if (player.settings.readingMode === 'flow' && isChunk(current)) return showFlow(current, player.index, tokens);
     aligned = null;
     setDisplay('whole', h('div', { class: 'sr-chunk sr-chunk-whole' }, ...tokenNodes(tokens)));
     display.dataset.wrap = 'true';

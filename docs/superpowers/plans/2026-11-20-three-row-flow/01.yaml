@@ -1,0 +1,124 @@
+schema_version: 2
+phase:
+  number: 1
+  title: Implement and verify the shared three-row flow mode
+  tag: agentic
+  depends_on: []
+  tracking_issue: null
+  acceptance:
+  - reader-three-row-flow
+  tier: standard
+  files:
+  - packages/core/src/settings.ts
+  - packages/core/src/settings.test.ts
+  - packages/core/src/ui/**
+  - packages/vscode-extension/src/config.ts
+  - packages/vscode-extension/src/config.test.ts
+  - packages/vscode-extension/package.json
+  - packages/browser-extension/src/storage.ts
+  - tests/e2e/core.spec.ts
+  - README.md
+  estimate_lines: 420
+tasks:
+- number: 1
+  title: Extend the shared and host settings contract
+  steps:
+  - id: P1.T1.S1
+    text: |-
+      Add failing tests for the chunk default, legacy-settings normalization, flow-mode selection, browser persistence, and VS Code configuration contribution.
+  - id: P1.T1.S2
+    text: |-
+      Implement the readingMode setting and normalization; contribute speedRead.readingMode in VS Code and persist the value through each host's existing settings path.
+  - id: P1.T1.S3
+    text: |-
+      Run the focused settings and host tests, remove duplicated mode handling, and confirm old stored settings still normalize to chunk.
+- number: 2
+  title: Render the rolling three-row flow window
+  steps:
+  - id: P1.T2.S1
+    text: |-
+      Add failing stage tests for exactly three flow rows, upward progression through a centered middle-row focus marker, list-depth-independent focus, sentence jumps, and unchanged structured-content cards.
+  - id: P1.T2.S2
+    text: |-
+      Implement the flow-row renderer and flow-specific center marker while preserving chunk mode, timeline pacing, speed ramp, pause state, and speech-boundary updates.
+  - id: P1.T2.S3
+    text: |-
+      Run the stage and speech tests, refactor shared rendering helpers, and verify that card and chunk-mode output remains unchanged.
+- number: 3
+  title: Expose the mode in Settings and document it
+  steps:
+  - id: P1.T3.S1
+    text: |-
+      Add failing Settings-panel tests for the Reading mode selector, applying changes immediately, and showing the saved value after reopening.
+  - id: P1.T3.S2
+    text: |-
+      Implement the selector in the shared Settings panel and document the second mode, its three-row focus behavior, persistence, and keyboard controls in the README.
+  - id: P1.T3.S3
+    text: |-
+      Run the focused UI and README tests, remove redundant control wiring, and confirm the default remains the existing mode.
+- number: 4
+  title: Verify the flow mode in a real browser UI
+  steps:
+  - id: P1.T4.S1
+    text: |-
+      Add a failing Playwright scenario for mode selection, three visible rows, centered focus alignment, forward progression, pause/resume, persistence, and the existing-mode default.
+  - id: P1.T4.S2
+    text: |-
+      Run the browser scenario against the built shared reader and adjust the implementation until all named states and interactions pass.
+  - id: P1.T4.S3
+    text: |-
+      Run the full unit, typecheck, build, and browser suites; remove any test-only duplication and capture/open fresh screenshots for every visual acceptance state.
+state:
+  steps:
+    P1.T1.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T1.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T1.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+  completion:
+    at: null
+    note: null
+    observed_prs: []

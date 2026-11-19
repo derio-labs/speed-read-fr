@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mkdir } from 'node:fs/promises';
 
 const DEMO = '/tests/demo/index.html';
 const STORE_KEY = 'speed-read-demo:settings';
@@ -187,6 +188,75 @@ test('words per chunk 1 and 8 change the chunk, and a reload keeps the saved set
   await expect(page.locator('.sr-reader')).toBeFocused();
   await page.keyboard.press(',');
   await expect(page.locator('.sr-settings [name="chunkWords"]')).toHaveValue('8');
+});
+
+test('three-row flow selection, focus, progression, controls, cards and persistence', async ({ page }) => {
+  const shots = '.visual/three-row-flow';
+  await mkdir(shots, { recursive: true });
+  await openDemo(page);
+  await page.keyboard.press(',');
+  const mode = page.locator('.sr-settings [name="readingMode"]');
+  await expect(mode).toHaveValue('chunk');
+  await page.keyboard.press('Escape');
+
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(display(page)).toHaveAttribute('data-kind', 'chunk');
+  await expect(state(page)).toHaveText('Playing');
+  await page.screenshot({ path: `${shots}/chunk-playing.png` });
+
+  await page.keyboard.press(',');
+  await page.locator('.sr-settings [name="readingMode"]').selectOption('flow');
+  await expect(display(page)).toHaveAttribute('data-kind', 'flow');
+  await page.keyboard.press('Escape');
+  const rows = page.locator('.sr-flow-row');
+  await expect(rows).toHaveCount(3);
+  const geometry = await page.evaluate(() => {
+    const display = document.querySelector('.sr-display')!.getBoundingClientRect();
+    const axis = document.querySelector('.sr-flow-axis')!.getBoundingClientRect();
+    const middle = document.querySelector('.sr-flow-row[data-position="middle"]')!.getBoundingClientRect();
+    return { dx: Math.abs(axis.x + axis.width / 2 - (display.x + display.width / 2)), dy: Math.abs(axis.y + axis.height / 2 - (middle.y + middle.height / 2)) };
+  });
+  expect(geometry.dx).toBeLessThan(2);
+  expect(geometry.dy).toBeLessThan(2);
+  await page.screenshot({ path: `${shots}/flow-playing.png` });
+
+  const starting = await page.locator('.sr-flow-row[data-position="middle"]').textContent();
+  await expect.poll(() => page.locator('.sr-flow-row[data-position="middle"]').textContent()).not.toBe(starting);
+  await page.screenshot({ path: `${shots}/flow-progressed.png` });
+  await page.keyboard.press('Space');
+  await expect(state(page)).toHaveText('Paused');
+  await page.screenshot({ path: `${shots}/flow-paused.png` });
+  await page.keyboard.press('Space');
+  await expect(state(page)).toHaveText('Playing');
+  await page.screenshot({ path: `${shots}/flow-resumed.png` });
+
+  const beforeJump = await page.locator('.sr-flow-row[data-position="middle"]').textContent();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => page.locator('.sr-flow-row[data-position="middle"]').textContent()).not.toBe(beforeJump);
+  await page.screenshot({ path: `${shots}/flow-sentence-jump.png` });
+
+  await page.reload();
+  await expect(page.locator('.sr-reader')).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(page.locator('.sr-card-chapter')).toBeVisible();
+  await page.screenshot({ path: `${shots}/flow-chapter-card.png` });
+  for (let i = 0; i < 4; i++) await page.keyboard.press('n');
+  await expect(page.locator('.sr-card-chapter')).toContainText('Code, tables and math');
+  await page.keyboard.press('Space');
+  await expect(page.locator('.sr-card-stop')).toBeVisible({ timeout: 20_000 });
+  await page.screenshot({ path: `${shots}/flow-structured-stop.png` });
+
+  await page.reload();
+  await expect(page.locator('.sr-reader')).toBeFocused();
+  await page.keyboard.press(',');
+  await expect(page.locator('.sr-settings [name="readingMode"]')).toHaveValue('flow');
+  await page.screenshot({ path: `${shots}/settings-saved-flow.png` });
+  await page.locator('.sr-settings [name="readingMode"]').selectOption('chunk');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(display(page)).toHaveAttribute('data-kind', 'chunk');
 });
 
 /** The element's box lies inside the stage's box (1 px tolerance). */

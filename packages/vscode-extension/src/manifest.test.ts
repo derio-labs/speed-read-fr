@@ -67,6 +67,12 @@ describe('VS Code extension manifest', () => {
     }
   });
 
+  it('contributes the Reading mode selector with the chunk default', () => {
+    const readingMode = pkg.contributes.configuration.properties['speedRead.readingMode'];
+    expect(readingMode).toMatchObject({ type: 'string', enum: ['chunk', 'flow'], default: 'chunk' });
+    expect(readingMode.description).toMatch(/reading mode/i);
+  });
+
   it('packages only dist, media, package.json, README.md and LICENSE', () => {
     const lines = vscodeignore.split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
     expect(lines).toEqual(['**', '!dist/**', '!media/**', '!package.json', '!README.md', '!LICENSE']);

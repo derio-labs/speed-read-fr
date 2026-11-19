@@ -81,6 +81,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       'fieldset',
       {},
       h('legend', {}, 'Display'),
+      field('Reading mode', null, select('readingMode', [['chunk', 'Chunk-by-chunk'], ['flow', 'Three-row flow']], 'Reading mode')),
       field('Images and diagrams', 'seconds shown', number('imageDwellSeconds', 1, 60, 1)),
       field('Reader', 'in the browser', select('display', [['overlay', 'Overlay'], ['dock', 'Side panel']])),
       ctx.hostSettings.includes('pageFade')
@@ -117,6 +118,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       control(`${kind}-seconds`).value = String(s[kind].dwellSeconds);
     }
     control('imageDwellSeconds').value = String(s.imageDwellSeconds);
+    control('readingMode').value = s.readingMode;
     control('display').value = s.display;
     if (control('pageFade')) control('pageFade').value = String(Math.round(s.pageFade * 100));
     control('tts').checked = s.tts.enabled;
@@ -192,6 +194,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       table: exhibit('table'),
       math: exhibit('math'),
       imageDwellSeconds: num('imageDwellSeconds', current.imageDwellSeconds),
+      readingMode: control('readingMode').value as Settings['readingMode'],
       display: control('display').value as Settings['display'],
       pageFade: control('pageFade') ? num('pageFade', current.pageFade * 100) / 100 : current.pageFade,
       tts: { enabled: ttsToggle.checked, voiceURI: voiceSelect.value || (missingVoice ? current.tts.voiceURI : null) },

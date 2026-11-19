@@ -1,0 +1,30 @@
+# Step record. The orchestrator resolves this record after review.
+schema_version: 12
+run: 2026-11-19-feat-three-row-flow
+step: implement-phase
+item: phase/1
+outcome: done
+ticks:
+  - P1.T1.S1
+  - P1.T1.S2
+  - P1.T1.S3
+  - P1.T2.S1
+  - P1.T2.S2
+  - P1.T2.S3
+  - P1.T3.S1
+  - P1.T3.S2
+  - P1.T3.S3
+  - P1.T4.S1
+  - P1.T4.S2
+refactor:
+  P1.T1: "The browser stores already serialize complete Settings objects, while VS Code flattens the shared defaults; using those paths keeps mode normalization centralized."
+  P1.T3: "The selector reuses the panel's shared select/read/apply/save flow, so no redundant control wiring remains."
+  P1.T4: "The browser scenario uses existing openDemo helpers and captures each visual state directly; no separate test-only capture layer was needed."
+journal:
+  - kind: discovery
+    id: shared-reading-mode-persistence
+    title: "Adding the mode to shared Settings covers browser and VS Code persistence paths."
+    body: "The browser extension persists a complete Settings value through its existing storage key, and VS Code derives flattened configuration keys from DEFAULT_SETTINGS. A single shared readingMode field and normalization therefore preserve old saved values as chunk without host-specific mode logic."
+    phase: 1
+resolves: []
+evidence: {}

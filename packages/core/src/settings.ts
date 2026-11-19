@@ -6,6 +6,7 @@ export interface ExhibitBehaviour {
 }
 
 export type DisplayMode = 'overlay' | 'dock';
+export type ReadingMode = 'chunk' | 'flow';
 
 export interface TtsSettings {
   enabled: boolean;
@@ -22,6 +23,7 @@ export interface Settings {
   math: ExhibitBehaviour;
   imageDwellSeconds: number;
   display: DisplayMode;
+  readingMode: ReadingMode;
   tts: TtsSettings;
   /** Strength of the page behind the browser's floating reader, 0.10-0.80 (R29); other hosts ignore it. */
   pageFade: number;
@@ -37,6 +39,7 @@ export const DEFAULT_SETTINGS: Settings = {
   math: { mode: 'stop', dwellSeconds: 5 },
   imageDwellSeconds: 3,
   display: 'overlay',
+  readingMode: 'chunk',
   tts: { enabled: false, voiceURI: null },
   pageFade: 0.32,
 };
@@ -48,6 +51,7 @@ export interface SettingsStore {
 
 const EXHIBIT_MODES: readonly ExhibitMode[] = ['stop', 'skip', 'dwell'];
 const DISPLAY_MODES: readonly DisplayMode[] = ['overlay', 'dock'];
+const READING_MODES: readonly ReadingMode[] = ['chunk', 'flow'];
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
@@ -97,6 +101,7 @@ export function normalizeSettings(partial: Partial<Settings>): Settings {
     math: normalizeExhibit(p.math, d.math),
     imageDwellSeconds: clampNumber(p.imageDwellSeconds, 1, 60, d.imageDwellSeconds),
     display: oneOf(p.display, DISPLAY_MODES, d.display),
+    readingMode: oneOf(p.readingMode, READING_MODES, d.readingMode),
     tts: normalizeTts(p.tts),
     pageFade: clampNumber(p.pageFade, 0.1, 0.8, d.pageFade),
   };

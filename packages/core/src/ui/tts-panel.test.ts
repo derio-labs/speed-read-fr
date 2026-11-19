@@ -117,6 +117,26 @@ describe('speech on the stage', () => {
     expect(t.q('.sr-display')!.dataset.kind).toBe('stop');
     expect(speech.spoken).toHaveLength(2);
   });
+
+  it('keeps three rows while speech boundaries and the whole-sentence fallback update the flow window', async () => {
+    const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], {
+      saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, readingMode: 'flow' },
+    });
+    await t.settle();
+    t.handle.player.toggle();
+    const middle = () => t.q('.sr-flow-row[data-position="middle"]')!.textContent;
+    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+    expect(middle()).toBe('The');
+    speech.spoken[0].boundary(4);
+    expect(middle()).toBe('first');
+    speech.spoken[0].end();
+    t.clock.advance(1000);
+    expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
+    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+    expect(middle()).toContain('A second one follows.');
+    speech.spoken[1].end();
+    expect(t.q('.sr-card-stop')).not.toBeNull();
+  });
 });
 
 describe('review p5b: voice panel', () => {

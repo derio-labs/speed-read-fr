@@ -58,6 +58,51 @@ describe('chunk steps', () => {
   });
 });
 
+describe('three-row flow steps', () => {
+  it('keeps exactly three rows and advances the current text through the middle row', () => {
+    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta.</p>', { settings: { readingMode: 'flow', chunkWords: 1 } });
+    t.handle.player.toggle();
+    const rows = () => t.qa('.sr-flow-row');
+    const middle = () => text(t.q('.sr-flow-row[data-position="middle"]'));
+    expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
+    expect(rows()).toHaveLength(3);
+    const first = middle();
+    t.clock.advance(t.clock.nextIn()!);
+    expect(rows()).toHaveLength(3);
+    expect(middle()).not.toBe(first);
+    expect(text(rows()[0])).toBe(first);
+  });
+
+  it('keeps the focus marker fixed when reading a nested list item', () => {
+    const t = mountHarness('<ul><li>first list item that is rather long indeed</li><li>second list item that is also long<ul><li>nested target words in the list</li></ul></li></ul>', { settings: { readingMode: 'flow' } });
+    t.handle.player.toggle();
+    const list = t.doc.sections[0].blocks[0];
+    if (list.kind !== 'list') throw new Error('list expected');
+    t.handle.player.jumpToBlock(list.items[2].source);
+    expect(t.q('.sr-flow-axis')).not.toBeNull();
+    expect(t.q('.sr-flow-axis')!.style.left).toBe('50%');
+    expect(t.q('.sr-display')!.style.getPropertyValue('--sr-depth')).toBe('');
+  });
+
+  it('re-centers the flow window after a sentence jump', () => {
+    const t = mountHarness('<p>First sentence has words. Second sentence has other words.</p>', { settings: { readingMode: 'flow', chunkWords: 1 } });
+    t.handle.player.toggle();
+    t.handle.player.sentence(1);
+    expect(text(t.q('.sr-flow-row[data-position="middle"]'))).toBe('Second');
+  });
+
+  it('keeps chapter and structured-content cards instead of replacing them with rows', () => {
+    const t = mountHarness('<h1>Heading</h1><p>Text before code.</p><pre>const x = 1;</pre>', { settings: { readingMode: 'flow' } });
+    t.handle.player.toggle();
+    expect(t.q('.sr-card-chapter')).not.toBeNull();
+    expect(t.q('.sr-flow-row')).toBeNull();
+    t.handle.player.continue();
+    t.clock.advance(10_000);
+    expect(t.q('.sr-card-stop')).not.toBeNull();
+    expect(t.q('.sr-flow-row')).toBeNull();
+  });
+});
+
 describe('fitting the chunk to the stage', () => {
   it('scales no smaller than 0.5 and wraps past that', () => {
     stubWidths({ 'sr-display': 360, 'sr-chunk': 1400, 'sr-before': 600, 'sr-pivot': 20 });
