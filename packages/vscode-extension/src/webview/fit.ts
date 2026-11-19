@@ -45,8 +45,10 @@ function updateClip(display: HTMLElement) {
   const { scrollLeft, scrollWidth, clientWidth } = display;
   let clip = '';
   if (scrollWidth > clientWidth + FIT_TOLERANCE_PX) {
-    const atStart = scrollLeft <= 1;
-    const atEnd = scrollLeft + clientWidth >= scrollWidth - 1;
+    const atStart = scrollLeft <= FIT_TOLERANCE_PX;
+    // scrollLeft may be fractional while scrollWidth/clientWidth are integers (notably under zoom).
+    // Compare at the same precision so a sub-pixel-short clamped offset still counts as the end.
+    const atEnd = Math.round(scrollLeft + clientWidth) >= scrollWidth - FIT_TOLERANCE_PX;
     clip = atStart ? 'right' : atEnd ? 'left' : 'both';
   }
   if (clip) display.dataset.clip = clip;
