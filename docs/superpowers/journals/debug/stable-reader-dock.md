@@ -10,3 +10,8 @@ The browser stage reads layout each chunk and shrinks or wraps on overflow, then
 ### 0ecebcb63b87 · repro · Pin the reported motion and whole-sentence speech
 
 Regression coverage uses a Markdown-like preview with fixed chrome, a nested scroll area, long inline code, chapter and table. The first Chromium run was blocked by missing container browser libraries; installed them in the disposable workspace. Speech fake-clock cases reproduced both missing chunk timing and lack of an alternate voice on synthesis startup error.
+
+<!-- fr:journal kind=finding scope=debug id=e3689a4bd643 created=2026-11-19T20:06:05+00:00 state=fixed -->
+### e3689a4bd643 · finding [fixed] · Fixed geometry, clipped source highlight and chunk-based speech fallback
+
+The browser uses a fixed stage and distinct support area; CSS aligns chunks without per-word geometry measurement or resizing. Overlay follow aims below page chrome and clamps the highlight to the visible area above support cards. Speech uses an estimate when there are no timings, tries another same-language local voice on startup errors, and switches to timed text at the same chunk on failure. Chromium fixtures and fake speech cover the changed paths.
