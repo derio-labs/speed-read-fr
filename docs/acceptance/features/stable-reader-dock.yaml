@@ -7,6 +7,16 @@ schema_version: 2
 feature: stable-reader-dock
 repo: derio-net/speed-read-fr
 rows:
+  - id: browser-fixed-chunk-box
+    capability: browser-extension
+    acceptance: Overlay and Side panel keep the speed-read box, type size and guides
+      fixed through prose, inline code, chapters and exhibits.
+    origin: []
+    levels:
+      ui:
+      - speed-read-fr:tests/e2e/extension.spec.ts
+    status: ci
+    notes: Chromium tests cover both display modes with a local repository-preview fixture.
 amendments:
   - row: browser-floating-overlay
     op: reword
