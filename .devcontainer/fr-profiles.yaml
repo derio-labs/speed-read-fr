@@ -1,0 +1,14 @@
+schema_version: 2
+profiles:
+  dev:
+    purpose: 'Node 22 development and CI: npm ci; npm run typecheck; npm test; npx
+      playwright install --with-deps chromium; npm run test:e2e; npm run build; npm
+      run package'
+    secrets: []
+default: dev
+forge:
+  type: github
+ci:
+  type: github-actions
+tracking:
+  type: github
