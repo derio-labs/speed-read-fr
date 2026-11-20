@@ -29,7 +29,7 @@ journal:
     phase: 1
 resolves: []
 evidence:
-  tests: /private/var/folders/dr/4tnkgxrd5gv_j0njc75yd9q00000gp/T/opencode/three-row-flow-full-suite.log
+  tests: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/cdc0c364-edf0-424b-8082-6e26785d5a7a/scratchpad/p1-full-suite.log
 visual:
   - row: reader-three-row-flow
     shots:
