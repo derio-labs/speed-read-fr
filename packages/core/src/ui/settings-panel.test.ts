@@ -75,6 +75,21 @@ describe('settings panel', () => {
     expect(t.handle.player.settings.chunkWords).toBe(8);
   });
 
+  it('selects flow mode immediately and restores the saved choice when Settings reopens', async () => {
+    const t = mountHarness('<p>one two three four five six.</p>');
+    await t.settle();
+    t.handle.player.toggle();
+    const first = open(t);
+    expect(first.field('readingMode').value).toBe('chunk');
+    first.set('readingMode', 'flow');
+    expect(t.handle.player.settings.readingMode).toBe('flow');
+    expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
+    expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ readingMode: 'flow' }));
+    t.q<HTMLButtonElement>('.sr-settings-done')!.click();
+    const reopened = open(t);
+    expect(reopened.field('readingMode').value).toBe('flow');
+  });
+
   it('applies speed, stop levels, per-type behaviour, image dwell and display', async () => {
     const t = mountHarness(ARTICLE);
     await t.settle();
@@ -106,6 +121,7 @@ describe('settings panel', () => {
   it('shows values loaded from the store at mount', async () => {
     const t = mountHarness(ARTICLE, { saved: { chunkWords: 5, wpm: 400 } });
     await t.settle();
+    expect(t.handle.player.settings.readingMode).toBe('chunk');
     const { field } = open(t);
     expect(field('chunkWords').value).toBe('5');
     expect(field('wpm').value).toBe('400');

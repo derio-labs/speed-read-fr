@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mkdir } from 'node:fs/promises';
 
 const DEMO = '/tests/demo/index.html';
 const STORE_KEY = 'speed-read-demo:settings';
@@ -187,6 +188,225 @@ test('words per chunk 1 and 8 change the chunk, and a reload keeps the saved set
   await expect(page.locator('.sr-reader')).toBeFocused();
   await page.keyboard.press(',');
   await expect(page.locator('.sr-settings [name="chunkWords"]')).toHaveValue('8');
+});
+
+test('three-row flow selection, focus, progression, controls, cards and persistence', async ({ page }) => {
+  const shots = '.visual/three-row-flow';
+  await mkdir(shots, { recursive: true });
+  await openDemo(page);
+  await page.keyboard.press(',');
+  const mode = page.locator('.sr-settings [name="readingMode"]');
+  await expect(mode).toHaveValue('chunk');
+  await page.keyboard.press('Escape');
+
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(display(page)).toHaveAttribute('data-kind', 'chunk');
+  await expect(state(page)).toHaveText('Playing');
+  await page.screenshot({ path: `${shots}/chunk-playing.png` });
+
+  await page.keyboard.press(',');
+  await page.locator('.sr-settings [name="readingMode"]').selectOption('flow');
+  await expect(display(page)).toHaveAttribute('data-kind', 'flow');
+  await expect(mode).toHaveValue('flow');
+  await page.screenshot({ path: `${shots}/settings-select-flow.png` });
+  await page.keyboard.press('Escape');
+  await expectVisibleFlowRows(page);
+  const geometry = await flowGeometry(page);
+  expect(geometry.dx).toBeLessThan(2);
+  expect(geometry.dy).toBeLessThan(2);
+  expect(geometry.tickSpan).toBeGreaterThan(geometry.rowHeight - 2);
+  expect(await page.locator('.sr-flow-before').evaluate((el) => getComputedStyle(el).whiteSpace)).toBe('pre');
+  expect(await page.locator('.sr-flow-after').evaluate((el) => getComputedStyle(el).whiteSpace)).toBe('pre');
+  await page.screenshot({ path: `${shots}/flow-playing.png` });
+
+  const starting = await page.locator('.sr-flow-row[data-position="middle"]').textContent();
+  await expect.poll(() => page.locator('.sr-flow-row[data-position="middle"]').textContent()).not.toBe(starting);
+  await page.screenshot({ path: `${shots}/flow-progressed.png` });
+  await page.keyboard.press('Space');
+  await expect(state(page)).toHaveText('Paused');
+  await page.screenshot({ path: `${shots}/flow-paused.png` });
+  await page.keyboard.press('Space');
+  await expect(state(page)).toHaveText('Playing');
+  await page.screenshot({ path: `${shots}/flow-resumed.png` });
+
+  const beforeJump = await page.locator('.sr-flow-row[data-position="middle"]').textContent();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => page.locator('.sr-flow-row[data-position="middle"]').textContent()).not.toBe(beforeJump);
+  await page.screenshot({ path: `${shots}/flow-sentence-jump.png` });
+
+  await page.reload();
+  await expect(page.locator('.sr-reader')).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(page.locator('.sr-card-chapter')).toBeVisible();
+  await page.screenshot({ path: `${shots}/flow-chapter-card.png` });
+  for (let i = 0; i < 4; i++) await page.keyboard.press('n');
+  await expect(page.locator('.sr-card-chapter')).toContainText('Code, tables and math');
+  await page.keyboard.press('Space');
+  await expect(page.locator('.sr-card-stop')).toBeVisible({ timeout: 20_000 });
+  await page.screenshot({ path: `${shots}/flow-structured-stop.png` });
+
+  await page.reload();
+  await expect(page.locator('.sr-reader')).toBeFocused();
+  await page.keyboard.press(',');
+  await expect(page.locator('.sr-settings [name="readingMode"]')).toHaveValue('flow');
+  await page.screenshot({ path: `${shots}/settings-saved-flow.png` });
+  await page.locator('.sr-settings [name="readingMode"]').selectOption('chunk');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(display(page)).toHaveAttribute('data-kind', 'chunk');
+  await page.screenshot({ path: `${shots}/chunk-switched-back.png` });
+
+  await page.reload();
+  await expect(page.locator('.sr-reader')).toBeFocused();
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(display(page)).toHaveAttribute('data-kind', 'chunk');
+  await page.screenshot({ path: `${shots}/reopened-chunk.png` });
+});
+
+/** Three flow rows, each inside the stage, not overlapping and not overflowing their own box. */
+async function expectVisibleFlowRows(page: Page) {
+  const r = await page.evaluate(() => {
+    const stage = document.querySelector('.sr-stage')!.getBoundingClientRect();
+    const rows = [...document.querySelectorAll<HTMLElement>('.sr-flow-row')];
+    return {
+      count: rows.length,
+      boxes: rows.map((row) => {
+        const b = row.getBoundingClientRect();
+        return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, overflow: row.scrollHeight - row.clientHeight };
+      }),
+      stage: { top: stage.top, bottom: stage.bottom, left: stage.left, right: stage.right },
+    };
+  });
+  expect(r.count).toBe(3);
+  r.boxes.forEach((b, i) => {
+    expect(b.top, `row ${i} top`).toBeGreaterThanOrEqual(r.stage.top - 1);
+    expect(b.bottom, `row ${i} bottom`).toBeLessThanOrEqual(r.stage.bottom + 1);
+    expect(b.left).toBeGreaterThanOrEqual(r.stage.left - 1);
+    expect(b.right).toBeLessThanOrEqual(r.stage.right + 1);
+    expect(b.overflow, `row ${i} overflow`).toBeLessThanOrEqual(1);
+    expect(b.bottom - b.top).toBeGreaterThan(10);
+    if (i > 0) expect(b.top, `row ${i} overlaps`).toBeGreaterThanOrEqual(r.boxes[i - 1].bottom - 1);
+  });
+}
+
+/** The tick marker's centre against the display's centre (x) and the middle row's centre (y). */
+async function flowGeometry(page: Page) {
+  return page.evaluate(() => {
+    const display = document.querySelector('.sr-display')!.getBoundingClientRect();
+    const axis = document.querySelector('.sr-flow-axis')!.getBoundingClientRect();
+    const middle = document.querySelector('.sr-flow-row[data-position="middle"]')!.getBoundingClientRect();
+    return {
+      dx: Math.abs(axis.x + axis.width / 2 - (display.x + display.width / 2)),
+      dy: Math.abs(axis.y + axis.height / 2 - (middle.y + middle.height / 2)),
+      tickSpan: axis.height,
+      rowHeight: middle.height,
+    };
+  });
+}
+
+test('flow mode keeps three visible rows through sentence jumps to the end of a chapter', async ({ page }) => {
+  await openDemo(page, { readingMode: 'flow' });
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  for (let i = 0; i < 14; i++) {
+    await page.keyboard.press('ArrowRight');
+    const kind = await display(page).getAttribute('data-kind');
+    expect(['flow', 'title', 'chapter', 'stop', 'end', 'ready', 'dwell']).toContain(kind);
+    if (kind === 'flow') await expectVisibleFlowRows(page);
+  }
+  await expect(page.locator('.sr-reader')).toBeVisible();
+});
+
+/** The pivot's centre against the axis, and the rendered width of a space at the before/pivot or pivot/after boundary. */
+async function pivotSample(page: Page) {
+  return page.evaluate(() => {
+    const axis = document.querySelector('.sr-flow-axis')!.getBoundingClientRect();
+    const pivot = document.querySelector('.sr-flow-pivot')!.getBoundingClientRect();
+    const before = document.querySelector('.sr-flow-before')!;
+    const after = document.querySelector('.sr-flow-after')!;
+    const edge = (root: Element, last: boolean): Text | null => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let found: Text | null = null;
+      for (let n = walker.nextNode() as Text | null; n; n = walker.nextNode() as Text | null) {
+        if (!n.data) continue;
+        if (!last) return n;
+        found = n;
+      }
+      return found;
+    };
+    const gaps: number[] = [];
+    const lastBefore = edge(before, true);
+    if (lastBefore?.data.endsWith(' ')) {
+      const r = document.createRange();
+      r.setStart(lastBefore, lastBefore.data.length - 1);
+      r.setEnd(lastBefore, lastBefore.data.length);
+      gaps.push(r.getBoundingClientRect().width);
+    }
+    const firstAfter = edge(after, false);
+    if (firstAfter?.data.startsWith(' ')) {
+      const r = document.createRange();
+      r.setStart(firstAfter, 0);
+      r.setEnd(firstAfter, 1);
+      gaps.push(r.getBoundingClientRect().width);
+    }
+    return { dx: Math.abs(pivot.x + pivot.width / 2 - (axis.x + axis.width / 2)), beforeLength: (before.textContent ?? '').length, gaps };
+  });
+}
+
+for (const layout of ['panel', 'floating'] as const) {
+  test(`flow mode (${layout}): the pivot sits on the axis for short and long before-text, and boundary spaces render with a width`, async ({ page }) => {
+    test.setTimeout(150_000);
+    await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ readingMode: 'flow', wpm: 1000, chunkWords: 2 })] as const);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto(layout === 'floating' ? `${DEMO}?layout=floating` : DEMO);
+    await expect(page.locator('.sr-reader')).toBeFocused();
+    await page.keyboard.press('Space');
+    await page.keyboard.press('Space');
+    await expect(display(page)).toHaveAttribute('data-kind', 'flow');
+    const middle = page.locator('.sr-flow-row[data-position="middle"]');
+    const lengths = new Set<number>();
+    let spaces = 0;
+    let samples = 0;
+    let last = '';
+    for (let i = 0; i < 1500 && (samples < 12 || spaces === 0); i++) {
+      await page.waitForTimeout(100);
+      if ((await display(page).getAttribute('data-kind')) !== 'flow') {
+        await page.keyboard.press('Space'); // continue past a stop card
+        continue;
+      }
+      const now = await middle.textContent();
+      if (now === last) continue;
+      last = now ?? '';
+      const sample = await pivotSample(page);
+      samples++;
+      expect(sample.dx, `sample ${samples}`).toBeLessThan(2);
+      lengths.add(sample.beforeLength);
+      for (const gap of sample.gaps) {
+        spaces++;
+        expect(gap, `sample ${samples} boundary space width`).toBeGreaterThan(1);
+      }
+    }
+    expect(Math.max(...lengths) - Math.min(...lengths)).toBeGreaterThanOrEqual(3);
+    expect(spaces).toBeGreaterThan(0);
+  });
+}
+
+test('flow mode keeps three visible rows in the floating layout', async ({ page }) => {
+  await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ readingMode: 'flow' })] as const);
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto(`${DEMO}?layout=floating`);
+  await expect(page.locator('.sr-reader')).toBeFocused();
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(display(page)).toHaveAttribute('data-kind', 'flow');
+  await expect.poll(() => page.locator('.sr-flow-row[data-position="top"]').textContent()).not.toBe('');
+  await expectVisibleFlowRows(page);
+  const g = await flowGeometry(page);
+  expect(g.dx).toBeLessThan(2);
+  expect(g.dy).toBeLessThan(2);
 });
 
 /** The element's box lies inside the stage's box (1 px tolerance). */

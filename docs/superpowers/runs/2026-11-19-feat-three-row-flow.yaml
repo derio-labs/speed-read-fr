@@ -1,0 +1,144 @@
+schema_version: 12
+run: 2026-11-19-feat-three-row-flow
+workflow: fr-goal@1
+branch: feat/three-row-flow
+started: '2026-11-19T22:02:17+00:00'
+cursor: deliver
+steps:
+  brainstorm:
+    state: done
+    at: '2026-11-19T23:01:48+00:00'
+    answered_by: operator
+    emitted:
+      spec: docs/superpowers/specs/2026-11-20-three-row-flow-design.md
+  spec-review:
+    state: done
+    at: '2026-11-19T23:06:12+00:00'
+    units:
+      step/spec-review:
+        attempts:
+        - dispatched: '2026-11-19T23:01:51+00:00'
+          agent: ses_e09f3adf8ffePKNVB9FXmUOXz9
+          agent_type: fr-spec-reviewer-hard
+          harness: opencode
+          model: github-copilot/claude-opus-5.5
+          tier: hard
+          bound: github-copilot/claude-opus-5.5
+          session: ses_e0a2bd278ffevD9K3wovxgARj9
+          returned: '2026-11-19T23:06:11+00:00'
+          outcome: done
+        evidence:
+          review: spec-review
+          reviewer: ses_e09f3adf8ffePKNVB9FXmUOXz9
+          findings: s1,s2,s3
+  plan:
+    state: done
+    at: '2026-11-19T23:08:51+00:00'
+    emitted:
+      plan: docs/superpowers/plans/2026-11-20-three-row-flow
+    units:
+      step/plan:
+        attempts:
+        - dispatched: '2026-11-19T23:06:15+00:00'
+          harness: opencode
+          session: ses_e0a2bd278ffevD9K3wovxgARj9
+          returned: '2026-11-19T23:08:51+00:00'
+          outcome: done
+  plan-review:
+    state: done
+    at: '2026-11-19T23:08:54+00:00'
+    exit: 0
+    stdout: |
+      self-review passed
+  implement:
+    state: done
+    at: '2026-11-20T07:51:50+00:00'
+    members:
+    - implement-phase
+    - review-phase
+    units:
+      phase/1/implement-phase:
+        state: done
+        attempts:
+        - dispatched: '2026-11-19T23:08:55+00:00'
+          agent: ses_e09ed4a3bffelJuz6NLnJm2uN0
+          agent_type: fr-phase-executor-standard
+          harness: opencode
+          model: github-copilot/gpt-6-luna
+          tier: standard
+          bound: github-copilot/gpt-6-luna
+          session: ses_e0a2bd278ffevD9K3wovxgARj9
+          returned: '2026-11-20T07:12:07+00:00'
+          outcome: abandoned
+        - dispatched: '2026-11-20T07:12:07+00:00'
+          agent: a1fa1ecdb2b327079
+          agent_type: super-fr:fr-phase-executor
+          harness: claude-code
+          model: claude-sonnet-5-5
+          tier: standard
+          bound: claude-sonnet-5
+          session: cdc0c364-edf0-424b-8082-6e26785d5a7a
+          returned: '2026-11-20T07:28:21+00:00'
+          outcome: done
+        evidence:
+          tests: p1-full-suite-2.log@ec8fdc1834a2;tree=ecea559b07d773b4444ae6098353338ddd9f5183f4481323b45901e36a4ea9e1
+          visual: reader-three-row-flow:12:b701ae2287aa
+      phase/1/review-phase:
+        state: done
+        attempts:
+        - dispatched: '2026-11-20T07:28:22+00:00'
+          agent: a4831360cff4aaab6
+          harness: claude-code
+          model: claude-sonnet-5-5
+          session: cdc0c364-edf0-424b-8082-6e26785d5a7a
+          returned: '2026-11-20T07:51:50+00:00'
+          outcome: done
+        evidence:
+          review: p1-review
+          reviewer: a4831360cff4aaab6
+          visual: reader-three-row-flow:12:dcfc40821b67
+          findings: p1-r1,p1-r2,p1-r3,p1-r4
+  journal-check:
+    state: done
+    at: '2026-11-20T07:51:52+00:00'
+    exit: 0
+    stdout: ''
+  lens-review:
+    state: done
+    at: '2026-11-20T08:26:48+00:00'
+    units:
+      step/lens-review:
+        attempts:
+        - dispatched: '2026-11-20T07:51:53+00:00'
+          harness: claude-code
+          model: claude-opus-5-5
+          session: cdc0c364-edf0-424b-8082-6e26785d5a7a
+          returned: '2026-11-20T08:26:48+00:00'
+          outcome: done
+        evidence:
+          review: lens-review
+          reviewer: tests=a5f4d1993f9c8828d
+          findings: l-tests-r1,l-tests-r2,l-tests-r3,l-tests-r4,l-tests-r5
+          lenses: tests=15:l-tests-r1,l-tests-r2,l-tests-r3,l-tests-r4,l-tests-r5
+  deliver:
+    state: done
+    at: '2026-11-20T08:33:46+00:00'
+    emitted:
+      pr: https://github.com/derio-labs/speed-read-fr/pull/9
+    units:
+      step/deliver:
+        attempts:
+        - dispatched: '2026-11-20T08:26:49+00:00'
+          harness: claude-code
+          model: claude-opus-5-5
+          session: cdc0c364-edf0-424b-8082-6e26785d5a7a
+          returned: '2026-11-20T08:33:38+00:00'
+          outcome: done
+        evidence:
+          tests: deliver-full-suite.log@e2e207ad99ad
+          walk: none
+          proportionality: 9b443f0355d66d226968309eb909f283a89e7416:4a14d90c8ab2e5e3f7924b8acf4178f875d7cff24f2a8e9e87241c783672c7fb
+          docs: none
+          visual: reader-three-row-flow:12:808618bee4dc
+fr_version: 8.3.0rc6
+pr: https://github.com/derio-labs/speed-read-fr/pull/9

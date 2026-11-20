@@ -35,6 +35,8 @@ export interface HarnessOptions {
   saved?: Partial<Settings>;
   trustedEventsOnly?: boolean;
   layout?: 'panel' | 'floating';
+  /** Mount the bottom-stage layout (details panel beside the stage). */
+  bottomStage?: boolean;
   /** Declare the host's page fade setting (the browser overlay). */
   pageFade?: boolean;
   /** A speech driver, or one built on the harness clock; none (unavailable) by default. */
@@ -85,6 +87,7 @@ export function mountHarness(markup: string, opts: HarnessOptions = {}): Harness
     scheduler: clock,
     trustedEventsOnly: opts.trustedEventsOnly,
     layout: opts.layout,
+    bottomStage: opts.bottomStage,
     hostSettings: opts.pageFade ? ['pageFade'] : undefined,
     speech: typeof opts.speech === 'function' ? opts.speech(clock) : opts.speech,
     frame,

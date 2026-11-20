@@ -1,0 +1,46 @@
+# Acceptance rows owned by one feature (spec 2026-11-04-repo-feature-settings R16).
+# The effective matrix is a fold over every fragment in this directory
+# (`fr acceptance status`); it is never stored. Write rows with
+# `fr acceptance add` / `set-status`, never by hand. Keep `rows:` before
+# `amendments:`.
+schema_version: 2
+feature: 2026-11-20-three-row-flow
+repo: derio-net/speed-read-fr
+rows:
+  - id: reader-three-row-flow
+    capability: reader-ui
+    acceptance: The user can select and use a persisted three-row flow reading mode
+      across Chrome, Firefox and VS Code; while reading, three rows flow upward through
+      a fixed center crosshair in the middle row at the configured speed, while existing
+      mode and structured-content behavior remain intact.
+    origin:
+    - spec:2026-11-20-three-row-flow#R1
+    - spec:2026-11-20-three-row-flow#R2
+    - spec:2026-11-20-three-row-flow#R3
+    - spec:2026-11-20-three-row-flow#R4
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/settings.test.ts
+      - speed-read-fr:packages/core/src/ui/stage.test.ts
+      - speed-read-fr:packages/core/src/ui/settings-panel.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Verified by normalization, host persistence, Settings, flow-stage and Playwright
+      tests.
+    verify: none
+    visual:
+      states:
+      - chunk mode playing with the existing display
+      - flow mode playing with exactly three visible rows and the middle row aligned
+        to the center crosshair
+      - flow mode paused and resumed
+      - chapter card and structured-content stop in flow mode
+      - Reading mode selector showing the saved flow choice after reopening Settings
+      interactions:
+      - select flow mode in Settings
+      - play, pause and resume flow
+      - switch back to chunk mode
+      - close and reopen the reader to confirm the preference persists
+      - move to the next sentence while in flow mode
+    scenario: tests/e2e/core.spec.ts

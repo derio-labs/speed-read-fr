@@ -37,7 +37,7 @@ describe('README', () => {
 
   it('names every setting of R12 with its default, and the page fade', () => {
     const settings = section('## Settings');
-    for (const name of ['Speed', 'Words per chunk', 'Characters per chunk', 'Stop at headings', 'Code', 'Tables', 'Math', 'Images and diagrams', 'Display', 'Text-to-speech', 'Page fade']) {
+    for (const name of ['Speed', 'Reading mode', 'Words per chunk', 'Characters per chunk', 'Stop at headings', 'Code', 'Tables', 'Math', 'Images and diagrams', 'Display', 'Text-to-speech', 'Page fade']) {
       expect(settings, name).toContain(name);
     }
     for (const value of ['300', 'H1 and H2', '20', '5 s', '3 s', 'Overlay', '32 %']) expect(settings, value).toContain(value);
@@ -46,6 +46,13 @@ describe('README', () => {
   it('documents the dial, the floating overlay and the narrow layout', () => {
     const usage = section('## Usage');
     for (const word of ['dial', 'wheel', 'faded', 'narrow']) expect(usage.toLowerCase(), word).toContain(word);
+  });
+
+  it('explains three-row flow, its fixed focus, persistence and shared controls', () => {
+    const usage = section('## Usage');
+    for (const phrase of ['Three-row flow', 'three rows', 'fixed crosshair', 'saved', 'same speed', 'dial controls']) {
+      expect(usage.toLowerCase(), phrase).toContain(phrase.toLowerCase());
+    }
   });
 
   it('lists the known limits', () => {
@@ -68,6 +75,7 @@ describe('README content pinned by the review (p5b-r13)', () => {
     const settings = section('## Settings');
     const row = (name: string) => settings.split('\n').find((l) => l.startsWith(`| ${name} |`)) ?? '';
     expect(row('Speed')).toContain('300 WPM');
+    expect(row('Reading mode')).toContain('Chunk-by-chunk');
     expect(row('Words per chunk')).toContain('| 3 |');
     expect(row('Characters per chunk')).toContain('20');
     expect(row('Stop at headings')).toContain('H1 and H2');

@@ -58,6 +58,125 @@ describe('chunk steps', () => {
   });
 });
 
+describe('three-row flow steps', () => {
+  it('keeps exactly three rows and advances the current text through the middle row', () => {
+    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta.</p>', { settings: { readingMode: 'flow', chunkWords: 1 } });
+    t.handle.player.toggle();
+    const rows = () => t.qa('.sr-flow-row');
+    const middle = () => text(t.q('.sr-flow-row[data-position="middle"]'));
+    expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
+    expect(rows()).toHaveLength(3);
+    const first = middle();
+    t.clock.advance(t.clock.nextIn()!);
+    expect(rows()).toHaveLength(3);
+    expect(middle()).not.toBe(first);
+    expect(text(rows()[0])).toBe(first);
+  });
+
+  it('keeps the focus marker fixed when reading a nested list item', () => {
+    const t = mountHarness('<ul><li>first list item that is rather long indeed</li><li>second list item that is also long<ul><li>nested target words in the list</li></ul></li></ul>', { settings: { readingMode: 'flow' } });
+    t.handle.player.toggle();
+    const list = t.doc.sections[0].blocks[0];
+    if (list.kind !== 'list') throw new Error('list expected');
+    t.handle.player.jumpToBlock(list.items[2].source);
+    expect(t.q('.sr-flow-axis')).not.toBeNull();
+    expect(t.q('.sr-flow-axis')!.style.left).toBe('50%');
+    expect(t.q('.sr-display')!.style.getPropertyValue('--sr-depth')).toBe('');
+  });
+
+  it('re-centers the flow window after a sentence jump', () => {
+    const t = mountHarness('<p>First sentence has words. Second sentence has other words.</p>', { settings: { readingMode: 'flow', chunkWords: 1 } });
+    t.handle.player.toggle();
+    t.handle.player.sentence(1);
+    expect(text(t.q('.sr-flow-row[data-position="middle"]'))).toBe('Second');
+  });
+
+  it('keeps the space between the pivot and the rest of the middle row', () => {
+    const t = mountHarness('<p>read it all in one go.</p>', { settings: { readingMode: 'flow', chunkWords: 3 } });
+    t.handle.player.toggle();
+    const middle = t.q('.sr-flow-row[data-position="middle"]')!;
+    expect(middle.textContent).toBe('read it all');
+    const parts = ['.sr-flow-before', '.sr-flow-pivot', '.sr-flow-after'].map((s) => t.q(s)!.textContent!);
+    expect(parts.join('')).toBe('read it all');
+    expect(parts.filter((x) => x.startsWith(' ') || x.endsWith(' ')).length).toBeGreaterThan(0);
+  });
+
+  it('leaves the top row empty on the first chunk and the bottom row empty on the last, still three rows', () => {
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: { readingMode: 'flow', chunkWords: 1 } });
+    t.handle.player.toggle();
+    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+    expect(text(t.q('.sr-flow-row[data-position="top"]'))).toBe('');
+    expect(text(t.q('.sr-flow-row[data-position="bottom"]'))).toBe('beta');
+    t.clock.advance(t.clock.nextIn()!);
+    t.clock.advance(t.clock.nextIn()!);
+    expect(text(t.q('.sr-flow-row[data-position="middle"]'))).toBe('gamma.');
+    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+    expect(text(t.q('.sr-flow-row[data-position="bottom"]'))).toBe('');
+    expect(text(t.q('.sr-flow-row[data-position="top"]'))).toBe('beta');
+  });
+
+  it('takes the neighbour across an item gap', () => {
+    const t = mountHarness('<ul><li>first list item that is rather long indeed</li><li>second list item that is also long</li><li>third list item with plenty of words too</li></ul>', { settings: { readingMode: 'flow' } });
+    t.handle.player.toggle();
+    const list = t.doc.sections[0].blocks[0];
+    if (list.kind !== 'list') throw new Error('list expected');
+    t.handle.player.jumpToBlock(list.items[1].source);
+    expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
+    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+    expect(text(t.q('.sr-flow-row[data-position="middle"]'))).toMatch(/^second/);
+    expect(text(t.q('.sr-flow-row[data-position="top"]'))).not.toBe('');
+  });
+
+  it('does not borrow a neighbour from across a card', () => {
+    const t = mountHarness('<p>alpha beta.</p><pre>code</pre><p>gamma delta.</p>', { settings: { readingMode: 'flow', chunkWords: 1 } });
+    t.handle.player.toggle();
+    t.handle.player.continue();
+    const row = (pos: string) => text(t.q(`.sr-flow-row[data-position="${pos}"]`));
+    t.clock.advance(t.clock.nextIn()!);
+    expect(row('middle')).toBe('beta.');
+    expect(row('bottom')).toBe('');
+    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+    for (let i = 0; i < 20 && row('middle') !== 'gamma'; i++) {
+      if (t.q('.sr-card-stop')) t.handle.player.continue();
+      else t.clock.advance(t.clock.nextIn()!);
+    }
+    expect(row('middle')).toBe('gamma');
+    expect(row('top')).toBe('');
+    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+  });
+
+  it('keeps chapter and structured-content cards instead of replacing them with rows', () => {
+    const t = mountHarness('<h1>Heading</h1><p>Text before code.</p><pre>const x = 1;</pre>', { settings: { readingMode: 'flow' } });
+    t.handle.player.toggle();
+    expect(t.q('.sr-card-chapter')).not.toBeNull();
+    expect(t.q('.sr-flow-row')).toBeNull();
+    t.handle.player.continue();
+    t.clock.advance(10_000);
+    expect(t.q('.sr-card-stop')).not.toBeNull();
+    expect(t.q('.sr-flow-row')).toBeNull();
+  });
+});
+
+describe('bottom-stage flow', () => {
+  it('keeps the flow structure in the stage and the card in the details panel', () => {
+    const t = mountHarness('<h1>Heading</h1><p>alpha beta gamma.</p><pre>const x = 1;</pre>', { bottomStage: true, settings: { readingMode: 'flow', chunkWords: 1 } });
+    expect(t.reader.hasAttribute('data-bottom-stage')).toBe(true);
+    t.handle.player.toggle();
+    const details = t.q('.sr-stage-details')!;
+    expect(details.hidden).toBe(false);
+    expect(details.querySelector('.sr-card-chapter')).not.toBeNull();
+    t.handle.player.continue();
+    expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
+    expect(t.qa('.sr-display .sr-flow-row')).toHaveLength(3);
+    expect(t.q('.sr-display .sr-flow-axis')).not.toBeNull();
+    expect(details.hidden).toBe(true);
+    expect(details.childNodes).toHaveLength(0);
+    t.clock.advance(10_000);
+    expect(details.hidden).toBe(false);
+    expect(details.querySelector('.sr-card-stop')).not.toBeNull();
+  });
+});
+
 describe('fitting the chunk to the stage', () => {
   it('scales no smaller than 0.5 and wraps past that', () => {
     stubWidths({ 'sr-display': 360, 'sr-chunk': 1400, 'sr-before': 600, 'sr-pivot': 20 });

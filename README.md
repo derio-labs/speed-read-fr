@@ -73,6 +73,13 @@ header bar, a help button) move out from under the panel while it is open.
 
 Esc closes the reader and leaves the page at the block you were reading, outlined briefly.
 
+Choose **Chunk-by-chunk** or **Three-row flow** with **Reading mode** in Settings. Chunk-by-chunk
+remains the default. Flow keeps three rows visible and moves text upward through a fixed crosshair
+at the center of the middle row; list indentation does not move the focus point. Both modes use the
+same speed, timeline, chapter and exhibit behavior, pause/play, sentence and section navigation,
+and dial controls. The choice is saved with the browser extension's settings or the VS Code
+`speedRead.readingMode` setting; older saved settings without a mode continue in chunk mode.
+
 ### In VS Code
 
 On a Markdown file (other text files are read as plain prose):
@@ -132,6 +139,7 @@ keeps them in the `speedRead.*` settings.
 | Setting | Default | Range |
 | --- | --- | --- |
 | Speed | 300 WPM | 100-1000 |
+| Reading mode | Chunk-by-chunk | Chunk-by-chunk or Three-row flow |
 | Words per chunk | 3 | Browser: 1-3; VS Code: 1-10 |
 | Characters per chunk | 20 (maximum) | Browser: 5-20; VS Code: 5-80 |
 | Stop at headings | H1 and H2 | any of H1-H6 |
