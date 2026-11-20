@@ -65,3 +65,58 @@ Reviewer a4831360cff4aaab6 (separate context) reviewed spec + plan + code and ra
 ### p1-r4-resolved · finding [fixed] · resolves p1-r4: Middle row rendered 'read itall': the leading space of .sr-flow-after collapsed inside the grid (phase 1)
 
 81e2c1c: white-space: pre on .sr-flow-before/.sr-flow-after; unit test asserts 'read it all'; e2e asserts the computed white-space; reviewer confirmed spaces in fresh screenshots.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1 created=2026-11-20T08:26:48+00:00 state=open review_scope=in -->
+### l-tests-r1 · finding [open] (reviewer: in scope) · 'does not borrow across a card' test passed if neighbor() skipped cards; the fixture had no text after the card
+
+Mutant (neighbor() skips cards) survived 145 tests. Fixture `<p>alpha beta.</p><pre>code</pre>` had nothing after the card.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2 created=2026-11-20T08:26:48+00:00 state=open review_scope=in -->
+### l-tests-r2 · finding [open] (reviewer: in scope) · Bottom-stage flow details-panel handling and the showWhole details guard were untested (two mutants survived)
+
+M4 (drop flow/whole from `prose`) and M5 (delete the showWhole details guard) both survived the suite.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3 created=2026-11-20T08:26:48+00:00 state=open review_scope=in -->
+### l-tests-r3 · finding [open] (reviewer: in scope) · Crosshair checks compared the axis to the display centre, never to the pivot, so a drifting pivot would pass
+
+e2e flowGeometry measured the axis against the display and middle-row centres; the unit test only asserted style.left === '50%'.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4 created=2026-11-20T08:26:48+00:00 state=open review_scope=in -->
+### l-tests-r4 · finding [open] (reviewer: in scope) · The collapsed-space guard asserted only computed white-space: pre, not a rendered gap; bottom-stage flow had no structure check
+
+A refactor trimming tokens would keep `pre` and still lose the space.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r5 created=2026-11-20T08:26:48+00:00 state=open review_scope=in -->
+### l-tests-r5 · finding [open] (reviewer: in scope) · Host-settings tests restated the wiring: no onSettingsChange propagation, no browser-store invalid-value case
+
+VS Code config stub never exercised a live readingMode change; the browser store had no bogus/legacy readingMode case.
+
+<!-- fr:journal kind=review scope=plan id=lens-review created=2026-11-20T08:26:48+00:00 -->
+### lens-review · review · Lens review (tests): 5 in-scope findings, all fixed with tests proven against mutants
+
+Tests-lens reviewer a5f4d1993f9c8828d reviewed the diff 9b443f0..HEAD, mutating stage.ts six ways (3 survived). Fixes in 71d42ed and 9d19652 are test-only (production code unchanged); each new test was shown failing against its mutant, then the mutant was reverted. Noted: the r4 rendered-gap e2e samples until it hits a boundary space (~115 samples, 150s timeout). The demo is deterministic, so it is slow but not flaky.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1-resolved created=2026-11-20T08:26:48+00:00 state=fixed resolves=l-tests-r1 -->
+### l-tests-r1-resolved · finding [fixed] · resolves l-tests-r1: 'does not borrow across a card' test passed if neighbor() skipped cards; the fixture had no text after the card
+
+71d42ed: fixture with text after the card asserts empty bottom row at 'beta.' and empty top row at 'gamma'; the skip-cards mutant fails it.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2-resolved created=2026-11-20T08:26:48+00:00 state=fixed resolves=l-tests-r2 -->
+### l-tests-r2-resolved · finding [fixed] · resolves l-tests-r2: Bottom-stage flow details-panel handling and the showWhole details guard were untested (two mutants survived)
+
+71d42ed: stage.test.ts 'bottom-stage flow' (kills M4) and tts-panel.test.ts 'bottom-stage chunk mode whole-sentence fallback' (kills M5); mountHarness gains bottomStage.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3-resolved created=2026-11-20T08:26:48+00:00 state=fixed resolves=l-tests-r3 -->
+### l-tests-r3-resolved · finding [fixed] · resolves l-tests-r3: Crosshair checks compared the axis to the display centre, never to the pivot, so a drifting pivot would pass
+
+9d19652: e2e asserts the pivot centre is within 2px of the axis over 12 or more chunks with varied before-length, in panel and floating layouts; the unequal-columns mutant fails it (dx 88.6).
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4-resolved created=2026-11-20T08:26:48+00:00 state=fixed resolves=l-tests-r4 -->
+### l-tests-r4-resolved · finding [fixed] · resolves l-tests-r4: The collapsed-space guard asserted only computed white-space: pre, not a rendered gap; bottom-stage flow had no structure check
+
+9d19652: e2e Range width over a boundary space must exceed 1px (removing white-space: pre gives 0); bottom-stage structure is asserted in the 71d42ed unit test.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r5-resolved created=2026-11-20T08:26:48+00:00 state=fixed resolves=l-tests-r5 -->
+### l-tests-r5-resolved · finding [fixed] · resolves l-tests-r5: Host-settings tests restated the wiring: no onSettingsChange propagation, no browser-store invalid-value case
+
+71d42ed: vscode config test pushes readingMode 'flow' to onSettingsChange; browser storage test normalizes bogus/legacy readingMode to 'chunk' (fails with normalization bypassed).
