@@ -3,7 +3,7 @@ run: 2026-11-19-feat-three-row-flow
 workflow: fr-goal@1
 branch: feat/three-row-flow
 started: '2026-11-19T22:02:17+00:00'
-cursor: implement
+cursor: journal-check
 steps:
   brainstorm:
     state: done
@@ -51,8 +51,8 @@ steps:
     stdout: |
       self-review passed
   implement:
-    state: running
-    at: '2026-11-20T07:28:22+00:00'
+    state: done
+    at: '2026-11-20T07:51:50+00:00'
     members:
     - implement-phase
     - review-phase
@@ -84,13 +84,20 @@ steps:
           tests: p1-full-suite-2.log@ec8fdc1834a2;tree=ecea559b07d773b4444ae6098353338ddd9f5183f4481323b45901e36a4ea9e1
           visual: reader-three-row-flow:12:b701ae2287aa
       phase/1/review-phase:
-        state: running
+        state: done
         attempts:
         - dispatched: '2026-11-20T07:28:22+00:00'
           agent: a4831360cff4aaab6
           harness: claude-code
           model: claude-sonnet-5-5
           session: cdc0c364-edf0-424b-8082-6e26785d5a7a
+          returned: '2026-11-20T07:51:50+00:00'
+          outcome: done
+        evidence:
+          review: p1-review
+          reviewer: a4831360cff4aaab6
+          visual: reader-three-row-flow:12:dcfc40821b67
+          findings: p1-r1,p1-r2,p1-r3,p1-r4
   journal-check:
     state: pending
   lens-review:
