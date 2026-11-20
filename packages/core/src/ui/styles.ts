@@ -193,14 +193,19 @@ export const READER_CSS = `
 .sr-flow-row { display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; white-space: nowrap; color: var(--sr-muted); font-size: 24px; line-height: 1.2; }
 .sr-flow-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .sr-flow-current { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); color: var(--sr-text); font-size: 30px; font-weight: 500; }
-.sr-flow-before, .sr-flow-after { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sr-flow-before, .sr-flow-after { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
 .sr-flow-before { text-align: right; }
 .sr-flow-after { text-align: left; }
 .sr-flow-pivot { color: var(--sr-accent); font-weight: 700; }
-.sr-flow-axis { position: absolute; z-index: 1; left: 50%; top: 50%; width: 18px; height: 18px; transform: translate(-50%, -50%); pointer-events: none; }
-.sr-flow-axis::before, .sr-flow-axis::after { content: ""; position: absolute; left: 50%; top: 50%; background: var(--sr-accent); opacity: .7; transform: translate(-50%, -50%); }
-.sr-flow-axis::before { width: 18px; height: 2px; }
-.sr-flow-axis::after { width: 2px; height: 18px; }
+.sr-flow-whole { display: block; font-size: 22px; line-height: 1.15; text-align: center; white-space: normal; }
+.sr-flow-whole-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.sr-flow-row[data-position="top"] { grid-row: 1; }
+.sr-flow-row[data-position="middle"] { grid-row: 2; }
+.sr-flow-row[data-position="bottom"] { grid-row: 3; }
+.sr-flow-axis { position: relative; z-index: 1; grid-row: 2; grid-column: 1; justify-self: center; width: 2px; pointer-events: none; }
+.sr-flow-axis::before, .sr-flow-axis::after { content: ""; position: absolute; left: 0; width: 2px; height: 8px; background: var(--sr-accent); opacity: .7; }
+.sr-flow-axis::before { top: 0; }
+.sr-flow-axis::after { bottom: 0; }
 .sr-axis { position: absolute; left: calc(var(--sr-axis) + var(--sr-depth, 0) * 28px); top: 0; bottom: 0; width: 0; pointer-events: none; }
 .sr-axis::before, .sr-axis::after {
   content: ""; position: absolute; left: -1px; width: 2px; height: 16px; border-radius: 1px; background: var(--sr-accent); opacity: .55;
@@ -441,6 +446,8 @@ export const READER_CSS = `
   .sr-reader[data-layout="floating"] .sr-display[data-kind="flow"] { height: 144px; min-height: 144px; }
   .sr-reader[data-layout="floating"] .sr-flow-row { font-size: 17px; }
   .sr-reader[data-layout="floating"] .sr-flow-current { font-size: 22px; }
+  .sr-reader[data-layout="floating"] .sr-flow-whole { font-size: 16px; }
+  .sr-reader[data-layout="floating"] .sr-flow-axis::before, .sr-reader[data-layout="floating"] .sr-flow-axis::after { height: 6px; }
   .sr-reader[data-layout="floating"] .sr-chunk { line-height: 96px; font-size: calc(38px * var(--sr-scale, 1)); }
   .sr-reader[data-layout="floating"] .sr-axis::before { top: 8px; }
   .sr-reader[data-layout="floating"] .sr-axis::after { bottom: 8px; }
@@ -468,6 +475,8 @@ export const READER_CSS = `
 .sr-reader[data-bottom-stage] .sr-stage .sr-display[data-kind="flow"] { height: 84px; min-height: 84px; }
 .sr-reader[data-bottom-stage] .sr-flow-row { font-size: 14px; }
 .sr-reader[data-bottom-stage] .sr-flow-current { font-size: 18px; }
+.sr-reader[data-bottom-stage] .sr-flow-whole { font-size: 12px; line-height: 1.1; }
+.sr-reader[data-bottom-stage] .sr-flow-axis::before, .sr-reader[data-bottom-stage] .sr-flow-axis::after { height: 3px; }
 .sr-reader[data-bottom-stage] .sr-axis { left: 50%; }
 .sr-reader[data-bottom-stage] .sr-axis::before { top: 10px; height: 10px; }
 .sr-reader[data-bottom-stage] .sr-axis::after { bottom: 10px; height: 10px; }

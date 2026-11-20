@@ -11,11 +11,12 @@ afterEach(() => {
 type Control = HTMLInputElement & HTMLSelectElement;
 const TEXT = '<p>The first sentence is here. A second one follows.</p><pre>code</pre>';
 
-function withSpeech(voices = [voice('Alice', 'en-US', true), voice('Cloud', 'en-GB', false)], opts: { late?: boolean; saved?: object } = {}) {
+function withSpeech(voices = [voice('Alice', 'en-US', true), voice('Cloud', 'en-GB', false)], opts: { late?: boolean; saved?: object; bottomStage?: boolean } = {}) {
   const speech = fakeSpeech(opts.late ? [] : voices);
   const t = mountHarness(TEXT, {
     speech: (clock) => createSpeechDriver(speech.synth, { Utterance: speech.Utterance, scheduler: clock, lang: 'en' }),
     saved: opts.saved,
+    bottomStage: opts.bottomStage,
   });
   return { t, speech, clock: t.clock };
 }
@@ -137,6 +138,27 @@ describe('speech on the stage', () => {
     speech.spoken[1].end();
     expect(t.q('.sr-card-stop')).not.toBeNull();
   });
+});
+
+describe('flow whole-sentence fallback', () => {
+  for (const bottomStage of [false, true]) {
+    it(`shows the whole sentence in the middle row with three rows and no pivot (${bottomStage ? 'with' : 'without'} details)`, async () => {
+      const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], {
+        saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, readingMode: 'flow' },
+        bottomStage,
+      });
+      await t.settle();
+      t.handle.player.toggle();
+      speech.spoken[0].end();
+      t.clock.advance(1000);
+      expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
+      expect(t.qa('.sr-flow-row')).toHaveLength(3);
+      expect(t.q('.sr-flow-row[data-position="middle"]')!.textContent).toBe('A second one follows.');
+      expect(t.q('.sr-flow-pivot')).toBeNull();
+      expect(t.q('.sr-flow-whole')).not.toBeNull();
+      expect(t.q('.sr-flow-row[data-position="top"]')!.textContent).not.toBe('');
+    });
+  }
 });
 
 describe('review p5b: voice panel', () => {

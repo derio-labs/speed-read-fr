@@ -106,8 +106,10 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     return h('div', { class: `sr-card sr-card-${kind}` }, ...children);
   }
 
-  function flowRow(step: ChunkStep | undefined, position: 'top' | 'middle' | 'bottom', tokens = step?.chunk.tokens): HTMLElement {
+  function flowRow(step: ChunkStep | undefined, position: 'top' | 'middle' | 'bottom', tokens = step?.chunk.tokens, whole = false): HTMLElement {
     if (!step || !tokens) return h('div', { class: 'sr-flow-row', 'data-position': position });
+    // No known word position (speech without boundaries): the sentence, wrapped, with no pivot.
+    if (whole) return h('div', { class: 'sr-flow-row sr-flow-current sr-flow-whole', 'data-position': position }, h('span', { class: 'sr-flow-whole-text' }, ...tokenNodes(tokens)));
     if (position !== 'middle') return h('div', { class: 'sr-flow-row', 'data-position': position }, h('span', { class: 'sr-flow-text' }, ...tokenNodes(tokens)));
     const text = joinTokens(tokens);
     const split = orp(text);
@@ -123,7 +125,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   }
 
   /** Show the current chunk between its immediate text neighbours; cards remain their own stage. */
-  function showFlow(step: ChunkStep, index: number, currentTokens = step.chunk.tokens) {
+  function showFlow(step: ChunkStep, index: number, currentTokens = step.chunk.tokens, whole = false) {
     const neighbor = (direction: -1 | 1): ChunkStep | undefined => {
       for (let at = index + direction; at >= 0 && at < ctx.timeline.steps.length; at += direction) {
         const candidate = ctx.timeline.steps[at];
@@ -138,7 +140,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       'flow',
       h('div', { class: 'sr-flow-axis', 'aria-hidden': 'true', style: 'left: 50%' }),
       flowRow(neighbor(-1), 'top'),
-      flowRow(step, 'middle', currentTokens),
+      flowRow(step, 'middle', currentTokens, whole),
       flowRow(neighbor(1), 'bottom'),
     );
   }
@@ -346,7 +348,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     if (details && player.settings.readingMode !== 'flow') return; // Keep browser chunk semantics outside flow mode.
     const tokens = ctx.timeline.steps.slice(from, to + 1).flatMap((s) => (isChunk(s) ? s.chunk.tokens : []));
     const current = ctx.timeline.steps[player.index];
-    if (player.settings.readingMode === 'flow' && isChunk(current)) return showFlow(current, player.index, tokens);
+    if (player.settings.readingMode === 'flow' && isChunk(current)) return showFlow(current, player.index, tokens, true);
     aligned = null;
     setDisplay('whole', h('div', { class: 'sr-chunk sr-chunk-whole' }, ...tokenNodes(tokens)));
     display.dataset.wrap = 'true';

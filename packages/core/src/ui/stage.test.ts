@@ -91,6 +91,52 @@ describe('three-row flow steps', () => {
     expect(text(t.q('.sr-flow-row[data-position="middle"]'))).toBe('Second');
   });
 
+  it('keeps the space between the pivot and the rest of the middle row', () => {
+    const t = mountHarness('<p>read it all in one go.</p>', { settings: { readingMode: 'flow', chunkWords: 3 } });
+    t.handle.player.toggle();
+    const middle = t.q('.sr-flow-row[data-position="middle"]')!;
+    expect(middle.textContent).toBe('read it all');
+    const parts = ['.sr-flow-before', '.sr-flow-pivot', '.sr-flow-after'].map((s) => t.q(s)!.textContent!);
+    expect(parts.join('')).toBe('read it all');
+    expect(parts.filter((x) => x.startsWith(' ') || x.endsWith(' ')).length).toBeGreaterThan(0);
+  });
+
+  it('leaves the top row empty on the first chunk and the bottom row empty on the last, still three rows', () => {
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: { readingMode: 'flow', chunkWords: 1 } });
+    t.handle.player.toggle();
+    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+    expect(text(t.q('.sr-flow-row[data-position="top"]'))).toBe('');
+    expect(text(t.q('.sr-flow-row[data-position="bottom"]'))).toBe('beta');
+    t.clock.advance(t.clock.nextIn()!);
+    t.clock.advance(t.clock.nextIn()!);
+    expect(text(t.q('.sr-flow-row[data-position="middle"]'))).toBe('gamma.');
+    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+    expect(text(t.q('.sr-flow-row[data-position="bottom"]'))).toBe('');
+    expect(text(t.q('.sr-flow-row[data-position="top"]'))).toBe('beta');
+  });
+
+  it('takes the neighbour across an item gap', () => {
+    const t = mountHarness('<ul><li>first list item that is rather long indeed</li><li>second list item that is also long</li><li>third list item with plenty of words too</li></ul>', { settings: { readingMode: 'flow' } });
+    t.handle.player.toggle();
+    const list = t.doc.sections[0].blocks[0];
+    if (list.kind !== 'list') throw new Error('list expected');
+    t.handle.player.jumpToBlock(list.items[1].source);
+    expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
+    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+    expect(text(t.q('.sr-flow-row[data-position="middle"]'))).toMatch(/^second/);
+    expect(text(t.q('.sr-flow-row[data-position="top"]'))).not.toBe('');
+  });
+
+  it('does not borrow a neighbour from across a card', () => {
+    const t = mountHarness('<p>alpha beta.</p><pre>code</pre>', { settings: { readingMode: 'flow', chunkWords: 1 } });
+    t.handle.player.toggle();
+    t.handle.player.continue();
+    t.clock.advance(t.clock.nextIn()!);
+    expect(text(t.q('.sr-flow-row[data-position="middle"]'))).toBe('beta.');
+    expect(text(t.q('.sr-flow-row[data-position="bottom"]'))).toBe('');
+    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+  });
+
   it('keeps chapter and structured-content cards instead of replacing them with rows', () => {
     const t = mountHarness('<h1>Heading</h1><p>Text before code.</p><pre>const x = 1;</pre>', { settings: { readingMode: 'flow' } });
     t.handle.player.toggle();
