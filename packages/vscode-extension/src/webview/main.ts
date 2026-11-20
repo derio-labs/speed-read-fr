@@ -220,7 +220,8 @@ async function render(message: ReadMessage) {
       clones.release(node);
     },
   };
-  handle = mountReader(readerRoot, extractRendered(), { settings: message.settings, store, host });
+  // Same reader as the browser dock: fixed chunk box, no sentence line, details above the stage.
+  handle = mountReader(readerRoot, extractRendered(), { settings: message.settings, store, host, bottomStage: true });
 }
 
 window.addEventListener('message', (event: MessageEvent<ToWebview>) => {
