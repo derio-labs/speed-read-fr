@@ -17,6 +17,15 @@ rows:
       - speed-read-fr:tests/e2e/extension.spec.ts
     status: ci
     notes: Chromium tests cover both display modes with a local repository-preview fixture.
+  - id: vscode-fixed-chunk-box
+    capability: vscode-extension
+    acceptance: 'The VS Code side panel uses the browser dock''s reader: fixed speed-read
+      box, no faded sentence line, chapters and exhibits above the stage.'
+    origin: []
+    levels: {}
+    status: walk-owed
+    notes: 'Quick port via bottomStage: true in the webview; UX still WIP, no VS Code
+      UI test yet — walk it in the Extension Host.'
 amendments:
   - row: browser-floating-overlay
     op: reword
