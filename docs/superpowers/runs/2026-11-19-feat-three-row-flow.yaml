@@ -3,7 +3,7 @@ run: 2026-11-19-feat-three-row-flow
 workflow: fr-goal@1
 branch: feat/three-row-flow
 started: '2026-11-19T22:02:17+00:00'
-cursor: journal-check
+cursor: lens-review
 steps:
   brainstorm:
     state: done
@@ -99,7 +99,10 @@ steps:
           visual: reader-three-row-flow:12:dcfc40821b67
           findings: p1-r1,p1-r2,p1-r3,p1-r4
   journal-check:
-    state: pending
+    state: done
+    at: '2026-11-20T07:51:52+00:00'
+    exit: 0
+    stdout: ''
   lens-review:
     state: pending
   deliver:
