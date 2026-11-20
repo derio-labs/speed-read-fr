@@ -77,3 +77,10 @@ row_kinds:
 run_gate: developer
 run_kind: none
 ```
+
+<!-- fr:journal kind=discovery scope=spec id=test-plan-step-1 created=2026-11-20T09:29:30+00:00 -->
+### test-plan-step-1 · discovery · Test Plan step 1: n/a
+
+Step: No post-merge operator steps are required. The feature's user-visible behavior is covered before merge by the automated tests and browser scenario listed in `## Verification`.
+
+Reason: The Test Plan has no post-merge operator steps; behaviour was verified before merge by the full suite (vitest 650 passed, Playwright 82 passed) and the browser scenario.

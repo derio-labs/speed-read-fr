@@ -4,10 +4,11 @@ captures:
 - host: h-2370c8fe
   harness: claude-code
   mode: devcontainer
-  captured_at: '2026-11-20T08:33:47+00:00'
+  captured_at: '2026-11-20T09:30:06+00:00'
   at:
   - resolve:brainstorm
   - deliver
+  - closeout
   sessions:
   - session: ses_e0a2bd278ffevD9K3wovxgARj9
     role: main
@@ -170,10 +171,10 @@ captures:
     role: main
     models:
       claude-opus-5-5:
-        input: 128
-        cache_write: 161303
-        cache_read: 6637722
-        output: 39424
+        input: 158
+        cache_write: 170635
+        cache_read: 9155665
+        output: 44457
         usd: null
         usd_source: none
       claude-sonnet-5-5:
@@ -189,10 +190,10 @@ captures:
         turns: 36
       other:
         usd: null
-        turns: 93
+        turns: 103
       paperwork:
         usd: null
-        turns: 27
+        turns: 30
     steps:
       implement:
         usd: null
@@ -215,6 +216,13 @@ captures:
         cache_write: 30722
         cache_read: 2017731
         output: 7631
+      (outside run):
+        usd: null
+        turns: 13
+        input: 30
+        cache_write: 9332
+        cache_read: 2517943
+        output: 5033
     steps_by_role:
       main:
         implement:
@@ -238,6 +246,13 @@ captures:
           cache_write: 30722
           cache_read: 2017731
           output: 7631
+        (outside run):
+          usd: null
+          turns: 13
+          input: 30
+          cache_write: 9332
+          cache_read: 2517943
+          output: 5033
       subagent:
         implement:
           usd: null
