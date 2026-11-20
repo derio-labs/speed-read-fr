@@ -1,0 +1,39 @@
+# Step record. Fill it as you work and commit it with your work; then
+#   fr run resolve 2026-11-19-feat-three-row-flow --step deliver --record docs/superpowers/runs/2026-11-19-feat-three-row-flow.records/deliver.yaml
+schema_version: 12
+run: 2026-11-19-feat-three-row-flow
+step: deliver
+outcome: done
+acceptance: []
+emitted:
+  pr: https://github.com/derio-labs/speed-read-fr/pull/9
+evidence:
+  tests: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/cdc0c364-edf0-424b-8082-6e26785d5a7a/scratchpad/deliver-full-suite.log
+  walk: none
+visual:
+  - row: reader-three-row-flow
+    shots:
+      - path: .visual/three-row-flow/chunk-playing.png
+        shows: [chunk mode playing with the existing display]
+      - path: .visual/three-row-flow/settings-select-flow.png
+        shows: [select flow mode in Settings]
+      - path: .visual/three-row-flow/flow-playing.png
+        shows: ["play, pause and resume flow"]
+      - path: .visual/three-row-flow/flow-progressed.png
+        shows: [flow mode playing with exactly three visible rows and the middle row aligned to the center crosshair]
+      - path: .visual/three-row-flow/flow-paused.png
+        shows: [flow mode paused and resumed, "play, pause and resume flow"]
+      - path: .visual/three-row-flow/flow-resumed.png
+        shows: [flow mode paused and resumed, "play, pause and resume flow"]
+      - path: .visual/three-row-flow/flow-sentence-jump.png
+        shows: [move to the next sentence while in flow mode]
+      - path: .visual/three-row-flow/flow-chapter-card.png
+        shows: [chapter card and structured-content stop in flow mode]
+      - path: .visual/three-row-flow/flow-structured-stop.png
+        shows: [chapter card and structured-content stop in flow mode]
+      - path: .visual/three-row-flow/settings-saved-flow.png
+        shows: [Reading mode selector showing the saved flow choice after reopening Settings, close and reopen the reader to confirm the preference persists]
+      - path: .visual/three-row-flow/chunk-switched-back.png
+        shows: [switch back to chunk mode]
+      - path: .visual/three-row-flow/reopened-chunk.png
+        shows: [close and reopen the reader to confirm the preference persists, chunk mode playing with the existing display]
