@@ -208,6 +208,8 @@ test('three-row flow selection, focus, progression, controls, cards and persiste
   await page.keyboard.press(',');
   await page.locator('.sr-settings [name="readingMode"]').selectOption('flow');
   await expect(display(page)).toHaveAttribute('data-kind', 'flow');
+  await expect(mode).toHaveValue('flow');
+  await page.screenshot({ path: `${shots}/settings-select-flow.png` });
   await page.keyboard.press('Escape');
   const rows = page.locator('.sr-flow-row');
   await expect(rows).toHaveCount(3);
@@ -257,6 +259,14 @@ test('three-row flow selection, focus, progression, controls, cards and persiste
   await page.keyboard.press('Space');
   await page.keyboard.press('Space');
   await expect(display(page)).toHaveAttribute('data-kind', 'chunk');
+  await page.screenshot({ path: `${shots}/chunk-switched-back.png` });
+
+  await page.reload();
+  await expect(page.locator('.sr-reader')).toBeFocused();
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(display(page)).toHaveAttribute('data-kind', 'chunk');
+  await page.screenshot({ path: `${shots}/reopened-chunk.png` });
 });
 
 /** The element's box lies inside the stage's box (1 px tolerance). */
