@@ -161,6 +161,21 @@ describe('flow whole-sentence fallback', () => {
   }
 });
 
+describe('bottom-stage chunk mode whole-sentence fallback', () => {
+  it('keeps chunk semantics when a voice without boundaries ends a sentence', async () => {
+    const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], {
+      saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, readingMode: 'chunk' },
+      bottomStage: true,
+    });
+    await t.settle();
+    t.handle.player.toggle();
+    speech.spoken[0].end();
+    t.clock.advance(1000);
+    expect(t.q('.sr-display')!.dataset.kind).toBe('chunk');
+    expect(t.q('.sr-flow-whole')).toBeNull();
+  });
+});
+
 describe('review p5b: voice panel', () => {
   it('groups voices as local and network and shows the chosen voice’s kind as a badge (p5b-r4)', async () => {
     const { t } = withSpeech();

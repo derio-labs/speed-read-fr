@@ -128,12 +128,20 @@ describe('three-row flow steps', () => {
   });
 
   it('does not borrow a neighbour from across a card', () => {
-    const t = mountHarness('<p>alpha beta.</p><pre>code</pre>', { settings: { readingMode: 'flow', chunkWords: 1 } });
+    const t = mountHarness('<p>alpha beta.</p><pre>code</pre><p>gamma delta.</p>', { settings: { readingMode: 'flow', chunkWords: 1 } });
     t.handle.player.toggle();
     t.handle.player.continue();
+    const row = (pos: string) => text(t.q(`.sr-flow-row[data-position="${pos}"]`));
     t.clock.advance(t.clock.nextIn()!);
-    expect(text(t.q('.sr-flow-row[data-position="middle"]'))).toBe('beta.');
-    expect(text(t.q('.sr-flow-row[data-position="bottom"]'))).toBe('');
+    expect(row('middle')).toBe('beta.');
+    expect(row('bottom')).toBe('');
+    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+    for (let i = 0; i < 20 && row('middle') !== 'gamma'; i++) {
+      if (t.q('.sr-card-stop')) t.handle.player.continue();
+      else t.clock.advance(t.clock.nextIn()!);
+    }
+    expect(row('middle')).toBe('gamma');
+    expect(row('top')).toBe('');
     expect(t.qa('.sr-flow-row')).toHaveLength(3);
   });
 
@@ -146,6 +154,26 @@ describe('three-row flow steps', () => {
     t.clock.advance(10_000);
     expect(t.q('.sr-card-stop')).not.toBeNull();
     expect(t.q('.sr-flow-row')).toBeNull();
+  });
+});
+
+describe('bottom-stage flow', () => {
+  it('keeps the flow structure in the stage and the card in the details panel', () => {
+    const t = mountHarness('<h1>Heading</h1><p>alpha beta gamma.</p><pre>const x = 1;</pre>', { bottomStage: true, settings: { readingMode: 'flow', chunkWords: 1 } });
+    expect(t.reader.hasAttribute('data-bottom-stage')).toBe(true);
+    t.handle.player.toggle();
+    const details = t.q('.sr-stage-details')!;
+    expect(details.hidden).toBe(false);
+    expect(details.querySelector('.sr-card-chapter')).not.toBeNull();
+    t.handle.player.continue();
+    expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
+    expect(t.qa('.sr-display .sr-flow-row')).toHaveLength(3);
+    expect(t.q('.sr-display .sr-flow-axis')).not.toBeNull();
+    expect(details.hidden).toBe(true);
+    expect(details.childNodes).toHaveLength(0);
+    t.clock.advance(10_000);
+    expect(details.hidden).toBe(false);
+    expect(details.querySelector('.sr-card-stop')).not.toBeNull();
   });
 });
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '@speed-read/core';
-import { readSettings, writeSettings } from './config';
+import { onSettingsChange, readSettings, writeSettings } from './config';
 import { __stub } from './test/vscode-stub';
 
 beforeEach(() => __stub.reset());
@@ -21,5 +21,13 @@ describe('VS Code reading mode setting', () => {
       value: 'flow',
       target: expect.anything(),
     });
+  });
+
+  it('pushes readingMode to onSettingsChange listeners when the configuration changes', () => {
+    const seen: string[] = [];
+    const sub = onSettingsChange((s) => seen.push(s.readingMode));
+    __stub.setConfig({ 'speedRead.readingMode': 'flow' });
+    expect(seen).toEqual(['flow']);
+    sub.dispose();
   });
 });
