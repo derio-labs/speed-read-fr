@@ -320,6 +320,80 @@ test('flow mode keeps three visible rows through sentence jumps to the end of a 
   await expect(page.locator('.sr-reader')).toBeVisible();
 });
 
+/** The pivot's centre against the axis, and the rendered width of a space at the before/pivot or pivot/after boundary. */
+async function pivotSample(page: Page) {
+  return page.evaluate(() => {
+    const axis = document.querySelector('.sr-flow-axis')!.getBoundingClientRect();
+    const pivot = document.querySelector('.sr-flow-pivot')!.getBoundingClientRect();
+    const before = document.querySelector('.sr-flow-before')!;
+    const after = document.querySelector('.sr-flow-after')!;
+    const edge = (root: Element, last: boolean): Text | null => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let found: Text | null = null;
+      for (let n = walker.nextNode() as Text | null; n; n = walker.nextNode() as Text | null) {
+        if (!n.data) continue;
+        if (!last) return n;
+        found = n;
+      }
+      return found;
+    };
+    const gaps: number[] = [];
+    const lastBefore = edge(before, true);
+    if (lastBefore?.data.endsWith(' ')) {
+      const r = document.createRange();
+      r.setStart(lastBefore, lastBefore.data.length - 1);
+      r.setEnd(lastBefore, lastBefore.data.length);
+      gaps.push(r.getBoundingClientRect().width);
+    }
+    const firstAfter = edge(after, false);
+    if (firstAfter?.data.startsWith(' ')) {
+      const r = document.createRange();
+      r.setStart(firstAfter, 0);
+      r.setEnd(firstAfter, 1);
+      gaps.push(r.getBoundingClientRect().width);
+    }
+    return { dx: Math.abs(pivot.x + pivot.width / 2 - (axis.x + axis.width / 2)), beforeLength: (before.textContent ?? '').length, gaps };
+  });
+}
+
+for (const layout of ['panel', 'floating'] as const) {
+  test(`flow mode (${layout}): the pivot sits on the axis for short and long before-text, and boundary spaces render with a width`, async ({ page }) => {
+    test.setTimeout(150_000);
+    await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ readingMode: 'flow', wpm: 1000, chunkWords: 2 })] as const);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto(layout === 'floating' ? `${DEMO}?layout=floating` : DEMO);
+    await expect(page.locator('.sr-reader')).toBeFocused();
+    await page.keyboard.press('Space');
+    await page.keyboard.press('Space');
+    await expect(display(page)).toHaveAttribute('data-kind', 'flow');
+    const middle = page.locator('.sr-flow-row[data-position="middle"]');
+    const lengths = new Set<number>();
+    let spaces = 0;
+    let samples = 0;
+    let last = '';
+    for (let i = 0; i < 1500 && (samples < 12 || spaces === 0); i++) {
+      await page.waitForTimeout(100);
+      if ((await display(page).getAttribute('data-kind')) !== 'flow') {
+        await page.keyboard.press('Space'); // continue past a stop card
+        continue;
+      }
+      const now = await middle.textContent();
+      if (now === last) continue;
+      last = now ?? '';
+      const sample = await pivotSample(page);
+      samples++;
+      expect(sample.dx, `sample ${samples}`).toBeLessThan(2);
+      lengths.add(sample.beforeLength);
+      for (const gap of sample.gaps) {
+        spaces++;
+        expect(gap, `sample ${samples} boundary space width`).toBeGreaterThan(1);
+      }
+    }
+    expect(Math.max(...lengths) - Math.min(...lengths)).toBeGreaterThanOrEqual(3);
+    expect(spaces).toBeGreaterThan(0);
+  });
+}
+
 test('flow mode keeps three visible rows in the floating layout', async ({ page }) => {
   await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ readingMode: 'flow' })] as const);
   await page.setViewportSize({ width: 1400, height: 900 });
