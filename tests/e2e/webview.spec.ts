@@ -119,10 +119,11 @@ test('a sub-range keeps its original line numbers', async ({ page }) => {
 test('settings changes are posted to the extension, and pushed settings apply', async ({ page }) => {
   await open(page, DEFAULT_SETTINGS);
   await page.keyboard.press(',');
-  await page.locator('.sr-settings [name="chunkWords"]').fill('5');
-  await expect.poll(async () => (await posted(page)).filter((m) => m.type === 'settings').at(-1)).toMatchObject({ settings: { chunkWords: 5 } });
+  // The bottom-stage reader caps chunks at 3 words.
+  await page.locator('.sr-settings [name="chunkWords"]').fill('2');
+  await expect.poll(async () => (await posted(page)).filter((m) => m.type === 'settings').at(-1)).toMatchObject({ settings: { chunkWords: 2 } });
   await page.keyboard.press('Escape');
-  await page.evaluate((settings) => window.postMessage({ type: 'settings', settings }, '*'), { ...DEFAULT_SETTINGS, chunkWords: 5, wpm: 640 });
+  await page.evaluate((settings) => window.postMessage({ type: 'settings', settings }, '*'), { ...DEFAULT_SETTINGS, chunkWords: 2, wpm: 640 });
   await expect(page.locator('.sr-status')).toContainText('640');
 });
 
@@ -218,6 +219,9 @@ test("KaTeX's own SVGs (radicals, arrows) keep their height in exhibits and in n
 });
 
 test.describe('exhibits wider or taller than the pane', () => {
+  // A narrow side panel: the exhibit cards span the reader (bottom-stage layout), so the pane is the
+  // panel's width, and only this narrow is the first equation wider than it (370 px natural).
+  test.use({ viewport: { width: 400, height: 720 } });
   /** Play wide.md to its diagram (math dwells briefly, the diagram long) and pause there. */
   async function openWide(page: Page) {
     await openWebview(page, serverOrigin());
@@ -268,19 +272,22 @@ test.describe('exhibits wider or taller than the pane', () => {
     const sizes = await exhibit.locator('svg').first().evaluate((svg) => {
       const box = svg.getBoundingClientRect();
       const view = (svg as SVGSVGElement).viewBox.baseVal;
-      const body = svg.closest('.sr-exhibit-body') as HTMLElement;
-      return { scale: box.height / view.height, scrolls: body.scrollHeight > body.clientHeight + 1 };
+      // Bottom-stage layout: the exhibit body grows and the exhibit list is what scrolls.
+      const list = svg.closest('.sr-exhibit-list') as HTMLElement;
+      return { scale: box.height / view.height, scrolls: list.scrollHeight > list.clientHeight + 1 };
     });
     expect(sizes.scale).toBeCloseTo(0.5, 2);
     expect(sizes.scrolls).toBe(true);
     await expect(exhibit.locator('.sr-exhibit-caption')).toContainText('E to expand');
   });
 
-  test('a diagram that fits keeps no expand hint', async ({ page }) => {
-    await open(page, { ...FAST, imageDwellSeconds: 30 });
-    await page.keyboard.press('Space');
-    const exhibit = page.locator('.sr-exhibits .sr-exhibit[data-kind="diagram"]');
-    await expect(exhibit.locator('svg')).toBeVisible({ timeout: 20_000 });
-    await expect(exhibit.locator('.sr-exhibit-caption')).not.toContainText('E to expand');
-  });
+});
+
+// At the default (wide) viewport: the diagram height cap is the wide one.
+test('a diagram that fits keeps no expand hint', async ({ page }) => {
+  await open(page, { ...FAST, imageDwellSeconds: 30 });
+  await page.keyboard.press('Space');
+  const exhibit = page.locator('.sr-exhibits .sr-exhibit[data-kind="diagram"]');
+  await expect(exhibit.locator('svg')).toBeVisible({ timeout: 20_000 });
+  await expect(exhibit.locator('.sr-exhibit-caption')).not.toContainText('E to expand');
 });
