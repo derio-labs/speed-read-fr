@@ -189,7 +189,7 @@ export const READER_CSS = `
 }
 .sr-display { position: relative; flex-shrink: 0; min-height: 120px; display: flex; align-items: safe center; justify-content: safe center; }
 .sr-display[data-kind="chunk"], .sr-display[data-kind="item-chunk"] { display: block; height: 150px; }
-.sr-display[data-kind="flow"] { height: 174px; min-height: 174px; display: grid; grid-template-rows: repeat(3, minmax(0, 1fr)); overflow: hidden; }
+.sr-display[data-kind="flow"] { height: 174px; min-height: 174px; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(3, minmax(0, 1fr)); align-items: stretch; justify-content: stretch; overflow: hidden; }
 .sr-flow-row { display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; white-space: nowrap; color: var(--sr-muted); font-size: 24px; line-height: 1.2; }
 .sr-flow-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .sr-flow-current { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); color: var(--sr-text); font-size: 30px; font-weight: 500; }
@@ -199,10 +199,10 @@ export const READER_CSS = `
 .sr-flow-pivot { color: var(--sr-accent); font-weight: 700; }
 .sr-flow-whole { display: block; font-size: 22px; line-height: 1.15; text-align: center; white-space: normal; }
 .sr-flow-whole-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-.sr-flow-row[data-position="top"] { grid-row: 1; }
-.sr-flow-row[data-position="middle"] { grid-row: 2; }
-.sr-flow-row[data-position="bottom"] { grid-row: 3; }
-.sr-flow-axis { position: relative; z-index: 1; grid-row: 2; grid-column: 1; justify-self: center; width: 2px; pointer-events: none; }
+.sr-flow-row[data-position="top"] { grid-row: 1; grid-column: 1; }
+.sr-flow-row[data-position="middle"] { grid-row: 2; grid-column: 1; }
+.sr-flow-row[data-position="bottom"] { grid-row: 3; grid-column: 1; }
+.sr-flow-axis { position: relative; z-index: 1; grid-row: 2; grid-column: 1; justify-self: start; margin-left: -1px; width: 2px; pointer-events: none; }
 .sr-flow-axis::before, .sr-flow-axis::after { content: ""; position: absolute; left: 0; width: 2px; height: 8px; background: var(--sr-accent); opacity: .7; }
 .sr-flow-axis::before { top: 0; }
 .sr-flow-axis::after { bottom: 0; }
