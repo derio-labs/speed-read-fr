@@ -119,30 +119,49 @@ describe('speech on the stage', () => {
     expect(speech.spoken).toHaveLength(2);
   });
 
-  it('keeps three rows while speech boundaries and the whole-sentence fallback update the flow window', async () => {
+  it('the ribbon follows the spoken word and holds at the first word, target hidden, without boundaries', async () => {
     const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], {
       saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, readingMode: 'flow' },
     });
     await t.settle();
     t.handle.player.toggle();
-    const middle = () => t.q('.sr-flow-row[data-position="middle"]')!.textContent;
-    expect(t.qa('.sr-flow-row')).toHaveLength(3);
-    expect(middle()).toBe('The');
+    const word = () => t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent;
+    expect(t.qa('.sr-ribbon-row')).toHaveLength(3);
+    expect(word()).toBe('The');
     speech.spoken[0].boundary(4);
-    expect(middle()).toBe('first');
+    expect(word()).toBe('first');
+    expect(t.q('.sr-flow-target')!.hidden).toBe(false);
     speech.spoken[0].end();
     t.clock.advance(1000);
     expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
-    expect(t.qa('.sr-flow-row')).toHaveLength(3);
-    expect(middle()).toContain('A second one follows.');
+    expect(word()).toBe('A');
+    expect(t.q('.sr-flow-target')!.hidden).toBe(true);
+    expect(t.q('.sr-ribbon-row[data-position="middle"]')!.textContent).toContain('A second one follows.');
     speech.spoken[1].end();
     expect(t.q('.sr-card-stop')).not.toBeNull();
+  });
+
+  it('follows the estimated word boundaries a bottom-stage host produces', async () => {
+    const speech = fakeSpeech([voice('Alice', 'en-US', true)]);
+    const t = mountHarness(TEXT, {
+      bottomStage: true,
+      saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, readingMode: 'flow' },
+      speech: (clock) => createSpeechDriver(speech.synth, { Utterance: speech.Utterance, scheduler: clock, lang: 'en', estimateBoundaries: true }),
+    });
+    await t.settle();
+    t.handle.player.toggle();
+    speech.spoken[0].start();
+    const word = () => t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent;
+    expect(word()).toBe('The');
+    t.clock.advance(1500);
+    expect(word()).not.toBe('The');
+    expect(t.q('.sr-flow-target')!.hidden).toBe(false);
   });
 });
 
 describe('flow whole-sentence fallback', () => {
   for (const bottomStage of [false, true]) {
-    it(`shows the whole sentence in the middle row with three rows and no pivot (${bottomStage ? 'with' : 'without'} details)`, async () => {
+    it(`holds the ribbon at the sentence's first word with the target hidden (${bottomStage ? 'with' : 'without'} details)`, async () => {
       const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], {
         saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, readingMode: 'flow' },
         bottomStage,
@@ -152,11 +171,11 @@ describe('flow whole-sentence fallback', () => {
       speech.spoken[0].end();
       t.clock.advance(1000);
       expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
-      expect(t.qa('.sr-flow-row')).toHaveLength(3);
-      expect(t.q('.sr-flow-row[data-position="middle"]')!.textContent).toBe('A second one follows.');
-      expect(t.q('.sr-flow-pivot')).toBeNull();
-      expect(t.q('.sr-flow-whole')).not.toBeNull();
-      expect(t.q('.sr-flow-row[data-position="top"]')!.textContent).not.toBe('');
+      expect(t.qa('.sr-ribbon-row')).toHaveLength(3);
+      expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('A');
+      expect(t.q('.sr-flow-target')!.hidden).toBe(true);
+      expect(t.q('.sr-flow-whole')).toBeNull();
+      expect(t.q('.sr-ribbon-row[data-position="top"]')!.textContent).toContain('A second one follows.');
     });
   }
 });

@@ -2,12 +2,14 @@ import type { Token } from '../model';
 import { sectionEstimate } from '../pacing';
 import type { EndStep, PlayerState, StepEvent } from '../player';
 import { joinTokens } from '../text/chunks';
+import { middleLetter } from '../text/middle';
 import { orp } from '../text/orp';
 import type { Step } from '../timeline';
 import type { ReaderContext, Zone } from './context';
 import { createDialStrip, type DialStrip } from './dial-strip';
 import { replaceChildren, type Child } from './dom';
 import { EXHIBIT_LABELS, formatDuration, plural } from './format';
+import { glideMs, ribbonOffsets, runBounds, runWindow, type Range as RunRange, type WordSpan, type Window as RunWindow } from './ribbon-geometry';
 
 type ChunkStep = Extract<Step, { kind: 'chunk' | 'item-chunk' }>;
 
@@ -106,47 +108,164 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     return h('div', { class: `sr-card sr-card-${kind}` }, ...children);
   }
 
-  function flowRow(step: ChunkStep | undefined, position: 'top' | 'middle' | 'bottom', tokens = step?.chunk.tokens, whole = false): HTMLElement {
-    if (!step || !tokens) return h('div', { class: 'sr-flow-row', 'data-position': position });
-    // No known word position (speech without boundaries): the sentence, wrapped, with no pivot.
-    if (whole) return h('div', { class: 'sr-flow-row sr-flow-current sr-flow-whole', 'data-position': position }, h('span', { class: 'sr-flow-whole-text' }, ...tokenNodes(tokens)));
-    if (position !== 'middle') return h('div', { class: 'sr-flow-row', 'data-position': position }, h('span', { class: 'sr-flow-text' }, ...tokenNodes(tokens)));
-    const text = joinTokens(tokens);
-    const split = orp(text);
-    const before = split.before.length;
-    const pivotEnd = before + split.pivot.length;
-    return h(
+  /** The flow ribbon on show: one line of word spans in three clipped rows, shifted by one shared offset. */
+  interface Ribbon {
+    el: HTMLElement;
+    middle: HTMLElement;
+    target: HTMLElement;
+    steps: Step[];
+    run: RunRange;
+    window: RunWindow;
+    /** Step indices of the words, in line order, and the middle line's span for each. */
+    order: number[];
+    words: Map<number, { el: HTMLElement; tokens: Token[] }>;
+    spans: WordSpan[];
+    /** The shared offset last applied (null before the first placement), the step on show, and the lit word. */
+    x: number | null;
+    index: number;
+    hidden: boolean;
+    lit: number | null;
+  }
+  let ribbon: Ribbon | null = null;
+
+  const TARGET_PAD = 4;
+
+  function buildRibbon(run: RunRange, win: RunWindow): Ribbon {
+    const steps = ctx.timeline.steps;
+    const order: number[] = [];
+    const pieces: ({ step: number; tokens: Token[] } | null)[] = [];
+    for (let i = win.from; i <= win.to; i++) {
+      const step = steps[i];
+      if (isChunk(step)) {
+        order.push(i);
+        pieces.push({ step: i, tokens: step.chunk.tokens });
+      } else if (step.kind === 'item-gap' && pieces.length > 0 && i < win.to && isChunk(steps[i + 1])) pieces.push(null);
+    }
+    const words = new Map<number, { el: HTMLElement; tokens: Token[] }>();
+    const line = (position: 'top' | 'middle' | 'bottom') => {
+      const children: Child[] = [];
+      pieces.forEach((piece, n) => {
+        if (n > 0) children.push(' ');
+        if (!piece) return children.push(h('span', { class: 'sr-ribbon-sep' }, '•'));
+        const el = h('span', { class: 'sr-w' }, ...tokenNodes(piece.tokens));
+        if (position === 'middle') words.set(piece.step, { el, tokens: piece.tokens });
+        children.push(el);
+      });
+      return h('div', { class: 'sr-ribbon-line' }, ...children);
+    };
+    const lines = (['top', 'middle', 'bottom'] as const).map(line);
+    const rows = (['top', 'middle', 'bottom'] as const).map((position, n) => h('div', { class: 'sr-ribbon-row', 'data-position': position }, lines[n]));
+    const target = h(
       'div',
-      { class: 'sr-flow-row sr-flow-current', 'data-position': position },
-      h('span', { class: 'sr-flow-before' }, ...tokenNodes(tokens, 0, before)),
-      h('span', { class: 'sr-flow-pivot' }, ...tokenNodes(tokens, before, pivotEnd)),
-      h('span', { class: 'sr-flow-after' }, ...tokenNodes(tokens, pivotEnd)),
+      { class: 'sr-flow-target', 'aria-hidden': 'true' },
+      h('span', { class: 'sr-flow-brace', 'data-side': 'top' }),
+      h('span', { class: 'sr-flow-brace', 'data-side': 'bottom' }),
     );
+    const el = h('div', { class: 'sr-ribbon' }, ...rows, target);
+    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], x: null, index: -1, hidden: false, lit: null };
   }
 
-  /** Show the current chunk between its immediate text neighbours; cards remain their own stage. */
-  function showFlow(step: ChunkStep, index: number, currentTokens = step.chunk.tokens, whole = false) {
-    const neighbor = (direction: -1 | 1): ChunkStep | undefined => {
-      for (let at = index + direction; at >= 0 && at < ctx.timeline.steps.length; at += direction) {
-        const candidate = ctx.timeline.steps[at];
-        if (candidate.kind === 'item-gap') continue;
-        return isChunk(candidate) ? candidate : undefined;
+  const widthOf = (el: Element) => (typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect().width : 0);
+
+  /** Centre of the word's middle letter, measured on the line (a proportional guess without layout). */
+  function middleCentre(el: HTMLElement, start: number, width: number): number {
+    const text = el.textContent ?? '';
+    const offset = middleLetter(text);
+    const length = Array.from(text.slice(offset))[0]?.length ?? 1;
+    const walker = ctx.document.createTreeWalker(el, 4 /* SHOW_TEXT */);
+    let seen = 0;
+    for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+      if (offset >= seen + node.data.length) {
+        seen += node.data.length;
+        continue;
       }
-      return undefined;
-    };
+      const range = ctx.document.createRange();
+      range.setStart(node, offset - seen);
+      range.setEnd(node, Math.min(node.data.length, offset - seen + length));
+      if (typeof range.getBoundingClientRect === 'function') {
+        const box = range.getBoundingClientRect();
+        if (box.width > 0) return box.left + box.width / 2;
+      }
+      break;
+    }
+    return start + (width * (offset + 0.5)) / Math.max(1, text.length);
+  }
+
+  /** Measure the word spans once per layout, and the row width. */
+  function measureRibbon(r: Ribbon) {
+    const origin = r.middle.getBoundingClientRect().left;
+    r.spans = r.order.map((step) => {
+      const { el } = r.words.get(step)!;
+      const box = el.getBoundingClientRect();
+      const start = box.left - origin;
+      return { start, width: box.width, mid: middleCentre(el, box.left, box.width) - origin };
+    });
+  }
+
+  function lightMiddle(r: Ribbon, step: number | null) {
+    if (r.lit !== null && r.lit !== step) {
+      const prev = r.words.get(r.lit);
+      if (prev) replaceChildren(prev.el, ...tokenNodes(prev.tokens));
+    }
+    r.lit = step;
+    const word = step === null ? undefined : r.words.get(step);
+    if (!word) return;
+    const text = joinTokens(word.tokens);
+    const at = middleLetter(text);
+    const end = at + (Array.from(text.slice(at))[0]?.length ?? 0);
+    replaceChildren(word.el, ...tokenNodes(word.tokens, 0, at), h('span', { class: 'sr-flow-mid' }, ...tokenNodes(word.tokens, at, end)), ...tokenNodes(word.tokens, end));
+  }
+
+  const reducedMotion = () => !!ctx.document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  const round = (n: number) => Math.round(n * 100) / 100;
+
+  /** Put the current word's middle letter on the target: the shared offset, its glide, and the braces. */
+  function placeRibbon(r: Ribbon, index: number, hidden: boolean) {
+    r.index = index;
+    r.hidden = hidden;
+    const row = widthOf(r.el.querySelector('.sr-ribbon-row[data-position="middle"]')!);
+    const at = r.order.indexOf(index);
+    const offsets = ribbonOffsets(r.spans, at, row);
+    if (!offsets || at < 0) return;
+    const span = r.spans[at];
+    const glide = r.x === null ? 0 : glideMs({ wpm: player.settings.wpm, distance: Math.abs(offsets.x - r.x), rowWidth: row, reducedMotion: reducedMotion() });
+    r.x = offsets.x;
+    r.el.style.setProperty('--sr-w', String(round(row)));
+    r.el.style.setProperty('--sr-glide', `${glide}ms`);
+    r.el.style.setProperty('--sr-x', String(round(offsets.x)));
+    r.target.style.setProperty('--sr-target-x', String(round(row / 2 - (span.mid - span.start) - TARGET_PAD)));
+    r.target.style.setProperty('--sr-target-w', String(round(span.width + 2 * TARGET_PAD)));
+    r.target.hidden = hidden;
+    lightMiddle(r, index);
+  }
+
+  /** Show the ribbon around the chunk at `index`; `hidden` hides the braces (a position no one knows yet). */
+  function showFlow(index: number, hidden = false) {
+    const steps = ctx.timeline.steps;
+    const run = runBounds(steps, index);
+    if (!run) return;
     aligned = null;
     replaceChildren(sentence);
-    setDisplay(
-      'flow',
-      h('div', { class: 'sr-flow-axis', 'aria-hidden': 'true', style: 'left: 50%' }),
-      flowRow(neighbor(-1), 'top'),
-      flowRow(step, 'middle', currentTokens, whole),
-      flowRow(neighbor(1), 'bottom'),
-    );
+    const live = ribbon && ribbon.steps === steps && ribbon.el.isConnected && display.dataset.kind === 'flow' && ribbon.run.first === run.first && ribbon.run.last === run.last;
+    const win = runWindow(run, index, live ? ribbon!.window : null);
+    if (!live || ribbon!.window !== win) {
+      ribbon = buildRibbon(run, win);
+      setDisplay('flow', ribbon.el);
+      measureRibbon(ribbon);
+    }
+    placeRibbon(ribbon!, index, hidden);
+  }
+
+  /** Measure and place the ribbon again: after a resize, or a settings change that moves the text. */
+  function relayoutRibbon() {
+    if (!ribbon || !ribbon.el.isConnected) return;
+    measureRibbon(ribbon);
+    ribbon.x = null;
+    placeRibbon(ribbon, ribbon.index, ribbon.hidden);
   }
 
   function showChunk(step: ChunkStep, index: number) {
-    if (player.settings.readingMode === 'flow') return showFlow(step, index);
+    if (player.settings.readingMode === 'flow') return showFlow(index);
     const tokens = step.chunk.tokens;
     const text = joinTokens(tokens);
     let split = orp(text);
@@ -346,9 +465,9 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   /** Speech without word boundaries: the sentence's chunks together, wrapped. */
   function showWhole({ from, to }: { from: number; to: number }) {
     if (details && player.settings.readingMode !== 'flow') return; // Keep browser chunk semantics outside flow mode.
+    // Flow: the ribbon holds at the sentence's first word, with the braces hidden, until a word is known.
+    if (player.settings.readingMode === 'flow' && isChunk(ctx.timeline.steps[from])) return showFlow(from, true);
     const tokens = ctx.timeline.steps.slice(from, to + 1).flatMap((s) => (isChunk(s) ? s.chunk.tokens : []));
-    const current = ctx.timeline.steps[player.index];
-    if (player.settings.readingMode === 'flow' && isChunk(current)) return showFlow(current, player.index, tokens, true);
     aligned = null;
     setDisplay('whole', h('div', { class: 'sr-chunk sr-chunk-whole' }, ...tokenNodes(tokens)));
     display.dataset.wrap = 'true';
@@ -366,13 +485,26 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       renderStatus();
     }),
     player.on('state', renderStatus),
-    player.on('settings', renderStatus),
+    player.on('settings', () => {
+      syncMode();
+      renderStatus();
+    }),
     ctx.speech.onVoices(renderStatus),
   ];
+  /** The reader's reading mode as an attribute, for the stylesheet (the flow window is wider). */
+  function syncMode() {
+    ctx.reader.dataset.readingMode = player.settings.readingMode;
+  }
+  syncMode();
   showReady();
   renderStatus();
   const Observer = (ctx.document.defaultView as (Window & { ResizeObserver?: typeof ResizeObserver }) | null)?.ResizeObserver ?? globalThis.ResizeObserver;
-  const resize = !details && Observer ? new Observer(() => align()) : null;
+  const resize = Observer
+    ? new Observer(() => {
+        if (!details) align();
+        relayoutRibbon();
+      })
+    : null;
   resize?.observe(stage);
 
   return {
@@ -383,6 +515,8 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       renderStatus();
     },
     refresh() {
+      syncMode();
+      ribbon = null;
       if (!shown) showReady();
       renderStatus();
     },
