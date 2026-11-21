@@ -170,3 +170,48 @@ tests/e2e/core.spec.ts inline-chip panel test. Assert elementFromPoint at card c
 ### p2-r7 · finding [open] (reviewer: in scope) · exhibitKey and stepExhibitKey each build the b<k>i<n> key (phase 2)
 
 timeline.ts:69-74. One helper from (blockIndex, inlineIndex?).
+
+<!-- fr:journal kind=review scope=plan id=p2-review-1 created=2026-11-21T12:54:41+00:00 phase=2 -->
+### p2-review-1 · review · phase 2 independent review: 6 in-scope, 1 out-of-scope (phase 2)
+
+Independent reviewer drove the bottom-stage demo (floating 1440, panel, resize) and confirmed chips only in flow mode, per-section numbering, distinct keys for two long atoms in one paragraph (highlight and E-expand correct), core rendering of inline exhibits (no host.exhibit), inline stop keeps the ribbon without bounding the run, skip mode, speech "code"/"formula" with sentence resume, atom pacing, measured fit on resize with stored value kept, bottom-stage align shrink-then-wrap, non-bottom-stage unchanged, rows at ci justified by ci.yml. Raised p2-r1 (probe overstated char width), p2-r2 (fit measured on flow stage, double rebuild), p2-r3 (stale inline cards), p2-r4 (chip number not surfaced), p2-r5 (out: sidebar covers support area, pre-existing for block stops), p2-r6 (panel e2e passed on a covered card), p2-r7 (duplicated key builder). In-scope findings fixed in e06dcc8 and eae9dff with tests; fit at 1440 panel now 36 (was 26); full suite green after fixes (.visual/phase2-fix-suite.log).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r1-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=fixed resolves=p2-r1 -->
+### p2-r1-resolved · finding [fixed] · resolves p2-r1: Fit probe '0'x10 at weight 500 overstates char width (15.1 vs 10.8px): fit 26 where ~36 fit; 40-char check became 19-char (phase 2)
+
+e06dcc8: fit measured on a lowercase prose sample at the chunk font; e2e shows a 35-character chunk whole; fit 36 at 1440.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r2-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=fixed resolves=p2-r2 -->
+### p2-r2-resolved · finding [fixed] · resolves p2-r2: Fit measured on the wide flow stage: flow->chunk rebuilds twice, flow-mode panel max 77-80 (phase 2)
+
+e06dcc8: fit kept only in chunk mode, measured after the mode attribute changes; one rebuild on flow->chunk (unit test).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r3-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=fixed resolves=p2-r3 -->
+### p2-r3-resolved · finding [fixed] · resolves p2-r3: Exhibits sync never removes cards: inline exhibit cards stay after flow->chunk (phase 2)
+
+e06dcc8: sync drops shown entries no longer revealed; unit test.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r4-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=fixed resolves=p2-r4 -->
+### p2-r4-resolved · finding [fixed] · resolves p2-r4: Chip number not surfaced in stop prompt or exhibit caption (phase 2)
+
+e06dcc8: chip number stored on the inline exhibit; 'Code n' in the stop title and caption; unit test.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r6-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=fixed resolves=p2-r6 -->
+### p2-r6-resolved · finding [fixed] · resolves p2-r6: Panel e2e asserts toBeVisible on a stop card covered by the outline; needs a hit-test (phase 2)
+
+eae9dff: support area clears the open sidebar in panel layout (inset applied); e2e hit-tests the stop prompt and exhibit card.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r7-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=fixed resolves=p2-r7 -->
+### p2-r7-resolved · finding [fixed] · resolves p2-r7: exhibitKey and stepExhibitKey each build the b<k>i<n> key (phase 2)
+
+e06dcc8: one key helper used by exhibitKey and stepExhibitKey.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r5-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=open resolves=p2-r5 out_of_scope=true -->
+### p2-r5-resolved · finding [out-of-scope] · resolves p2-r5: Panel layout: contents sidebar covers the stage-support area (prompts, exhibits); also for block stops in chunk mode (phase 2)
+
+The sidebar covering the support area predates this change (block stops in chunk mode show it too). The p2-r6 fix (eae9dff) applies the inset to the support area, which also clears it for block stops; recorded out-of-scope pending operator confirmation.
+
+<!-- fr:journal kind=finding scope=plan id=p2-panel-support-under-outline-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=open resolves=p2-panel-support-under-outline out_of_scope=true -->
+### p2-panel-support-under-outline-resolved · finding [out-of-scope] · resolves p2-panel-support-under-outline: Panel layout: the open contents sidebar also covers the left of the stop prompt and exhibit cards (phase 2)
+
+Same as p2-r5: pre-existing panel-layout overlap of the support area; the p2-r6 fix also clears it.
