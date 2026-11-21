@@ -285,3 +285,8 @@ core.spec.ts:936/964. Assert at-fit chunk unscaled; cover floating too.
 ### l-tests-r4 · finding [open] (reviewer: in scope) · Inline-exhibit identity across rebuilds untested
 
 player.ts:107. Flow-to-flow rebuild keeps b0i1 revealed; same key in two sections stays distinct.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r5 created=2026-11-21T13:01:32+00:00 state=open review_scope=in -->
+### l-tests-r5 · finding [open] (reviewer: in scope) · chunk-cap 'keeping the position' test cannot fail
+
+chunk-cap.test.ts:76-102. Assert same source and sentenceIndex after rebuild.
