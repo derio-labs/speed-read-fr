@@ -1,0 +1,43 @@
+# Acceptance rows owned by one feature (spec 2026-11-04-repo-feature-settings R16).
+# The effective matrix is a fold over every fragment in this directory
+# (`fr acceptance status`); it is never stored. Write rows with
+# `fr acceptance add` / `set-status`, never by hand. Keep `rows:` before
+# `amendments:`.
+schema_version: 2
+feature: 2026-11-20-snake-flow
+repo: derio-net/speed-read-fr
+rows:
+  - id: reader-inline-code-split
+    capability: reader-ui
+    acceptance: In flow mode, inline code or math up to 20 characters flows through
+      the target like a word with extra time; longer code shows as a numbered chip in
+      the ribbon and in full in the exhibits panel, following the code exhibit setting.
+    origin:
+    - spec:2026-11-20-snake-flow#R8
+    - spec:2026-11-20-snake-flow#R9
+    levels: {}
+    status: not-implemented
+    notes: ''
+    verify: none
+  - id: reader-dock-chunk-limits
+    capability: reader-ui
+    acceptance: In the docked reader (browser dock and VS Code panel) chunk settings
+      go up to 10 words and 80 characters, capped by what fits the reading window, and
+      long chunks are shown whole.
+    origin:
+    - spec:2026-11-20-snake-flow#R11
+    levels: {}
+    status: not-implemented
+    notes: ''
+    verify: none
+amendments:
+  - row: reader-three-row-flow
+    op: reword
+    base: 0
+    acceptance: In flow mode the reader shows three rows of one continuous text ribbon
+      in a near-full-width window; words glide one at a time into a fixed braced target
+      at the middle row's centre with their middle letter red, the ribbon wrapping upward
+      bottom to middle to top, and the wheel moves it backward or forward word by word;
+      cards and stops behave as in chunk mode.
+    why: The shipped display misread the intent; the snake ribbon replaces it (spec
+      2026-11-20-snake-flow R1-R7, R10, R12).
