@@ -1,0 +1,31 @@
+schema_version: 12
+run: 2026-11-20-feat-snake-flow
+step: brainstorm
+outcome: done
+journal:
+  - {kind: decision, id: d1-geometry, title: "One continuous ribbon on three rows; target fixed at middle-row centre; ribbon shifts left one word per step, rows wrap upward", body: "Operator confirmed the ribbon reading (top = read, bottom = coming)."}
+  - {kind: decision, id: d2-target, title: "Target = red braces above and below spanning the word; only centre letter red, not bold", body: "Old ticks were too small, changed size, or were covered by glyphs."}
+  - {kind: decision, id: d3-inline-code, title: "Atoms <=20 chars flow as words (monospace, extra time); longer atoms become a chip plus an exhibit following the code setting", body: "Operator chose split-by-length over all-to-exhibits or all-flow."}
+  - {kind: decision, id: d4-motion, title: "Quick glide (~100 ms, <= 1/3 word time) then hold; wheel drives the same glide", body: ""}
+  - {kind: decision, id: d5-width, title: "Flow window near full width: min(1200px, viewport-64px) in overlay; full panel in VS Code", body: ""}
+  - {kind: decision, id: d6-verification, title: "Unit + Playwright pre-merge with PR screenshots; operator walk post-merge under tester gate", body: ""}
+acceptance:
+  - row: reader-three-row-flow
+    op: reword
+    why: "The shipped display misread the intent; the snake ribbon replaces it (spec 2026-11-20-snake-flow R1-R7, R10, R12)."
+    acceptance: "In flow mode the reader shows three rows of one continuous text ribbon in a near-full-width window; words glide one at a time into a fixed braced target at the middle row's centre with their middle letter red, the ribbon wrapping upward bottom to middle to top, and the wheel moves it backward or forward word by word; cards and stops behave as in chunk mode."
+  - id: reader-inline-code-split
+    capability: reader-ui
+    acceptance: "In flow mode, inline code or math up to 20 characters flows through the target like a word with extra time; longer code shows as a numbered chip in the ribbon and in full in the exhibits panel, following the code exhibit setting."
+    origin: ["spec:2026-11-20-snake-flow#R8", "spec:2026-11-20-snake-flow#R9"]
+    status: not-implemented
+    verify: none
+  - id: reader-dock-chunk-limits
+    capability: reader-ui
+    acceptance: "In the docked reader (browser dock and VS Code panel) chunk settings go up to 10 words and 80 characters, capped by what fits the reading window, and long chunks are shown whole."
+    origin: ["spec:2026-11-20-snake-flow#R11"]
+    status: not-implemented
+    verify: none
+emitted:
+  spec: docs/superpowers/specs/2026-11-20-snake-flow-design.md
+evidence: {}
