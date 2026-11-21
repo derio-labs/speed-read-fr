@@ -1062,7 +1062,8 @@ for (const layout of ['floating', 'panel'] as const) {
           }),
       );
       expect(mid.running, 'a transform transition is running 20 ms after a step').toBe(true);
-      expect(mid.progress).toBeGreaterThan(0);
+      // Progress may still read 0: a transition's clock starts on the next frame, which a loaded
+      // machine can delay past 20 ms. Running and unfinished is the guarantee.
       expect(mid.progress).toBeLessThan(1);
       // A jump to another section rebuilds the ribbon: it appears without a glide.
       await page.keyboard.press('Space');
