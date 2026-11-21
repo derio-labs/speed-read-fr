@@ -41,3 +41,11 @@ amendments:
       cards and stops behave as in chunk mode.
     why: The shipped display misread the intent; the snake ribbon replaces it (spec
       2026-11-20-snake-flow R1-R7, R10, R12).
+  - row: reader-three-row-flow
+    op: reword
+    base: 1
+    acceptance: The user can select a persisted flow reading mode in Settings across
+      Chrome, Firefox and VS Code; chunk mode stays the default, and switching back
+      restores it unchanged.
+    why: Narrowed to mode selection and persistence; the snake display itself is row
+      reader-snake-flow (spec 2026-11-20-snake-flow).
