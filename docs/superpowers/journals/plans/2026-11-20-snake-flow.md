@@ -220,3 +220,8 @@ Same as p2-r5: pre-existing panel-layout overlap of the support area; the p2-r6 
 ### l-simplicity-r1 · finding [open] (reviewer: in scope) · RibbonOffsets top/middle/bottom and clamp are dead; stage uses only .x
 
 ribbon-geometry.ts:13-31. Replace with spans[at].mid.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r2 created=2026-11-21T12:56:44+00:00 state=open review_scope=in -->
+### l-simplicity-r2 · finding [open] (reviewer: in scope) · Types Window/Range shadow DOM globals, forcing aliases in stage.ts:12
+
+Rename RunWindow/RunRange.
