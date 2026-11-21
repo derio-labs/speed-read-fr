@@ -300,3 +300,93 @@ Add elementFromPoint for each row and the lit .sr-flow-mid on both layouts, side
 ### l-tests-r7 · finding [open] (reviewer: in scope) · No extension (dock/overlay, shadow DOM) test covers flow mode or the measured fit
 
 extension.spec.ts:547. Add flow-mode and fit checks for dock and overlay.
+
+<!-- fr:journal kind=review scope=plan id=lens-review-1 created=2026-11-21T13:10:42+00:00 -->
+### lens-review-1 · review · lens review: simplicity 9 in / 1 out, tests 7 in
+
+One reviewer per lens over a88f0b0..HEAD. Simplicity found dead geometry fields, shadowed type names, triplicated exhibit keys, regex-parsed chip numbers, a redundant inline flag, tangled fit plumbing and a quadruplicated chip label; tests confirmed by mutation that the glide, row seams, fit, inline-exhibit identity, rebuild position, ribbon occlusion and extension flow/fit were unguarded. All in-scope findings fixed in fbb02a7, c146275, c17045a; each new test verified red against its mutation; full suite green (.visual/lens-fix-suite.log). Note: an exactly-at-fit chunk renders at ~0.958 scale because fit ignores the 12px edge margins, per the spec's fit formula; tests assert >=0.9 and no wrap.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r1-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r1 -->
+### l-simplicity-r1-resolved · finding [fixed] · resolves l-simplicity-r1: RibbonOffsets top/middle/bottom and clamp are dead; stage uses only .x
+
+fbb02a7: Dead offsets removed; placeRibbon reads the span mid.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r2-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r2 -->
+### l-simplicity-r2-resolved · finding [fixed] · resolves l-simplicity-r2: Types Window/Range shadow DOM globals, forcing aliases in stage.ts:12
+
+fbb02a7: Types renamed RunRange/RunWindow; aliases dropped.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r3-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r3 -->
+### l-simplicity-r3-resolved · finding [fixed] · resolves l-simplicity-r3: keyOf/exhibitKey/stepExhibitKey: three functions for one key
+
+fbb02a7: One exhibitKey({blockIndex, inlineIndex?}).
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r4-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r4 -->
+### l-simplicity-r4-resolved · finding [fixed] · resolves l-simplicity-r4: Chip number formatted into token text then regex-parsed back
+
+fbb02a7: Chip number carried on the token.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r5-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r5 -->
+### l-simplicity-r5-resolved · finding [fixed] · resolves l-simplicity-r5: Stop/dwell inline?: true redundant with inlineIndex
+
+fbb02a7: Redundant inline flag dropped for inlineIndex.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r6-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r6 -->
+### l-simplicity-r6-resolved · finding [fixed] · resolves l-simplicity-r6: chunkOptions ternary repeats chunkChars and precedes flow
+
+fbb02a7: flow declared first; single chunkOptions literal.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r7-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r7 -->
+### l-simplicity-r7-resolved · finding [fixed] · resolves l-simplicity-r7: mount.ts fit plumbing hard to follow; redundant check, stale comment, data-reading-mode owned twice
+
+fbb02a7: measureFit merged into currentFit, redundant check and stale comment removed, mount.ts owns data-reading-mode.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r8-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r8 -->
+### l-simplicity-r8-resolved · finding [fixed] · resolves l-simplicity-r8: Chip label built in four places
+
+fbb02a7: One chipLabel helper used by timeline, exhibits, stage and tts.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r10-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r10 -->
+### l-simplicity-r10-resolved · finding [fixed] · resolves l-simplicity-r10: stage.ts measure ternary repeated thrice; middle-letter end offset duplicated
+
+fbb02a7: measure chosen once in align(); middleLetter returns [start,end].
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r9-resolved created=2026-11-21T13:10:42+00:00 state=open resolves=l-simplicity-r9 out_of_scope=true -->
+### l-simplicity-r9-resolved · finding [out-of-scope] · resolves l-simplicity-r9: [5,80] chunkChars bounds duplicated across settings.ts, settings-panel and chunk-fit.ts
+
+The [5,80] chunkChars literals predate this change in settings.ts and settings-panel; chunk-fit mirrors them.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r1 -->
+### l-tests-r1-resolved · finding [fixed] · resolves l-tests-r1: Glide never verified in real layout: removing the ribbon transition passes all flow e2e
+
+c17045a: Browser test asserts computed transitionDuration, mid-glide transform, 0s on jump and reduced motion; red under transition removal.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r2 -->
+### l-tests-r2-resolved · finding [fixed] · resolves l-tests-r2: Row-seam e2e checks word indices only; a ~22px gap passes
+
+c17045a: Seams checked to the pixel across the cut word; red under 1.52 shift.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r3 -->
+### l-tests-r3-resolved · finding [fixed] · resolves l-tests-r3: Fit e2e recomputes fit from the same probe and never checks --sr-scale
+
+c17045a: At-fit prose chunk asserted unscaled (>=0.9, no wrap) on floating and panel; red under 0.75x probe.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r4 -->
+### l-tests-r4-resolved · finding [fixed] · resolves l-tests-r4: Inline-exhibit identity across rebuilds untested
+
+c146275: Unit tests for flow-to-flow rebuild and same key in two sections; red under both mutations.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r5-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r5 -->
+### l-tests-r5-resolved · finding [fixed] · resolves l-tests-r5: chunk-cap 'keeping the position' test cannot fail
+
+c146275: Asserts same source and sentenceIndex after rebuild; red under reset-to-0.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r6-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r6 -->
+### l-tests-r6-resolved · finding [fixed] · resolves l-tests-r6: Ribbon visibility is toBeVisible only; no hit-test
+
+c17045a: elementFromPoint hit-tests for rows and lit letter, both layouts, sidebar open; red with target pointer-events auto.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r7-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r7 -->
+### l-tests-r7-resolved · finding [fixed] · resolves l-tests-r7: No extension (dock/overlay, shadow DOM) test covers flow mode or the measured fit
+
+c17045a: Extension dock/overlay flow and measured-fit tests; red under r3/r6 mutations.
