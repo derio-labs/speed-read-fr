@@ -260,3 +260,8 @@ timeline stopPrompt, exhibits.ts:20, stage.ts:385, tts.ts:241. One chipLabel hel
 ### l-simplicity-r9 · finding [open] (reviewer: out of scope) · [5,80] chunkChars bounds duplicated across settings.ts, settings-panel and chunk-fit.ts
 
 Pre-existing literals in settings.ts:97 and settings-panel; chunk-fit adds a copy.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r10 created=2026-11-21T12:56:51+00:00 state=open review_scope=in -->
+### l-simplicity-r10 · finding [open] (reviewer: in scope) · stage.ts measure ternary repeated thrice; middle-letter end offset duplicated
+
+stage.ts:335-337, :176/:218. Pick measure once; middleLetter returns [start,end].
