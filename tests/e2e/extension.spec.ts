@@ -544,7 +544,7 @@ test('when the page removes the reader, the page is restored', async () => {
 for (const display of ['dock', 'overlay']) {
   test(`${display} keeps the chunk stage fixed below chapter and exhibit content`, async () => {
     const page = await openPage(READER_DOCK);
-    await saveSettings({ display, chunkWords: 10, chunkChars: 80 });
+    await saveSettings({ display, chunkWords: 3, chunkChars: 20 });
     await openReader(page, 'auto');
     const locate = (selector: string) => page.locator(`[data-speed-read-host] ${selector}`);
     const stage = locate('.sr-stage');
@@ -565,7 +565,8 @@ for (const display of ['dock', 'overlay']) {
     await page.keyboard.press('ArrowRight');
     await expect(chunk).toHaveText('LONG_REPOSITORY_IDENTIFIER');
     await expect(chunk).toHaveCSS('white-space', 'pre');
-    expect(await chunk.locator('.sr-atom').first().evaluate((el) => getComputedStyle(el).fontSize)).toBe(font);
+    // A chunk wider than the stage shrinks (R11), and its code atoms scale with it rather than keeping their own size.
+    expect(await chunk.locator('.sr-atom').first().evaluate((el) => getComputedStyle(el).fontSize)).toBe(await chunk.evaluate((el) => getComputedStyle(el).fontSize));
     expect(await chunk.locator('.sr-before, .sr-after').evaluateAll((sides) => sides.every((el) => el.scrollWidth <= el.clientWidth))).toBe(true);
     for (let i = 0; i < 5; i++) {
       await page.keyboard.press('ArrowRight');
