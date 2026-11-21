@@ -55,3 +55,8 @@ stage.ts:243. Fix: lightMiddle(r, hidden ? null : index); tts-panel tests expect
 ### p1-r3 · finding [open] (reviewer: in scope) · placeRibbon re-measures the middle row width every step; glideMs duplicates baseMs (phase 1)
 
 stage.ts:230; ribbon-geometry.ts:199. Fix: measure row width in measureRibbon and store it; reuse pacing.baseMs.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r4 created=2026-11-21T12:19:39+00:00 phase=1 state=open review_scope=out -->
+### p1-r4 · finding [open] (reviewer: out of scope) · Pre-existing dial wheel gain (x4-x6.8) makes fast wheel turns jump many words (phase 1)
+
+dial-strip.ts, untouched by this change. Operator asked the wheel to work 'as before'; slow turns step word by word.
