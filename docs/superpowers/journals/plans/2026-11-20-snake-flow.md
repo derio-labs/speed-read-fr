@@ -40,3 +40,8 @@ a one-line query switch on the demo and a smoke assertion; nothing to restructur
 ### no-refactor-p1-t5 · discovery · no-refactor-because P1.T5 (phase 1)
 
 tests and README text only; the dead flow-row code was already removed in P1.T4.S4
+
+<!-- fr:journal kind=finding scope=plan id=p1-r1 created=2026-11-21T12:19:36+00:00 phase=1 state=open review_scope=in -->
+### p1-r1 · finding [open] (reviewer: in scope) · Window re-centre rebuild resets x to null, so that step snaps without the glide every ~100 words (phase 1)
+
+stage.ts:256/235. Fix: seed the new ribbon at the previous index's mid with --sr-glide 0, reflow, then place with r.x set; unit assert non-zero glide on the re-centring step.
