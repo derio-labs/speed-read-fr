@@ -36,18 +36,40 @@ export type Step = StepPosition &
     | ({ kind: 'item-chunk'; index: number; of: number; depth: number } & SentencePart)
     | { kind: 'item-gap' }
     | { kind: 'list-whole'; block: ListBlock; words: number }
-    | { kind: 'stop'; exhibit: ExhibitKind; prompt: string }
-    | { kind: 'dwell'; exhibit: ExhibitKind; seconds: number }
+    | { kind: 'stop'; exhibit: ExhibitKind; prompt: string; inline?: true; inlineIndex?: number }
+    | { kind: 'dwell'; exhibit: ExhibitKind; seconds: number; inline?: true; inlineIndex?: number }
   );
 
 export type StepKind = Step['kind'];
 
-export interface TimelineExhibit {
+/** A block exhibit: a code, table, math, image or diagram block. */
+export interface BlockExhibit {
+  inline?: undefined;
   blockIndex: number;
   block: ExhibitBlock;
   /** Index of the step at which playback passes the exhibit (the timeline length when nothing follows it). */
   revealAt: number;
 }
+
+/** A long inline code or math atom of a flow-mode sentence, listed as an exhibit of its own. */
+export interface InlineExhibit {
+  inline: true;
+  blockIndex: number;
+  /** 1-based, within the block. */
+  inlineIndex: number;
+  kind: 'code' | 'math';
+  text: string;
+  revealAt: number;
+}
+
+export type TimelineExhibit = BlockExhibit | InlineExhibit;
+
+/** Identity of an exhibit within its section: `b<blockIndex>`, or `b<blockIndex>i<inlineIndex>` for an inline one. */
+export const exhibitKey = (e: TimelineExhibit): string => (e.inline ? `b${e.blockIndex}i${e.inlineIndex}` : `b${e.blockIndex}`);
+
+/** The key of the exhibit a stop or dwell step is about. */
+export const stepExhibitKey = (step: Pick<StepPosition, 'blockIndex'> & { inlineIndex?: number }): string =>
+  `b${step.blockIndex}${step.inlineIndex !== undefined ? `i${step.inlineIndex}` : ''}`;
 
 export interface TimelineSection {
   id: string;
@@ -66,6 +88,8 @@ export interface Timeline {
 
 const SHORT_LIST_ITEM_WORDS = 6;
 const SHORT_LIST_MAX_ITEMS = 8;
+/** In flow mode an atom longer than this becomes a chip on the ribbon and an exhibit of its own. */
+export const LONG_ATOM_CHARS = 20;
 const PROMPT_TAIL = ': Space to continue, E to expand';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -124,6 +148,9 @@ function sentenceParts(sentences: Sentence[], options: ChunkOptions): SentencePa
   );
 }
 
+const isChip = (token: Token): token is Extract<Token, { kind: 'atom' }> & { full: string } =>
+  token.kind === 'atom' && token.full !== undefined;
+
 /** Turn a document into the ordered steps the player runs through (spec section 4). */
 export function buildTimeline(doc: Doc, settings: Settings): Timeline {
   const steps: Step[] = [];
@@ -134,8 +161,12 @@ export function buildTimeline(doc: Doc, settings: Settings): Timeline {
       ? { chunkWords: 1, chunkChars: settings.chunkChars }
       : { chunkWords: settings.chunkWords, chunkChars: settings.chunkChars };
 
+  const flow = settings.readingMode === 'flow';
+
   doc.sections.forEach((section, sectionAt) => {
     const sectionId = section.id;
+    /** Chip numbers per kind, from 1 in each section. */
+    const chips = { code: 0, math: 0 };
     const entry: TimelineSection = {
       id: sectionId,
       title: section.heading?.text,
@@ -163,9 +194,40 @@ export function buildTimeline(doc: Doc, settings: Settings): Timeline {
 
     section.blocks.forEach((block, blockIndex) => {
       const at = { sectionId, blockIndex, source: block.source };
+      let inlineCount = 0;
+
+      /** Flow mode: atoms over the limit become chips (numbered per section); the rest is untouched. */
+      const withChips = (sentences: Sentence[]): Sentence[] =>
+        !flow
+          ? sentences
+          : sentences.map((sentence) => ({
+              tokens: sentence.tokens.map((t): Token =>
+                t.kind === 'atom' && t.text.length > LONG_ATOM_CHARS
+                  ? { kind: 'atom', atom: t.atom, text: `⟨${t.atom} ${++chips[t.atom]}⟩`, full: t.text }
+                  : t,
+              ),
+            }));
+
+      /** The chunk steps of the sentences; each chip is followed by its inline exhibit's stop or dwell. */
+      const pushSentences = (sentences: Sentence[], position: StepPosition, build: (part: SentencePart) => Step) => {
+        for (const part of sentenceParts(withChips(sentences), chunkOptions)) {
+          steps.push(build(part));
+          const token = part.chunk.tokens[0];
+          if (!flow || !isChip(token)) continue;
+          const inlineIndex = ++inlineCount;
+          entry.exhibits.push({ inline: true, blockIndex, inlineIndex, kind: token.atom, text: token.full, revealAt: steps.length });
+          const behaviour = settings[token.atom];
+          const inline = { inline: true as const, inlineIndex };
+          if (behaviour.mode === 'stop')
+            steps.push({ ...position, kind: 'stop', exhibit: token.atom, prompt: stopPrompt(token.atom, {}), ...inline });
+          else if (behaviour.mode === 'dwell')
+            steps.push({ ...position, kind: 'dwell', exhibit: token.atom, seconds: behaviour.dwellSeconds, ...inline });
+        }
+      };
+
       switch (block.kind) {
         case 'prose':
-          for (const part of sentenceParts(block.sentences, chunkOptions)) steps.push({ ...at, kind: 'chunk', ...part });
+          pushSentences(block.sentences, at, (part) => ({ ...at, kind: 'chunk', ...part }));
           return;
         case 'list':
           if (isShortList(block.items)) {
@@ -176,8 +238,7 @@ export function buildTimeline(doc: Doc, settings: Settings): Timeline {
           for (const it of block.items) {
             const itemAt = { ...at, source: it.source };
             const counter = { index: it.index, of: it.of, depth: it.depth };
-            for (const part of sentenceParts(it.sentences, chunkOptions))
-              steps.push({ ...itemAt, kind: 'item-chunk', ...counter, ...part });
+            pushSentences(it.sentences, itemAt, (part) => ({ ...itemAt, kind: 'item-chunk', ...counter, ...part }));
             steps.push({ ...itemAt, kind: 'item-gap' });
           }
           return;

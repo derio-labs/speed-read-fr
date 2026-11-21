@@ -84,3 +84,27 @@ describe('sectionEstimate', () => {
     expect(sectionEstimate([], s300)).toBe(0);
   });
 });
+
+describe('stepDuration: atoms', () => {
+  const atomStep = (text: string): Step => ({
+    kind: 'chunk',
+    sectionId: 's',
+    blockIndex: 0,
+    source: { element: null },
+    sentenceIndex: 0,
+    sentenceStart: true,
+    chunk: { tokens: [{ kind: 'atom', atom: 'code', text }], text, endsSentence: false, endsClause: false },
+  });
+
+  it('takes base x max(1, ceil(length / 8)) with no long-token bonus', () => {
+    expect(stepDuration(atomStep('abc'), s300)).toBeCloseTo(base);
+    expect(stepDuration(atomStep('a'.repeat(8)), s300)).toBeCloseTo(base);
+    expect(stepDuration(atomStep('a'.repeat(9)), s300)).toBeCloseTo(2 * base);
+    expect(stepDuration(atomStep('a'.repeat(20)), s300)).toBeCloseTo(3 * base);
+  });
+
+  it('keeps the word rule: base plus 0.3 base above 8 characters', () => {
+    const wide = { ...s300, readingMode: 'flow' as const };
+    expect(stepDuration(firstChunk('extraordinary word', wide), wide)).toBeCloseTo(1.3 * base);
+  });
+});

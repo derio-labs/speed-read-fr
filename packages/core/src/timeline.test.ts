@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, normalizeSettings, type Settings } from './settings';
 import { doc, exhibit, flatList, item, list, prose, section } from './testing/doc';
-import { buildTimeline } from './timeline';
+import type { Block, Token } from './model';
+import { buildTimeline, exhibitKey, type Step } from './timeline';
 
 const settings = (over: Partial<Settings> = {}) => normalizeSettings({ ...DEFAULT_SETTINGS, ...over });
 const kinds = (d: ReturnType<typeof doc>, s = settings()) => buildTimeline(d, s).steps.map((st) => st.kind);
@@ -276,5 +277,71 @@ describe('buildTimeline: flow mode', () => {
     const d = doc(section('s', undefined, prose('One two three.')));
     const steps = buildTimeline(d, settings({ readingMode: 'flow' })).steps;
     expect(steps.map((s) => s.kind === 'chunk' && s.chunk.endsSentence)).toEqual([false, false, true]);
+  });
+});
+
+describe('buildTimeline: long atoms in flow mode', () => {
+  const atom = (text: string, kind: 'code' | 'math' = 'code'): Token => ({ kind: 'atom', atom: kind, text });
+  const word = (text: string): Token => ({ kind: 'word', text });
+  const proseOf = (...tokens: Token[]): Block => ({ kind: 'prose', sentences: [{ tokens }], source: { element: null } });
+  const SHORT = 'a'.repeat(20);
+  const LONG = 'b'.repeat(21);
+  const flow = (over: Partial<Settings> = {}) => settings({ readingMode: 'flow', ...over });
+  const chunkText = (s: Step) => (s.kind === 'chunk' || s.kind === 'item-chunk' ? s.chunk.text : s.kind);
+
+  it('keeps a 20-character atom inline and turns a 21-character one into a chip with full text', () => {
+    const d = doc(section('s', undefined, proseOf(word('see'), atom(SHORT), atom(LONG), word('end.'))));
+    const steps = buildTimeline(d, flow()).steps;
+    expect(steps.map(chunkText)).toEqual(['see', SHORT, '⟨code 1⟩', 'stop', 'end.']);
+    const chip = steps[2];
+    expect(chip.kind === 'chunk' && chip.chunk.tokens[0]).toEqual({ kind: 'atom', atom: 'code', text: '⟨code 1⟩', full: LONG });
+    const stop = steps[3];
+    expect(stop).toMatchObject({ kind: 'stop', exhibit: 'code', inline: true, inlineIndex: 1 });
+    expect(stop.kind === 'stop' && stop.prompt).toContain('Space to continue');
+  });
+
+  it('numbers chips per kind from 1 in each section and lists each as its own exhibit', () => {
+    const d = doc(
+      section('s1', undefined, proseOf(atom(LONG), atom(LONG + 'x'), atom('m'.repeat(22), 'math')), proseOf(atom(LONG))),
+      section('s2', undefined, proseOf(atom(LONG))),
+    );
+    const t = buildTimeline(d, flow());
+    expect(t.steps.filter((s) => s.kind === 'chunk').map(chunkText)).toEqual(['⟨code 1⟩', '⟨code 2⟩', '⟨math 1⟩', '⟨code 3⟩', '⟨code 1⟩']);
+    expect(t.sections[0].exhibits.map((e) => exhibitKey(e))).toEqual(['b0i1', 'b0i2', 'b0i3', 'b1i1']);
+    const [first, , third] = t.sections[0].exhibits;
+    expect(first).toMatchObject({ inline: true, kind: 'code', text: LONG, blockIndex: 0, inlineIndex: 1 });
+    expect(third).toMatchObject({ inline: true, kind: 'math', text: 'm'.repeat(22) });
+    expect(t.steps[first.revealAt].kind).toBe('stop');
+  });
+
+  it('gives a block exhibit the key b<blockIndex>', () => {
+    const t = buildTimeline(doc(section('s', undefined, prose('Hi there.'), exhibit('code'))), flow());
+    expect(exhibitKey(t.sections[0].exhibits[0])).toBe('b1');
+  });
+
+  it('follows the exhibit setting: dwell, math setting, skip adds no step but still lists the exhibit', () => {
+    const d = doc(section('s', undefined, proseOf(atom(LONG), atom('m'.repeat(22), 'math'))));
+    const dwell = buildTimeline(d, flow({ code: { mode: 'dwell', dwellSeconds: 7 }, math: { mode: 'skip', dwellSeconds: 5 } }));
+    expect(dwell.steps.map((s) => s.kind)).toEqual(['chunk', 'dwell', 'chunk']);
+    expect(dwell.steps[1]).toMatchObject({ kind: 'dwell', inline: true, seconds: 7, exhibit: 'code' });
+    expect(dwell.sections[0].exhibits).toHaveLength(2);
+    const math = buildTimeline(d, flow({ code: { mode: 'skip', dwellSeconds: 5 } }));
+    expect(math.steps.map((s) => s.kind)).toEqual(['chunk', 'chunk', 'stop']);
+    expect(math.steps[2]).toMatchObject({ exhibit: 'math', inline: true });
+    expect(math.steps[2].kind === 'stop' && math.steps[2].prompt).toMatch(/^Formula/);
+  });
+
+  it('puts the chip and its stop in list items too', () => {
+    const it1 = item(`go`, 1, 1);
+    it1.sentences = [{ tokens: [word('go'), atom(LONG)] }];
+    const steps = buildTimeline(doc(section('s', undefined, list([it1, item('a b c d e f g h', 1, 1)]))), flow()).steps;
+    expect(steps.map((s) => s.kind).slice(0, 4)).toEqual(['item-chunk', 'item-chunk', 'stop', 'item-gap']);
+  });
+
+  it('leaves chunk mode and short atoms alone', () => {
+    const d = doc(section('s', undefined, proseOf(word('see'), atom(LONG), word('end.'))));
+    const t = buildTimeline(d, settings({ readingMode: 'chunk', chunkChars: 80, chunkWords: 5 }));
+    expect(t.steps.map((s) => s.kind)).toEqual(['chunk']);
+    expect(t.sections[0].exhibits).toEqual([]);
   });
 });

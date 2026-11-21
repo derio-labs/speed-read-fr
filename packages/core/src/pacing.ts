@@ -11,6 +11,8 @@ const CLAUSE_END_FACTOR = 0.5;
 const SENTENCE_END_FACTOR = 1.2;
 const LONG_TOKEN_FACTOR = 0.3;
 const LONG_TOKEN_CHARS = 8;
+/** An atom stays on the target for one word-time per this many characters (at least one). */
+const ATOM_CHARS_PER_BASE = 8;
 const LIST_WHOLE_FACTOR = 1.5;
 const RAMP = [0.6, 0.68, 0.76, 0.84, 0.92, 1];
 
@@ -27,12 +29,19 @@ export function stepDuration(step: Step, settings: Settings): number | null {
     case 'chunk':
     case 'item-chunk': {
       const { tokens, endsClause, endsSentence } = step.chunk;
-      const longTokens = tokens.filter((t) => t.text.length > LONG_TOKEN_CHARS).length;
+      // A word takes one word-time, and a little more above 8 characters; an atom, one per 8 characters.
+      const tokenTime = tokens.reduce(
+        (n, t) =>
+          n +
+          (t.kind === 'atom'
+            ? Math.max(1, Math.ceil(t.text.length / ATOM_CHARS_PER_BASE))
+            : 1 + (t.text.length > LONG_TOKEN_CHARS ? LONG_TOKEN_FACTOR : 0)),
+        0,
+      );
       return (
-        base * tokens.length +
+        base * tokenTime +
         (endsClause ? CLAUSE_END_FACTOR * base : 0) +
-        (endsSentence ? SENTENCE_END_FACTOR * base : 0) +
-        LONG_TOKEN_FACTOR * base * longTokens
+        (endsSentence ? SENTENCE_END_FACTOR * base : 0)
       );
     }
     case 'title':
