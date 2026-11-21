@@ -185,6 +185,7 @@ describe('flow mode ribbon', () => {
 
   it('lays out at most 400 words around the position and lays out again near the window edge', () => {
     const body = Array.from({ length: 1000 }, (_, i) => `w${i}`).join(' ') + '.';
+    stubRibbonLayout();
     const t = mountHarness(`<p>${body}</p>`, { settings: flowOpts });
     t.handle.player.toggle();
     const ids = () => t.qa('.sr-ribbon-row[data-position="middle"] .sr-w').map((w) => w.textContent);
@@ -192,9 +193,13 @@ describe('flow mode ribbon', () => {
     expect(ids()[0]).toBe('w0');
     t.handle.player.scrub(250);
     expect(ids()[0]).toBe('w0');
-    t.handle.player.scrub(50);
+    t.handle.player.scrub(49);
+    expect(ids()[0]).toBe('w0');
+    t.handle.player.scrub(1);
     expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('w300');
     expect(ids()[0]).toBe('w100');
+    // The re-centring step glides like any other.
+    expect(Number.parseFloat(t.q('.sr-ribbon')!.style.getPropertyValue('--sr-glide'))).toBeGreaterThan(0);
     expect(ids()).toHaveLength(400);
   });
 

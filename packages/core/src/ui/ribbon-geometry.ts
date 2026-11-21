@@ -1,3 +1,5 @@
+import { baseMs } from '../pacing';
+
 /** Pure geometry of the flow-mode ribbon: no DOM, so the renderer only measures and applies it. */
 
 /** A word on the ribbon's one line: where it starts, how wide it is, and the centre of its middle letter. */
@@ -87,5 +89,5 @@ export const GLIDE_MAX_MS = 100;
  */
 export function glideMs({ wpm, distance, rowWidth, reducedMotion }: { wpm: number; distance: number; rowWidth: number; reducedMotion: boolean }): number {
   if (reducedMotion || distance > rowWidth) return 0;
-  return Math.min(GLIDE_MAX_MS, 60000 / wpm / 3);
+  return Math.min(GLIDE_MAX_MS, baseMs({ wpm }) / 3);
 }

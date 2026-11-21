@@ -134,7 +134,7 @@ describe('speech on the stage', () => {
     speech.spoken[0].end();
     t.clock.advance(1000);
     expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
-    expect(word()).toBe('A');
+    expect(t.q('.sr-flow-mid')).toBeNull();
     expect(t.q('.sr-flow-target')!.hidden).toBe(true);
     expect(t.q('.sr-ribbon-row[data-position="middle"]')!.textContent).toContain('A second one follows.');
     speech.spoken[1].end();
@@ -172,7 +172,7 @@ describe('flow whole-sentence fallback', () => {
       t.clock.advance(1000);
       expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
       expect(t.qa('.sr-ribbon-row')).toHaveLength(3);
-      expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('A');
+      expect(t.q('.sr-flow-mid')).toBeNull();
       expect(t.q('.sr-flow-target')!.hidden).toBe(true);
       expect(t.q('.sr-flow-whole')).toBeNull();
       expect(t.q('.sr-ribbon-row[data-position="top"]')!.textContent).toContain('A second one follows.');

@@ -1,5 +1,5 @@
 import type { Token } from '../model';
-import { sectionEstimate } from '../pacing';
+import { baseMs, sectionEstimate } from '../pacing';
 import type { EndStep, PlayerState, StepEvent } from '../player';
 import { joinTokens } from '../text/chunks';
 import { middleLetter } from '../text/middle';
@@ -120,6 +120,8 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     order: number[];
     words: Map<number, { el: HTMLElement; tokens: Token[] }>;
     spans: WordSpan[];
+    /** Width of a row, measured with the spans. */
+    row: number;
     /** The shared offset last applied (null before the first placement), the step on show, and the lit word. */
     x: number | null;
     index: number;
@@ -162,7 +164,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       h('span', { class: 'sr-flow-brace', 'data-side': 'bottom' }),
     );
     const el = h('div', { class: 'sr-ribbon' }, ...rows, target);
-    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], x: null, index: -1, hidden: false, lit: null };
+    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], row: 0, x: null, index: -1, hidden: false, lit: null };
   }
 
   const widthOf = (el: Element) => (typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect().width : 0);
@@ -193,6 +195,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
 
   /** Measure the word spans once per layout, and the row width. */
   function measureRibbon(r: Ribbon) {
+    r.row = widthOf(r.el.querySelector('.sr-ribbon-row[data-position="middle"]')!);
     const origin = r.middle.getBoundingClientRect().left;
     r.spans = r.order.map((step) => {
       const { el } = r.words.get(step)!;
@@ -227,7 +230,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   function placeRibbon(r: Ribbon, index: number, hidden: boolean) {
     r.index = index;
     r.hidden = hidden;
-    const row = widthOf(r.el.querySelector('.sr-ribbon-row[data-position="middle"]')!);
+    const row = r.row;
     const at = r.order.indexOf(index);
     const offsets = ribbonOffsets(r.spans, at, row);
     if (!offsets || at < 0) return;
@@ -240,7 +243,8 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     r.target.style.setProperty('--sr-target-x', String(round(row / 2 - (span.mid - span.start) - TARGET_PAD)));
     r.target.style.setProperty('--sr-target-w', String(round(span.width + 2 * TARGET_PAD)));
     r.target.hidden = hidden;
-    lightMiddle(r, index);
+    // With the braces hidden no word is known yet, so none is lit.
+    lightMiddle(r, hidden ? null : index);
   }
 
   /** Show the ribbon around the chunk at `index`; `hidden` hides the braces (a position no one knows yet). */
@@ -253,9 +257,15 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     const live = ribbon && ribbon.steps === steps && ribbon.el.isConnected && display.dataset.kind === 'flow' && ribbon.run.first === run.first && ribbon.run.last === run.last;
     const win = runWindow(run, index, live ? ribbon!.window : null);
     if (!live || ribbon!.window !== win) {
+      const prev = live ? ribbon : null;
       ribbon = buildRibbon(run, win);
       setDisplay('flow', ribbon.el);
       measureRibbon(ribbon);
+      // A new window glides on like any step: start from where the old one stood, then move.
+      if (prev && ribbon.order.includes(prev.index)) {
+        placeRibbon(ribbon, prev.index, prev.hidden);
+        void ribbon.el.offsetWidth;
+      }
     }
     placeRibbon(ribbon!, index, hidden);
   }
