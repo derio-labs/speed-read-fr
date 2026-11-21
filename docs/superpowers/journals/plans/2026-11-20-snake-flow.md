@@ -405,3 +405,8 @@ Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/13.
 ### p2-r5-resolved-2 · finding [fixed] · resolves p2-r5: Panel layout: contents sidebar covers the stage-support area (prompts, exhibits); also for block stops in chunk mode
 
 eae9dff applies the sidebar inset to the stage-support area, clearing the stop prompt and exhibit cards for inline and block stops alike; operator approved marking it fixed.
+
+<!-- fr:journal kind=finding scope=plan id=p2-panel-support-under-outline-resolved-2 created=2026-11-21T14:14:00+00:00 state=fixed resolves=p2-panel-support-under-outline answered_by=operator -->
+### p2-panel-support-under-outline-resolved-2 · finding [fixed] · resolves p2-panel-support-under-outline: Panel layout: the open contents sidebar also covers the left of the stop prompt and exhibit cards
+
+eae9dff applies the sidebar inset to the stage-support area, clearing the stop prompt and exhibit cards for inline and block stops alike; operator approved marking it fixed.
