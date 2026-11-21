@@ -254,6 +254,10 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     if (!run) return;
     aligned = null;
     replaceChildren(sentence);
+    if (details && !details.hidden) {
+      replaceChildren(details);
+      details.hidden = true;
+    }
     const live = ribbon && ribbon.steps === steps && ribbon.el.isConnected && display.dataset.kind === 'flow' && ribbon.run.first === run.first && ribbon.run.last === run.last;
     const win = runWindow(run, index, live ? ribbon!.window : null);
     if (!live || ribbon!.window !== win) {
@@ -353,13 +357,50 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     replaceChildren(sentence, ...parts);
   }
 
+  type StopStep = Extract<Step, { kind: 'stop' }>;
+  type DwellStep = Extract<Step, { kind: 'dwell' }>;
+
+  /** The prompt card of a block or inline stop. */
+  function stopCard(step: StopStep) {
+    const [what, ...rest] = step.prompt.split(': ');
+    return card('stop', eyebrow(EXHIBIT_LABELS[step.exhibit]), title(what), rest.length > 0 ? hint(rest.join(': ')) : null);
+  }
+
+  /** The prompt card of a block or inline dwell; an inline exhibit has no block, so no alt text. */
+  function dwellCard(step: DwellStep) {
+    const block = step.inline ? undefined : ctx.doc.sections.find((s) => s.id === step.sectionId)?.blocks[step.blockIndex];
+    const alt = block && block.kind !== 'prose' && block.kind !== 'list' ? block.meta.alt : undefined;
+    return card(
+      'dwell',
+      eyebrow(EXHIBIT_LABELS[step.exhibit]),
+      title(alt ?? `${EXHIBIT_LABELS[step.exhibit]} in the exhibit pane`),
+      hint(`Showing for ${step.seconds} s · `, kbd('E'), ' to expand'),
+    );
+  }
+
+  /**
+   * A flow-mode stop or dwell on an inline exhibit: the ribbon stays with the chip on the target, and the
+   * prompt shows beside it (the details panel), or in the status line on a reader without one.
+   */
+  function showInlineStop(step: StopStep | DwellStep, index: number) {
+    showFlow(index - 1);
+    if (details) {
+      replaceChildren(details, step.kind === 'stop' ? stopCard(step) : dwellCard(step));
+      details.hidden = false;
+    } else inlinePrompt = step.kind === 'stop' ? step.prompt : `Showing for ${step.seconds} s: E to expand`;
+  }
+  /** The prompt of an inline stop on a reader without a details panel, shown in the status line. */
+  let inlinePrompt: string | null = null;
+
   function sectionSteps(sectionId: string): Step[] {
     return ctx.timeline.steps.filter((s) => s.sectionId === sectionId);
   }
 
   function showStep(step: Step | EndStep, index: number) {
     if (step.kind === 'item-gap') return;
+    inlinePrompt = null;
     if (step.kind === 'chunk' || step.kind === 'item-chunk') return showChunk(step, index);
+    if ((step.kind === 'stop' || step.kind === 'dwell') && step.inline && player.settings.readingMode === 'flow') return showInlineStop(step, index);
     replaceChildren(sentence);
     switch (step.kind) {
       case 'chapter': {
@@ -383,31 +424,10 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
           'title',
           h('div', { class: 'sr-card-title-step' }, eyebrow('Section'), title(step.text)),
         );
-      case 'stop': {
-        const [what, ...rest] = step.prompt.split(': ');
-        return setDisplay(
-          'stop',
-          card(
-            'stop',
-            eyebrow(EXHIBIT_LABELS[step.exhibit]),
-            title(what),
-            rest.length > 0 ? hint(rest.join(': ')) : null,
-          ),
-        );
-      }
-      case 'dwell': {
-        const block = ctx.doc.sections.find((s) => s.id === step.sectionId)?.blocks[step.blockIndex];
-        const alt = block && block.kind !== 'prose' && block.kind !== 'list' ? block.meta.alt : undefined;
-        return setDisplay(
-          'dwell',
-          card(
-            'dwell',
-            eyebrow(EXHIBIT_LABELS[step.exhibit]),
-            title(alt ?? `${EXHIBIT_LABELS[step.exhibit]} in the exhibit pane`),
-            hint(`Showing for ${step.seconds} s · `, kbd('E'), ' to expand'),
-          ),
-        );
-      }
+      case 'stop':
+        return setDisplay('stop', stopCard(step));
+      case 'dwell':
+        return setDisplay('dwell', dwellCard(step));
       case 'list-whole': {
         const tag = step.block.ordered ? 'ol' : 'ul';
         const items = step.block.items.map((it) => {
@@ -459,7 +479,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   function renderStatus() {
     const total = ctx.timeline.steps.length;
     const pct = total === 0 ? 0 : Math.round((Math.min(player.index, total) / total) * 100);
-    const signature = JSON.stringify([player.settings.wpm, player.state, pct, ctx.speech.failed, hostNote]);
+    const signature = JSON.stringify([player.settings.wpm, player.state, pct, ctx.speech.failed, hostNote, inlinePrompt]);
     if (signature === lastStatus) return;
     lastStatus = signature;
     replaceChildren(
@@ -469,6 +489,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       h('span', { class: 'sr-status-state' }, STATE_LABELS[player.state]),
       h('span', { class: 'sr-status-sep' }, ' · '),
       h('span', { class: 'sr-status-progress' }, `${pct}%`),
+      inlinePrompt ? h('span', { class: 'sr-status-note', 'data-note': 'prompt' }, inlinePrompt) : null,
       ctx.speech.failed ? h('span', { class: 'sr-status-note', title: 'Speech failed: showing text only. Try another voice in Settings.' }, 'Speech failed: showing text only') : null,
       hostNote ? h('span', { class: 'sr-status-note', 'data-note': 'host', role: 'status' }, hostNote) : null,
     );
@@ -479,6 +500,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   /** Speech without word boundaries: the sentence's chunks together, wrapped. */
   function showWhole({ from, to }: { from: number; to: number }) {
     if (details && player.settings.readingMode !== 'flow') return; // Keep browser chunk semantics outside flow mode.
+    inlinePrompt = null;
     // Flow: the ribbon holds at the sentence's first word, with the braces hidden, until a word is known.
     if (player.settings.readingMode === 'flow' && isChunk(ctx.timeline.steps[from])) return showFlow(from, true);
     const tokens = ctx.timeline.steps.slice(from, to + 1).flatMap((s) => (isChunk(s) ? s.chunk.tokens : []));

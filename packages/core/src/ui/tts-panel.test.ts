@@ -249,3 +249,22 @@ describe('review p5b: voice panel', () => {
     speech.spoken[0].end();
   });
 });
+
+describe('speech at an inline exhibit stop', () => {
+  it('ends the utterance at the chip and speaks the rest of the sentence after the stop', async () => {
+    const speech = fakeSpeech([voice('Alice', 'en-US', true)]);
+    const t = mountHarness(`<p>Call <code>${'x_long_identifier_name_ok'}</code> then go on.</p>`, {
+      speech: (clock) => createSpeechDriver(speech.synth, { Utterance: speech.Utterance, scheduler: clock, lang: 'en' }),
+      saved: { tts: { enabled: true, voiceURI: null }, readingMode: 'flow' },
+    });
+    await t.settle();
+    t.handle.player.toggle();
+    expect(speech.spoken[0].text).toBe('Call code');
+    speech.spoken[0].end();
+    expect(t.handle.player.state).toBe('stopped');
+    expect(speech.spoken).toHaveLength(1);
+    t.handle.player.continue();
+    expect(speech.spoken).toHaveLength(2);
+    expect(speech.spoken[1].text).toBe('then go on.');
+  });
+});

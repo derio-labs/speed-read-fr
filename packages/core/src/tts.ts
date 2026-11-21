@@ -231,11 +231,14 @@ export function createSpeechDriver(
       cancel();
       const gen = ++generation;
       // Spoken text: words and code atoms; math atoms are left out, and their characters with them.
+      // A chip (a long atom shown as a numbered token) is read as the word "code" or "formula".
       // A long sentence is split at chunk boundaries into parts of at most 200 characters (p5b-r2).
       const parts: Part[] = [];
       let part: Part = { text: '', starts: [], words: 0 };
       chunks.forEach((c, chunk) => {
-        const spoken = c.tokens.filter((t) => !(t.kind === 'atom' && t.atom === 'math'));
+        const spoken = c.tokens
+          .filter((t) => t.kind !== 'atom' || t.atom !== 'math' || t.full !== undefined)
+          .map((t) => (t.kind === 'atom' && t.full !== undefined ? { ...t, text: t.atom === 'code' ? 'code' : 'formula' } : t));
         if (spoken.length === 0) return;
         const piece = spoken.map((t) => t.text).join(' ');
         if (part.text && part.text.length + 1 + piece.length > MAX_UTTERANCE_CHARS) {

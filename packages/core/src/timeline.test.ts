@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, normalizeSettings, type Settings } from './settings';
 import { doc, exhibit, flatList, item, list, prose, section } from './testing/doc';
 import type { Block, Token } from './model';
-import { buildTimeline, exhibitKey, type Step } from './timeline';
+import { buildTimeline, exhibitKey, exhibitKind, type BlockExhibit, type Step } from './timeline';
 
 const settings = (over: Partial<Settings> = {}) => normalizeSettings({ ...DEFAULT_SETTINGS, ...over });
 const kinds = (d: ReturnType<typeof doc>, s = settings()) => buildTimeline(d, s).steps.map((st) => st.kind);
@@ -203,14 +203,14 @@ describe('buildTimeline: exhibits', () => {
     );
     const t = buildTimeline(d, s);
     expect(t.steps.map((st) => st.kind)).toEqual(['chapter', 'chunk', 'chunk', 'stop', 'chapter', 'chunk']);
-    expect(t.sections.map((sec) => sec.exhibits.map((e) => [e.block.kind, e.blockIndex, e.revealAt]))).toEqual([
+    expect(t.sections.map((sec) => sec.exhibits.map((e) => [exhibitKind(e), e.blockIndex, e.revealAt]))).toEqual([
       [
         ['table', 1, 2],
         ['code', 3, 3],
       ],
       [['table', 1, 6]],
     ]);
-    expect(t.sections[0].exhibits[0].block).toBe(table);
+    expect((t.sections[0].exhibits[0] as BlockExhibit).block).toBe(table);
   });
 });
 

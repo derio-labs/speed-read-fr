@@ -67,6 +67,8 @@ export type TimelineExhibit = BlockExhibit | InlineExhibit;
 /** Identity of an exhibit within its section: `b<blockIndex>`, or `b<blockIndex>i<inlineIndex>` for an inline one. */
 export const exhibitKey = (e: TimelineExhibit): string => (e.inline ? `b${e.blockIndex}i${e.inlineIndex}` : `b${e.blockIndex}`);
 
+export const exhibitKind = (e: TimelineExhibit): ExhibitKind => (e.inline ? e.kind : e.block.kind);
+
 /** The key of the exhibit a stop or dwell step is about. */
 export const stepExhibitKey = (step: Pick<StepPosition, 'blockIndex'> & { inlineIndex?: number }): string =>
   `b${step.blockIndex}${step.inlineIndex !== undefined ? `i${step.inlineIndex}` : ''}`;

@@ -302,6 +302,7 @@ export const READER_CSS = `
 .sr-exhibit-caption { display: flex; justify-content: space-between; gap: 8px; padding: 7px 12px; font-size: 12px; color: var(--sr-muted); border-bottom: 1px solid var(--sr-border); background: var(--sr-surface); }
 .sr-exhibit-kind { font-weight: 650; color: var(--sr-text); }
 .sr-exhibit-body { padding: 10px 12px; overflow: auto; max-height: 420px; }
+.sr-inline-exhibit { margin: 0; font-family: var(--sr-mono); font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* Pictures and diagrams fit; an SVG inside KaTeX (a radical, an arrow) keeps KaTeX's own sizing. */
 .sr-exhibit-body img, .sr-exhibit-body svg:not(.katex svg), .sr-expanded-body img, .sr-expanded-body svg:not(.katex svg), .sr-reading img, .sr-reading svg:not(.katex svg) { max-width: 100%; height: auto; }
 /* Expanded over the whole reader (spec section 13): up to 92 % of its width and 88 % of its height. */

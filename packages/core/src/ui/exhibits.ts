@@ -1,6 +1,6 @@
 import type { ExhibitBlock } from '../model';
 import type { StepEvent } from '../player';
-import type { StepPosition, TimelineExhibit } from '../timeline';
+import { exhibitKey, exhibitKind, stepExhibitKey, type StepPosition, type TimelineExhibit } from '../timeline';
 import type { ReaderContext, Zone } from './context';
 import { icon, ICONS } from './dom';
 import { EXHIBIT_LABELS, plural } from './format';
@@ -16,6 +16,15 @@ function details(block: ExhibitBlock): string {
   return parts.join(' · ');
 }
 
+/** What the caption says about an exhibit of either kind. */
+function exhibitDetails(exhibit: TimelineExhibit): string {
+  return exhibit.inline ? `inline · ${plural(exhibit.text.length, 'character')}` : details(exhibit.block);
+}
+
+/** Sort position of an exhibit: its block, then its place within it. */
+const position = (exhibit: TimelineExhibit): [number, number] => [exhibit.blockIndex, exhibit.inline ? exhibit.inlineIndex : 0];
+const before = (a: [number, number], b: [number, number]) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
+
 export interface ExhibitElements {
   pane: HTMLElement;
   /** The reader's layout root; the expanded view covers it (spec section 13, p3-r18). */
@@ -30,6 +39,9 @@ export interface ExhibitZone extends Zone {
 interface Shown {
   item: HTMLElement;
   node: Node;
+  /** The node came from the host and goes back to it; an inline exhibit's own node does not. */
+  hosted: boolean;
+  at: [number, number];
 }
 
 /** The exhibit pane (revealed non-prose blocks of the current section) and the expanded view (E). */
@@ -41,36 +53,53 @@ export function createExhibits(ctx: ReaderContext, { pane, root }: ExhibitElemen
   pane.append(h('div', { class: 'sr-exhibits-head', 'aria-hidden': 'true' }, 'Exhibits'), list);
 
   let shownSection: string | null = null;
-  const shown = new Map<number, Shown>();
-  let expanded: { overlay: HTMLElement; node: Node } | null = null;
+  const shown = new Map<string, Shown>();
+  let expanded: { overlay: HTMLElement; node: Node; hosted: boolean } | null = null;
 
-  function caption(block: ExhibitBlock) {
-    return h('figcaption', { class: 'sr-exhibit-caption' }, h('span', { class: 'sr-exhibit-kind' }, EXHIBIT_LABELS[block.kind]), h('span', {}, details(block)));
+  function caption(exhibit: TimelineExhibit) {
+    return h('figcaption', { class: 'sr-exhibit-caption' }, h('span', { class: 'sr-exhibit-kind' }, EXHIBIT_LABELS[exhibitKind(exhibit)]), h('span', {}, exhibitDetails(exhibit)));
+  }
+
+  /** The exhibit's content: an inline one is the atom's text, built here; a block is the host's to render. */
+  function content(exhibit: TimelineExhibit, use: 'pane' | 'expanded'): { node: Node; hosted: boolean } {
+    if (exhibit.inline) return { node: h('pre', { class: 'sr-inline-exhibit' }, h('code', {}, exhibit.text)), hosted: false };
+    return { node: host.exhibit(exhibit.block, use), hosted: true };
+  }
+
+  function discard({ node, hosted }: { node: Node; hosted: boolean }) {
+    if (hosted) host.release(node);
   }
 
   function clear() {
-    for (const { item, node } of shown.values()) {
+    for (const { item, ...rest } of shown.values()) {
       item.remove();
-      host.release(node);
+      discard(rest);
     }
     shown.clear();
   }
 
   function add(exhibit: TimelineExhibit) {
-    const node = host.exhibit(exhibit.block, 'pane');
-    const item = h('figure', { class: 'sr-exhibit', 'data-block': exhibit.blockIndex, 'data-kind': exhibit.block.kind }, caption(exhibit.block), h('div', { class: 'sr-exhibit-body' }, node));
-    const next = [...shown.entries()].filter(([at]) => at > exhibit.blockIndex).sort(([a], [b]) => a - b)[0];
-    list.insertBefore(item, next ? next[1].item : null);
-    shown.set(exhibit.blockIndex, { item, node });
+    const { node, hosted } = content(exhibit, 'pane');
+    const key = exhibitKey(exhibit);
+    const item = h(
+      'figure',
+      { class: 'sr-exhibit', 'data-block': exhibit.blockIndex, 'data-key': key, 'data-kind': exhibitKind(exhibit) },
+      caption(exhibit),
+      h('div', { class: 'sr-exhibit-body' }, node),
+    );
+    const at = position(exhibit);
+    const next = [...shown.values()].filter((o) => before(at, o.at)).sort((a, b) => (before(a.at, b.at) ? -1 : 1))[0];
+    list.insertBefore(item, next ? next.item : null);
+    shown.set(key, { item, node, hosted, at });
   }
 
-  function sync(sectionId: string | undefined, active: number | null) {
+  function sync(sectionId: string | undefined, active: string | null) {
     if (sectionId !== shownSection) {
       clear();
       shownSection = sectionId ?? null;
     }
     if (sectionId !== undefined) {
-      for (const exhibit of player.revealedExhibits(sectionId)) if (!shown.has(exhibit.blockIndex)) add(exhibit);
+      for (const exhibit of player.revealedExhibits(sectionId)) if (!shown.has(exhibitKey(exhibit))) add(exhibit);
     }
     for (const [at, { item }] of shown) {
       if (at === active) {
@@ -92,35 +121,36 @@ export function createExhibits(ctx: ReaderContext, { pane, root }: ExhibitElemen
 
   function onStep({ step }: StepEvent) {
     if (step.kind === 'end') return sync(ctx.timeline.sections[ctx.timeline.sections.length - 1]?.id, null);
-    sync(step.sectionId, step.kind === 'stop' || step.kind === 'dwell' ? step.blockIndex : null);
+    sync(step.sectionId, step.kind === 'stop' || step.kind === 'dwell' ? stepExhibitKey(step) : null);
   }
 
   function closeExpanded() {
     if (!expanded) return;
-    const { overlay, node } = expanded;
+    const { overlay, ...content } = expanded;
     expanded = null;
     overlay.remove();
-    host.release(node);
+    discard(content);
     ctx.reader.focus({ preventScroll: true });
   }
 
-  function openExpanded(at: StepPosition) {
-    const exhibit = ctx.timeline.sections.find((s) => s.id === at.sectionId)?.exhibits.find((e) => e.blockIndex === at.blockIndex);
+  function openExpanded(at: StepPosition & { inlineIndex?: number }) {
+    const key = stepExhibitKey(at);
+    const exhibit = ctx.timeline.sections.find((s) => s.id === at.sectionId)?.exhibits.find((e) => exhibitKey(e) === key);
     if (!exhibit) return;
     closeExpanded();
-    const block = exhibit.block;
-    const node = host.exhibit(block, 'expanded');
+    const kind = exhibitKind(exhibit);
+    const { node, hosted } = content(exhibit, 'expanded');
     const close = h('button', { type: 'button', class: 'sr-icon-button', 'aria-label': 'Close exhibit', title: 'Close (E or Esc)' }, icon(ctx.document, ICONS.close));
     close.addEventListener('click', closeExpanded);
-    const label = [EXHIBIT_LABELS[block.kind], details(block)].filter(Boolean).join(' · ');
+    const label = [EXHIBIT_LABELS[kind], exhibitDetails(exhibit)].filter(Boolean).join(' · ');
     const overlay = h(
       'div',
-      { class: 'sr-expanded', role: 'dialog', 'aria-label': `${EXHIBIT_LABELS[block.kind]}, expanded` },
+      { class: 'sr-expanded', role: 'dialog', 'aria-label': `${EXHIBIT_LABELS[kind]}, expanded` },
       h('div', { class: 'sr-expanded-head' }, h('span', { class: 'sr-expanded-title' }, label), h('span', {}, 'E or Esc to close'), close),
       h('div', { class: 'sr-expanded-body' }, node),
     );
     root.append(overlay);
-    expanded = { overlay, node };
+    expanded = { overlay, node, hosted };
   }
 
   const off = [player.on('step', onStep), player.on('expand', openExpanded)];

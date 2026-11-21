@@ -458,3 +458,49 @@ describe('formatDuration', () => {
     expect(formatDuration(150_000)).toBe('3 min');
   });
 });
+
+describe('inline exhibit stops in flow mode', () => {
+  const LONG = 'first_long_identifier_name_here';
+  const HTML = `<p>Call <code>${LONG}</code> then go on.</p>`;
+  const flow = { readingMode: 'flow' as const };
+  const runToStop = (t: ReturnType<typeof mountHarness>) => {
+    for (let i = 0; i < 50 && t.handle.player.state === 'playing'; i++) t.clock.advance(t.clock.nextIn() ?? 0);
+  };
+
+  it('keeps the ribbon with the chip on the target and the prompt in the details panel', () => {
+    const t = mountHarness(HTML, { bottomStage: true, settings: flow });
+    t.handle.player.toggle();
+    runToStop(t);
+    expect(t.handle.player.state).toBe('stopped');
+    expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
+    expect(t.q('.sr-ribbon')).not.toBeNull();
+    expect(text(t.q('.sr-flow-mid')!.closest('.sr-w'))).toBe('⟨code 1⟩');
+    const details = t.q('.sr-stage-details')!;
+    expect(details.hidden).toBe(false);
+    expect(details.querySelector('.sr-card-stop')).not.toBeNull();
+    expect(text(details)).toContain('Space to continue');
+    t.handle.player.continue();
+    expect(details.hidden).toBe(true);
+    expect(details.childNodes).toHaveLength(0);
+    expect(text(t.q('.sr-flow-mid')!.closest('.sr-w'))).toBe('then');
+  });
+
+  it('puts the prompt in the status line on a reader without a details panel', () => {
+    const t = mountHarness(HTML, { settings: flow });
+    t.handle.player.toggle();
+    runToStop(t);
+    expect(t.q('.sr-ribbon')).not.toBeNull();
+    expect(t.q('.sr-card-stop')).toBeNull();
+    expect(text(t.q('.sr-status'))).toContain('Space to continue');
+    t.handle.player.continue();
+    expect(text(t.q('.sr-status'))).not.toContain('Space to continue');
+  });
+
+  it('shows a dwell prompt beside the ribbon too', () => {
+    const t = mountHarness(HTML, { bottomStage: true, settings: { ...flow, code: { mode: 'dwell', dwellSeconds: 4 } } });
+    t.handle.player.toggle();
+    for (let i = 0; i < 2; i++) t.clock.advance(t.clock.nextIn() ?? 0);
+    expect(t.q('.sr-stage-details .sr-card-dwell')).not.toBeNull();
+    expect(t.q('.sr-ribbon')).not.toBeNull();
+  });
+});

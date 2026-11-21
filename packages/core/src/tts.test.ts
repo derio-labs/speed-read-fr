@@ -382,3 +382,12 @@ describe('review p5b-r15: boundary mapping', () => {
     expect(h.onEnd).not.toHaveBeenCalled();
   });
 });
+
+describe('speech driver: chips', () => {
+  it('reads a chip as the word "code" or "formula", never its original text', () => {
+    const { driver, speech, handlers } = setup();
+    const chip = (atom: 'code' | 'math', n: number, full: string): Token => ({ kind: 'atom', atom, text: `⟨${atom} ${n}⟩`, full });
+    driver.speak([{ tokens: [w('Call')] }, { tokens: [chip('code', 1, 'a'.repeat(30))] }, { tokens: [chip('math', 1, '\\frac{1}{2}'.repeat(3))] }], 300, handlers);
+    expect(speech.spoken[0].text).toBe('Call code formula');
+  });
+});

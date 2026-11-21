@@ -1,7 +1,7 @@
 import type { SourceRef, Token } from './model';
 import { isRamped, rampFactor, stepDuration } from './pacing';
 import type { Settings } from './settings';
-import type { Step, StepPosition, Timeline, TimelineExhibit, TimelineSection } from './timeline';
+import { exhibitKey, type Step, type StepPosition, type Timeline, type TimelineExhibit, type TimelineSection } from './timeline';
 import type { SpeechDriver } from './tts';
 
 /** Timer functions the player runs on; tests inject a fake clock. */
@@ -37,8 +37,8 @@ export interface PlayerEvents {
   state: PlayerState;
   position: PositionEvent;
   settings: Settings;
-  /** E on an exhibit step: the exhibit to show expanded. */
-  expand: StepPosition;
+  /** E on an exhibit step: the exhibit to show expanded (`inlineIndex` names an inline one within its block). */
+  expand: StepPosition & { inlineIndex?: number };
   /** Text-to-speech without word boundaries: show steps `from`..`to` (one sentence) whole until it ends. */
   whole: { from: number; to: number };
 }
@@ -100,8 +100,12 @@ function sourceMatches(ref: SourceRef, source: SourceRef): boolean {
   return target === el || (typeof target.contains === 'function' && target.contains(el));
 }
 
-/** Identity of an exhibit across rebuilt timelines: its DOM element, else its block. */
-const exhibitKey = (e: TimelineExhibit): unknown => e.block.source.element ?? e.block;
+/**
+ * Identity of an exhibit across rebuilt timelines: a block exhibit's DOM element, else its block; an inline
+ * one's key within its section (block indices survive a rebuild, the exhibit objects do not).
+ */
+const identity = (e: TimelineExhibit, sectionId: string): unknown =>
+  e.inline ? `${sectionId}/${exhibitKey(e)}` : (e.block.source.element ?? e.block);
 
 /** A title as spoken: its tokens without math (p5b-r8), else its words. */
 const titleTokens = (step: Extract<Step, { kind: 'title' }>): Token[] =>
@@ -144,14 +148,16 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
   let carriedWords = 0;
 
   // Exhibits are revealed once the reading position passes their reveal step, in timeline order.
-  let byReveal: TimelineExhibit[] = [];
+  let byReveal: { exhibit: TimelineExhibit; id: unknown }[] = [];
   let revealCursor = 0;
   const revealed = new Set<unknown>();
 
   function load(timeline: Timeline) {
     steps = timeline.steps;
     sections = timeline.sections;
-    byReveal = sections.flatMap((s) => s.exhibits).sort((a, b) => a.revealAt - b.revealAt);
+    byReveal = sections
+      .flatMap((s) => s.exhibits.map((exhibit) => ({ exhibit, id: identity(exhibit, s.id) })))
+      .sort((a, b) => a.exhibit.revealAt - b.exhibit.revealAt);
     revealCursor = 0;
   }
   load(initialTimeline);
@@ -256,8 +262,8 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
   }
 
   function markPassed(at: number) {
-    while (revealCursor < byReveal.length && byReveal[revealCursor].revealAt <= at) {
-      revealed.add(exhibitKey(byReveal[revealCursor++]));
+    while (revealCursor < byReveal.length && byReveal[revealCursor].exhibit.revealAt <= at) {
+      revealed.add(byReveal[revealCursor++].id);
     }
   }
 
@@ -475,7 +481,12 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
         cancelTimer();
         setState('paused');
       }
-      emit('expand', { sectionId: step.sectionId, blockIndex: step.blockIndex, source: step.source });
+      emit('expand', {
+        sectionId: step.sectionId,
+        blockIndex: step.blockIndex,
+        source: step.source,
+        ...(step.inlineIndex !== undefined ? { inlineIndex: step.inlineIndex } : {}),
+      });
     },
     close() {
       if (state === 'closed') return;
@@ -485,7 +496,7 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
     scrub,
     revealedExhibits(sectionId) {
       const section = sections.find((s) => s.id === sectionId);
-      return section ? section.exhibits.filter((e) => revealed.has(exhibitKey(e))) : [];
+      return section ? section.exhibits.filter((e) => revealed.has(identity(e, section.id))) : [];
     },
     replaceTimeline(timeline, nextSettings) {
       if (state === 'closed') return;

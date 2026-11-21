@@ -118,3 +118,67 @@ describe('expanded exhibit', () => {
     expect(t.live.size).toBe(0);
   });
 });
+
+describe('inline exhibits', () => {
+  const LONG1 = 'first_long_identifier_name_here';
+  const LONG2 = 'second_long_identifier_name_here';
+  const INLINE = `<p>Call <code>${LONG1}</code> then <code>${LONG2}</code> now.</p><pre id="blk">x</pre><p>Done.</p>`;
+  const flow = { readingMode: 'flow' as const };
+
+  it('lists each long atom as its own item, keyed by identity, without asking the host', () => {
+    const t = mountHarness(INLINE, { settings: flow });
+    t.handle.player.toggle();
+    runToStop(t);
+    expect(paneItems(t)).toHaveLength(1);
+    expect(paneItems(t)[0].dataset.key).toBe('b0i1');
+    expect(paneItems(t)[0].getAttribute('aria-current')).toBe('true');
+    expect(paneItems(t)[0].querySelector('pre > code')!.textContent).toBe(LONG1);
+    expect(paneCalls(t)).toHaveLength(0);
+    t.handle.player.continue();
+    runToStop(t);
+    expect(paneItems(t).map((i) => i.dataset.key)).toEqual(['b0i1', 'b0i2']);
+    expect(paneItems(t).map((i) => i.getAttribute('aria-current'))).toEqual([null, 'true']);
+    expect(paneItems(t)[1].querySelector('pre > code')!.textContent).toBe(LONG2);
+  });
+
+  it('orders block and inline exhibits by position and keeps block exhibits on the host', () => {
+    const t = mountHarness(INLINE, { settings: flow });
+    t.handle.player.toggle();
+    for (let i = 0; i < 3; i++) {
+      runToStop(t);
+      t.handle.player.continue();
+    }
+    runToStop(t);
+    expect(paneItems(t).map((i) => i.dataset.key)).toEqual(['b0i1', 'b0i2', 'b1']);
+    expect(paneCalls(t)).toHaveLength(1);
+    expect(paneCalls(t)[0][0]).toBe(t.doc.sections[0].blocks[1]);
+  });
+
+  it('lists a skipped inline exhibit once passed', () => {
+    const t = mountHarness(INLINE, { settings: { ...flow, code: { mode: 'skip', dwellSeconds: 5 } } });
+    t.handle.player.toggle();
+    t.clock.advance(60_000);
+    expect(paneItems(t).map((i) => i.dataset.key)).toEqual(['b0i1', 'b0i2', 'b1']);
+  });
+
+  it('E on an inline stop expands it in core: pre/code, no host call, released with the overlay', () => {
+    const t = mountHarness(INLINE, { settings: flow });
+    t.handle.player.toggle();
+    runToStop(t);
+    t.handle.player.expand();
+    expect(t.host.exhibit.mock.calls.filter(([, use]) => use === 'expanded')).toHaveLength(0);
+    const overlay = t.q('.sr-layout > .sr-expanded')!;
+    expect(overlay.querySelector('pre > code')!.textContent).toBe(LONG1);
+    t.q<HTMLButtonElement>('.sr-expanded .sr-icon-button')!.click();
+    expect(t.q('.sr-expanded')).toBeNull();
+  });
+
+  it('shows math as its TeX source', () => {
+    const t = mountHarness(`<p>See <span class="katex"><annotation encoding="application/x-tex">${'\\frac{a_{12345}}{b_{67890}}'}</annotation></span> here.</p>`, {
+      settings: flow,
+    });
+    t.handle.player.toggle();
+    runToStop(t);
+    expect(paneItems(t)[0]?.querySelector('pre > code')?.textContent).toBe('\\frac{a_{12345}}{b_{67890}}');
+  });
+});
