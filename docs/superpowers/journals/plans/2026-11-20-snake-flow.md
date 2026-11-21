@@ -295,3 +295,8 @@ chunk-cap.test.ts:76-102. Assert same source and sentenceIndex after rebuild.
 ### l-tests-r6 · finding [open] (reviewer: in scope) · Ribbon visibility is toBeVisible only; no hit-test
 
 Add elementFromPoint for each row and the lit .sr-flow-mid on both layouts, sidebar open.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r7 created=2026-11-21T13:01:34+00:00 state=open review_scope=in -->
+### l-tests-r7 · finding [open] (reviewer: in scope) · No extension (dock/overlay, shadow DOM) test covers flow mode or the measured fit
+
+extension.spec.ts:547. Add flow-mode and fit checks for dock and overlay.
