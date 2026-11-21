@@ -145,3 +145,8 @@ mount.ts:154, styles.ts .sr-fit-probe. Measure a prose sample at the chunk's rea
 ### p2-r2 · finding [open] (reviewer: in scope) · Fit measured on the wide flow stage: flow->chunk rebuilds twice, flow-mode panel max 77-80 (phase 2)
 
 mount.ts:266-272. Measure/keep fit only in chunk mode; on switch measure after data-reading-mode changes, before building the timeline.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r3 created=2026-11-21T12:50:29+00:00 phase=2 state=open review_scope=in -->
+### p2-r3 · finding [open] (reviewer: in scope) · Exhibits sync never removes cards: inline exhibit cards stay after flow->chunk (phase 2)
+
+exhibits.ts sync. Drop shown entries not in revealedExhibits(sectionId).
