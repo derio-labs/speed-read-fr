@@ -140,3 +140,8 @@ tests, a demo fixture and README text only; nothing to restructure
 ### p2-r1 · finding [open] (reviewer: in scope) · Fit probe '0'x10 at weight 500 overstates char width (15.1 vs 10.8px): fit 26 where ~36 fit; 40-char check became 19-char (phase 2)
 
 mount.ts:154, styles.ts .sr-fit-probe. Measure a prose sample at the chunk's real weight; e2e shows a chunk at/near fit whole.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r2 created=2026-11-21T12:50:28+00:00 phase=2 state=open review_scope=in -->
+### p2-r2 · finding [open] (reviewer: in scope) · Fit measured on the wide flow stage: flow->chunk rebuilds twice, flow-mode panel max 77-80 (phase 2)
+
+mount.ts:266-272. Measure/keep fit only in chunk mode; on switch measure after data-reading-mode changes, before building the timeline.
