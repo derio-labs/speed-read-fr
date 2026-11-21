@@ -390,3 +390,13 @@ c17045a: elementFromPoint hit-tests for rows and lit letter, both layouts, sideb
 ### l-tests-r7-resolved · finding [fixed] · resolves l-tests-r7: No extension (dock/overlay, shadow DOM) test covers flow mode or the measured fit
 
 c17045a: Extension dock/overlay flow and measured-fit tests; red under r3/r6 mutations.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r4-resolved-2 created=2026-11-21T14:13:43+00:00 phase=1 state=open resolves=p1-r4 tracked_by=https://github.com/derio-labs/speed-read-fr/issues/12 -->
+### p1-r4-resolved-2 · finding [deferred → https://github.com/derio-labs/speed-read-fr/issues/12] · resolves p1-r4: Pre-existing dial wheel gain (x4-x6.8) makes fast wheel turns jump many words (phase 1)
+
+Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/12.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r9-resolved-2 created=2026-11-21T14:13:43+00:00 state=open resolves=l-simplicity-r9 tracked_by=https://github.com/derio-labs/speed-read-fr/issues/13 -->
+### l-simplicity-r9-resolved-2 · finding [deferred → https://github.com/derio-labs/speed-read-fr/issues/13] · resolves l-simplicity-r9: [5,80] chunkChars bounds duplicated across settings.ts, settings-panel and chunk-fit.ts
+
+Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/13.
