@@ -30,6 +30,26 @@ rows:
     status: not-implemented
     notes: ''
     verify: none
+  - id: reader-snake-flow
+    capability: reader-ui
+    acceptance: In flow mode the reader shows three rows of one continuous text ribbon
+      in a near-full-width window; words glide one at a time into a fixed braced target
+      at the middle row's centre with their middle letter red, the ribbon wrapping upward
+      bottom to middle to top; the wheel moves it backward or forward word by word,
+      and cards and stops behave as in chunk mode.
+    origin:
+    - spec:2026-11-20-snake-flow#R1
+    - spec:2026-11-20-snake-flow#R2
+    - spec:2026-11-20-snake-flow#R3
+    - spec:2026-11-20-snake-flow#R4
+    - spec:2026-11-20-snake-flow#R5
+    - spec:2026-11-20-snake-flow#R6
+    - spec:2026-11-20-snake-flow#R7
+    - spec:2026-11-20-snake-flow#R10
+    - spec:2026-11-20-snake-flow#R12
+    levels: {}
+    status: not-implemented
+    notes: Snake ribbon replaces the shipped three-chunk display
 amendments:
   - row: reader-three-row-flow
     op: reword
