@@ -1,0 +1,22 @@
+schema_version: 12
+run: 2026-11-20-feat-snake-flow
+step: review-phase
+item: phase/1
+outcome: done
+journal:
+  - kind: review
+    id: p1-review-1
+    phase: 1
+    title: "phase 1 independent review: 3 in-scope (minor), 1 out-of-scope"
+    body: |
+      Independent reviewer measured the bottom-stage demo (floating, panel, 700px): row seams join to the pixel, no skipped or duplicated words, middle letter within 0.02px of target, braces = word width + 8px, glide 66.7ms at 300 wpm and 0 under reduced motion, stage 1198px floating / 1440px panel, chunk mode 420px unchanged, ~0.5ms per step. Raised p1-r1 (glide lost on window re-centre), p1-r2 (lit letter during speech hold), p1-r3 (row width measured per step), p1-r4 (out: pre-existing dial wheel gain); confirmed p1-panel-outline-overlap-f. All in-scope findings fixed in 1482a35 and f0bc84e with tests; full suite green after the fixes (.visual/phase1-fix-suite.log).
+resolves:
+  - {id: p1-r1, state: fixed, body: "1482a35: new window seeded at the previous position and glides; unit test asserts non-zero --sr-glide on the re-centring step."}
+  - {id: p1-r2, state: fixed, body: "1482a35: held ribbon lights no middle letter; tts-panel tests expect no .sr-flow-mid while held."}
+  - {id: p1-r3, state: fixed, body: "1482a35: row width measured once per layout in measureRibbon; glideMs reuses pacing.baseMs."}
+  - {id: p1-panel-outline-overlap-f, state: fixed, body: "f0bc84e: flow stage starts at the open sidebar's right edge (--sr-flow-inset, updated on resize and drawer toggle); Playwright check at 1440px panel."}
+  - {id: p1-r4, state: out-of-scope, body: "Dial wheel gain lives in dial-strip.ts, untouched by this change; the operator asked the wheel to behave as before. Raised with the operator as an optional flow-mode cap."}
+evidence:
+  review: p1-review-1
+  reviewer: acef5f2eaaa22d826
+  model: claude-opus-5-5
