@@ -165,3 +165,8 @@ Pre-existing for block stops. Cheap fix: apply --sr-flow-inset to .sr-stage-supp
 ### p2-r6 · finding [open] (reviewer: in scope) · Panel e2e asserts toBeVisible on a stop card covered by the outline; needs a hit-test (phase 2)
 
 tests/e2e/core.spec.ts inline-chip panel test. Assert elementFromPoint at card centre hits the card; requires making the support area clear the sidebar in flow mode.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r7 created=2026-11-21T12:50:32+00:00 phase=2 state=open review_scope=in -->
+### p2-r7 · finding [open] (reviewer: in scope) · exhibitKey and stepExhibitKey each build the b<k>i<n> key (phase 2)
+
+timeline.ts:69-74. One helper from (blockIndex, inlineIndex?).
