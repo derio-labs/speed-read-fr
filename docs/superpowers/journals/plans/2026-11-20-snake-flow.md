@@ -400,3 +400,8 @@ Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/12.
 ### l-simplicity-r9-resolved-2 · finding [deferred → https://github.com/derio-labs/speed-read-fr/issues/13] · resolves l-simplicity-r9: [5,80] chunkChars bounds duplicated across settings.ts, settings-panel and chunk-fit.ts
 
 Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/13.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r5-resolved-2 created=2026-11-21T14:13:59+00:00 state=fixed resolves=p2-r5 answered_by=operator -->
+### p2-r5-resolved-2 · finding [fixed] · resolves p2-r5: Panel layout: contents sidebar covers the stage-support area (prompts, exhibits); also for block stops in chunk mode
+
+eae9dff applies the sidebar inset to the stage-support area, clearing the stop prompt and exhibit cards for inline and block stops alike; operator approved marking it fixed.
