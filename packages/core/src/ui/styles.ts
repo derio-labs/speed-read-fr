@@ -470,7 +470,7 @@ export const READER_CSS = `
   .sr-reader .sr-stage, .sr-reader .sr-main, .sr-reader .sr-exhibits, .sr-ribbon-line, .sr-flow-target { transition: none !important; }
 }
 /* Browser only: content takes the spare room, never the chunk box's room. */
-.sr-reader[data-bottom-stage] { --sr-axis: 50%; min-height: 0; }
+.sr-reader[data-bottom-stage] { --sr-axis: 50%; --sr-chunk-font: 24px; min-height: 0; }
 .sr-reader[data-bottom-stage] .sr-main { min-height: 0; }
 .sr-reader[data-bottom-stage] .sr-toolbar { padding-block: 5px; }
 .sr-reader[data-bottom-stage] .sr-status-wpm { white-space: nowrap; }
@@ -492,7 +492,17 @@ export const READER_CSS = `
 .sr-reader[data-bottom-stage] .sr-chunk {
   position: absolute; inset: 0; margin: 0; display: grid; align-items: center;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  font-size: 24px; line-height: 1.4; letter-spacing: normal; white-space: pre;
+  font-size: calc(var(--sr-chunk-font) * var(--sr-scale, 1)); line-height: 1.4; letter-spacing: normal; white-space: pre;
+}
+/* Chunk wider than the stage even at the smallest scale: two centred lines, never cut off. */
+.sr-reader[data-bottom-stage] .sr-display[data-wrap] .sr-chunk {
+  position: static; display: block; width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; line-height: 1.25;
+}
+.sr-reader[data-bottom-stage] .sr-display[data-wrap] :is(.sr-before, .sr-after) { text-align: inherit; overflow: visible; text-overflow: clip; }
+/* Measures one character of the chunk font for the characters that fit the stage (mount.ts). */
+.sr-fit-probe {
+  position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; white-space: pre;
+  font-size: var(--sr-chunk-font, 24px); font-weight: 500; letter-spacing: normal; line-height: 1;
 }
 .sr-reader[data-bottom-stage] .sr-before { text-align: right; overflow: hidden; }
 .sr-reader[data-bottom-stage] .sr-after { overflow: hidden; text-overflow: ellipsis; }

@@ -305,14 +305,14 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
         : null;
     setDisplay(step.kind, h('div', { class: 'sr-axis' }), counter, chunk);
     if (step.kind === 'item-chunk') display.style.setProperty('--sr-depth', String(step.depth));
-    if (details) return;
-    aligned = { chunk, before, pivot, depth: step.kind === 'item-chunk' ? step.depth : 0 };
+    aligned = { chunk, before, pivot, after, depth: step.kind === 'item-chunk' ? step.depth : 0 };
     align();
-    showSentence(step, index);
+    // The bottom stage has no faded sentence under the chunk.
+    if (!details) showSentence(step, index);
   }
 
   /** The chunk on show, kept so a resize can align it again. */
-  let aligned: { chunk: HTMLElement; before: HTMLElement; pivot: HTMLElement; depth: number } | null = null;
+  let aligned: { chunk: HTMLElement; before: HTMLElement; pivot: HTMLElement; after: HTMLElement; depth: number } | null = null;
 
   /**
    * Put the pivot on the axis; shrink the chunk (not below MIN_SCALE) when it would overflow the stage,
@@ -320,17 +320,26 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
    */
   function align() {
     if (!aligned || !aligned.chunk.isConnected) return;
-    const { chunk, before, pivot, depth } = aligned;
+    const { chunk, before, pivot, after, depth } = aligned;
     chunk.style.removeProperty('--sr-scale');
     delete display.dataset.wrap;
     const width = (el: Element) => (typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect().width : 0);
-    const left = width(before);
-    const pivotHalf = width(pivot) / 2;
-    const total = width(chunk);
+    /** The text's own width: the bottom stage's grid stretches its parts, so a part's box is not its text. */
+    const textWidth = (el: HTMLElement) => {
+      const range = ctx.document.createRange();
+      if (!el.textContent) return 0;
+      range.selectNodeContents(el);
+      const measured = typeof range.getBoundingClientRect === 'function' ? range.getBoundingClientRect().width : 0;
+      return measured > 0 ? measured : width(el);
+    };
+    const left = details ? textWidth(before) : width(before);
+    const pivotHalf = (details ? textWidth(pivot) : width(pivot)) / 2;
+    const total = details ? left + 2 * pivotHalf + textWidth(after) : width(chunk);
     const room = width(display);
     let shift = left + pivotHalf;
     if (room > 0 && total > 0) {
-      const axisX = room * AXIS + depth * DEPTH_PX;
+      // The bottom stage centres the pivot (its axis is at 50%, with no list indent).
+      const axisX = details ? room / 2 : room * AXIS + depth * DEPTH_PX;
       let scale = Math.min(1, (axisX - EDGE_PX) / Math.max(shift, 1), (room - axisX - EDGE_PX) / Math.max(total - shift, 1));
       if (scale < 1) {
         if (scale < MIN_SCALE) {
@@ -556,7 +565,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   const Observer = (ctx.document.defaultView as (Window & { ResizeObserver?: typeof ResizeObserver }) | null)?.ResizeObserver ?? globalThis.ResizeObserver;
   const resize = Observer
     ? new Observer(() => {
-        if (!details) align();
+        align();
         syncInset();
         relayoutRibbon();
       })
