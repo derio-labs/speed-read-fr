@@ -543,13 +543,13 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   }
   /**
    * In the docked panel the contents sidebar overlays the stage's left edge: a flow stage starts at its right edge
-   * (`--sr-flow-inset`), so the target is centred in the visible area. No sidebar showing, no inset.
+   * (`--sr-flow-inset`), so the target is centred in the visible area; the support area (stop prompts, exhibits) clears it in every mode. No sidebar showing, no inset.
    */
   function syncInset() {
     const root = ctx.reader;
     let inset = 0;
     const outline = root.querySelector<HTMLElement>('.sr-outline');
-    if (outline && root.hasAttribute('data-bottom-stage') && root.dataset.layout === 'panel' && root.dataset.readingMode === 'flow') {
+    if (outline && root.hasAttribute('data-bottom-stage') && root.dataset.layout === 'panel') {
       const box = outline.getBoundingClientRect();
       if (box.width > 0 && getComputedStyle(outline).display !== 'none') inset = Math.max(0, box.right - root.getBoundingClientRect().left);
     }

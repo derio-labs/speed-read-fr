@@ -527,7 +527,7 @@ export const READER_CSS = `
 .sr-reader[data-bottom-stage][data-layout="panel"] .sr-layout { grid-template: minmax(0, 1fr) / minmax(0, 1fr); grid-template-areas: "main"; }
 .sr-reader[data-bottom-stage][data-layout="panel"] .sr-main { grid-area: main; }
 .sr-reader[data-bottom-stage][data-layout="panel"] .sr-outline { position: absolute; inset: 0 auto 0 0; }
-.sr-reader[data-bottom-stage][data-layout="panel"] .sr-stage-support { flex: 1; padding: 10px 12px; overflow: hidden; }
+.sr-reader[data-bottom-stage][data-layout="panel"] .sr-stage-support { flex: 1; padding: 10px 12px; overflow: hidden; margin-left: var(--sr-flow-inset, 0px); }
 .sr-reader[data-bottom-stage][data-layout="floating"] .sr-layout {
   display: grid; grid-template: minmax(0, 1fr) auto auto / minmax(0, 1fr); padding: 8px 8px 12px;
 }

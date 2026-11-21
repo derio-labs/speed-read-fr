@@ -887,6 +887,18 @@ for (const layout of ['floating', 'panel'] as const) {
     expect(lit.word).toBe('⟨code 1⟩');
     expect(lit.off).toBeLessThan(1);
     await expect(details).toContainText('Space to continue');
+    await expect(details.locator('.sr-card-title')).toHaveText('Code 1');
+    // The prompt is really on screen beside the ribbon: whatever is at its centre belongs to it, not the open sidebar.
+    const hits = await page.evaluate(() => {
+      const hit = (selector: string) => {
+        const box = document.querySelector(selector)!.getBoundingClientRect();
+        const at = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return !!at && !!at.closest(selector);
+      };
+      return { outline: !!document.querySelector('.sr-outline')!.getBoundingClientRect().width, prompt: hit('.sr-stage-details .sr-card-stop'), exhibit: hit('.sr-exhibit[data-key="b0i1"]') };
+    });
+    expect(hits.prompt, 'stop prompt hit-tests inside its card').toBe(true);
+    expect(hits.exhibit, 'exhibit card hit-tests inside itself').toBe(true);
     // Its exhibit card lists the full text.
     const card = page.locator('.sr-exhibits .sr-exhibit[data-key="b0i1"]');
     await expect(card).toBeVisible();
@@ -910,24 +922,25 @@ test('E on an inline stop expands the full text of the code', async ({ page }) =
 });
 
 test.describe('chunk limits in the bottom-stage layouts', () => {
-  test('a 6-word chunk shows whole in panel layout; characters beyond what fits are clamped, not clipped', async ({ page }) => {
+  test('a 6-word chunk at the fit length shows whole in panel layout; the settings keep the stored 40', async ({ page }) => {
     await openInline(page, 'panel', { readingMode: 'chunk', chunkWords: 6, chunkChars: 40, wpm: 100 });
-    // Stored limits survive; the effective characters limit is what fits the 420px stage.
+    // Stored limits survive; the effective characters limit is what fits the 420px stage, measured on prose.
     const fit = await page.evaluate(() => {
-      const probe = document.querySelector<HTMLElement>('.sr-fit-probe')!.getBoundingClientRect().width;
+      const probe = document.querySelector<HTMLElement>('.sr-fit-probe')!;
       const display = document.querySelector<HTMLElement>('.sr-display')!.getBoundingClientRect().width;
       const reader = (window as unknown as { __reader: { player: { settings: { chunkWords: number; chunkChars: number } } } }).__reader;
-      return { fit: Math.floor(display / (probe / 10)), words: reader.player.settings.chunkWords, chars: reader.player.settings.chunkChars };
+      return { fit: Math.floor(display / (probe.getBoundingClientRect().width / (probe.textContent ?? '').length)), words: reader.player.settings.chunkWords, chars: reader.player.settings.chunkChars };
     });
+    expect(fit.fit).toBeGreaterThanOrEqual(33);
     expect(fit.words).toBe(6);
     expect(fit.chars).toBe(Math.min(40, Math.max(5, fit.fit)));
-    // Step the dial to the chunk "To be or not to be," (6 words, 19 characters).
+    // Step the dial to the 6-word, 35-character chunk "Seven quiet rivers bend under stone.".
     await page.keyboard.press('Space');
     await expect(page.locator('.sr-status-state')).toHaveText('Paused');
     const found = await page.evaluate(() => {
       const player = (window as unknown as { __reader: { player: { scrub(n: number): number } } }).__reader.player;
       for (let i = 0; i < 300; i++) {
-        if (/^To be or not to be/.test(document.querySelector('.sr-display .sr-chunk')?.textContent?.trim() ?? '')) return true;
+        if (/^Seven quiet rivers/.test(document.querySelector('.sr-display .sr-chunk')?.textContent?.trim() ?? '')) return true;
         player.scrub(1);
       }
       return false;
@@ -945,6 +958,7 @@ test.describe('chunk limits in the bottom-stage layouts', () => {
       };
     });
     expect(shown.text!.trim().split(/\s+/)).toHaveLength(6);
+    expect(shown.text!.trim().length).toBeGreaterThanOrEqual(30);
     expect(shown.clipped).toBe(false);
     expect(shown.ellipsis).toBe(false);
     expect(shown.inside).toBe(true);
