@@ -45,3 +45,8 @@ tests and README text only; the dead flow-row code was already removed in P1.T4.
 ### p1-r1 · finding [open] (reviewer: in scope) · Window re-centre rebuild resets x to null, so that step snaps without the glide every ~100 words (phase 1)
 
 stage.ts:256/235. Fix: seed the new ribbon at the previous index's mid with --sr-glide 0, reflow, then place with r.x set; unit assert non-zero glide on the re-centring step.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r2 created=2026-11-21T12:19:37+00:00 phase=1 state=open review_scope=in -->
+### p1-r2 · finding [open] (reviewer: in scope) · Speech hold with no boundaries still lights the red middle letter while braces are hidden (phase 1)
+
+stage.ts:243. Fix: lightMiddle(r, hidden ? null : index); tts-panel tests expect no .sr-flow-mid while held.
