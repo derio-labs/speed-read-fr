@@ -158,3 +158,6 @@ row_kinds:
 run_gate: tester
 run_kind: none
 ```
+
+<!-- fr:journal kind=decision scope=spec id=phase-split-2026-11-20-snake-flow-p2 created=2026-11-21T11:52:02+00:00 -->
+### phase-split-2026-11-20-snake-flow-p2 · decision · ask: long inline code (R8-R9) and the bottom-stage chunk cap (R11) are their own asks, separate from the snake ribbon
