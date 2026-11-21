@@ -246,3 +246,35 @@ describe('buildTimeline: heading sources', () => {
     expect(t.steps[0].source).not.toBe(t.steps[1].source);
   });
 });
+
+describe('buildTimeline: flow mode', () => {
+  const words = 'alpha beta gamma, delta epsilon zeta eta theta iota kappa.';
+  const tokens = (d: ReturnType<typeof doc>, over: Partial<Settings>) => {
+    const steps = buildTimeline(d, settings(over)).steps;
+    return steps.flatMap((s) => (s.kind === 'chunk' ? [s.chunk.tokens.length] : []));
+  };
+
+  it('puts one token in every prose step whatever the chunk limits', () => {
+    const d = doc(section('s', undefined, prose(words)));
+    expect(tokens(d, { readingMode: 'flow', chunkWords: 5, chunkChars: 40 })).toEqual(Array(10).fill(1));
+  });
+
+  it('puts one token in every list item step', () => {
+    const d = doc(section('s', undefined, flatList('first item has quite a few words in it', 'second item is long too, really')));
+    const steps = buildTimeline(d, settings({ readingMode: 'flow', chunkWords: 5 })).steps;
+    const item = steps.filter((s) => s.kind === 'item-chunk');
+    expect(item.length).toBeGreaterThan(8);
+    expect(item.every((s) => s.kind === 'item-chunk' && s.chunk.tokens.length === 1)).toBe(true);
+  });
+
+  it('leaves chunk mode on the stored limits', () => {
+    const d = doc(section('s', undefined, prose(words)));
+    expect(tokens(d, { readingMode: 'chunk', chunkWords: 3, chunkChars: 40 }).some((n) => n > 1)).toBe(true);
+  });
+
+  it('marks the sentence end on the last word only', () => {
+    const d = doc(section('s', undefined, prose('One two three.')));
+    const steps = buildTimeline(d, settings({ readingMode: 'flow' })).steps;
+    expect(steps.map((s) => s.kind === 'chunk' && s.chunk.endsSentence)).toEqual([false, false, true]);
+  });
+});

@@ -6,6 +6,17 @@ export interface OrpSplit {
 
 const ALNUM = /[\p{L}\p{N}]/u;
 
+/** Character offsets, in `word`, of its letters and digits. */
+export function alnumOffsets(word: string): number[] {
+  const offsets: number[] = [];
+  let offset = 0;
+  for (const ch of word) {
+    if (ALNUM.test(ch)) offsets.push(offset);
+    offset += ch.length;
+  }
+  return offsets;
+}
+
 /** Index, among a word's letters and digits, of its optimal-recognition-point letter. */
 export function pivotIndex(length: number): number {
   if (length <= 1) return 0;
@@ -17,14 +28,9 @@ export function pivotIndex(length: number): number {
 
 /** Character offset of the pivot inside `word`; the first character when the word has no letters or digits. */
 function pivotOffset(word: string): number {
-  const alnumOffsets: number[] = [];
-  let offset = 0;
-  for (const ch of word) {
-    if (ALNUM.test(ch)) alnumOffsets.push(offset);
-    offset += ch.length;
-  }
-  if (alnumOffsets.length === 0) return 0;
-  return alnumOffsets[pivotIndex(alnumOffsets.length)];
+  const offsets = alnumOffsets(word);
+  if (offsets.length === 0) return 0;
+  return offsets[pivotIndex(offsets.length)];
 }
 
 /** Split a chunk's text around the pivot of its anchor word (the word holding the character midpoint). */

@@ -128,7 +128,11 @@ function sentenceParts(sentences: Sentence[], options: ChunkOptions): SentencePa
 export function buildTimeline(doc: Doc, settings: Settings): Timeline {
   const steps: Step[] = [];
   const sections: TimelineSection[] = [];
-  const chunkOptions: ChunkOptions = { chunkWords: settings.chunkWords, chunkChars: settings.chunkChars };
+  // Flow mode steps one word at a time; the stored chunk limits apply again in chunk mode.
+  const chunkOptions: ChunkOptions =
+    settings.readingMode === 'flow'
+      ? { chunkWords: 1, chunkChars: settings.chunkChars }
+      : { chunkWords: settings.chunkWords, chunkChars: settings.chunkChars };
 
   doc.sections.forEach((section, sectionAt) => {
     const sectionId = section.id;
