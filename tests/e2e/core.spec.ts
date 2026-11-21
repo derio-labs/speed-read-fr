@@ -932,21 +932,24 @@ test.describe('chunk limits in the bottom-stage layouts', () => {
       const reader = (window as unknown as { __reader: { player: { settings: { chunkWords: number; chunkChars: number } } } }).__reader;
       return { fit: Math.floor(display / (probe.getBoundingClientRect().width / (probe.textContent ?? '').length)), words: reader.player.settings.chunkWords, chars: reader.player.settings.chunkChars };
     });
-    expect(fit.fit).toBeGreaterThanOrEqual(33);
+    // The fit depends on the platform's font (36 on macOS, 31 on the Ubuntu runner); anything sane fits 20.
+    expect(fit.fit).toBeGreaterThanOrEqual(20);
     expect(fit.words).toBe(6);
     expect(fit.chars).toBe(Math.min(40, Math.max(5, fit.fit)));
-    // Step the dial to the 6-word, 35-character chunk "Seven quiet rivers bend under stone.".
+    // Re-read a document whose one chunk is six words of exactly the effective limit, whatever it measured.
+    const sentence = await page.evaluate((n) => {
+      const text = `we saw the old oak ${'stonemasonryworkshops'.slice(0, n - 19)}`;
+      const w = window as unknown as { __reader: { player: { close(): void } } };
+      w.__reader.player.close();
+      document.getElementById('content')!.innerHTML = `<p>${text}</p>`;
+      (document.getElementById('open') as HTMLButtonElement).click();
+      return text;
+    }, fit.chars);
+    expect(sentence).toHaveLength(fit.chars);
+    await expect(page.locator('.sr-reader')).toBeFocused();
     await page.keyboard.press('Space');
-    await expect(page.locator('.sr-status-state')).toHaveText('Paused');
-    const found = await page.evaluate(() => {
-      const player = (window as unknown as { __reader: { player: { scrub(n: number): number } } }).__reader.player;
-      for (let i = 0; i < 300; i++) {
-        if (/^Seven quiet rivers/.test(document.querySelector('.sr-display .sr-chunk')?.textContent?.trim() ?? '')) return true;
-        player.scrub(1);
-      }
-      return false;
-    });
-    expect(found).toBe(true);
+    await page.keyboard.press('Space');
+    await expect(page.locator('.sr-display .sr-chunk')).toHaveText(sentence);
     const shown = await page.evaluate(() => {
       const chunk = document.querySelector<HTMLElement>('.sr-display .sr-chunk')!;
       const display = document.querySelector<HTMLElement>('.sr-display')!.getBoundingClientRect();
@@ -959,7 +962,7 @@ test.describe('chunk limits in the bottom-stage layouts', () => {
       };
     });
     expect(shown.text!.trim().split(/\s+/)).toHaveLength(6);
-    expect(shown.text!.trim().length).toBeGreaterThanOrEqual(30);
+    expect(shown.text!.trim()).toHaveLength(fit.chars);
     expect(shown.clipped).toBe(false);
     expect(shown.ellipsis).toBe(false);
     expect(shown.inside).toBe(true);
@@ -1124,13 +1127,17 @@ test.describe('the chunk fit on the bottom stage', () => {
       await page.goto(`${DEMO}?bottomStage&layout=${layout}`);
       await expect(page.locator('.sr-reader')).toBeFocused();
       const fit = await page.evaluate(() => (window as unknown as { __reader: { player: { settings: { chunkChars: number } } } }).__reader.player.settings.chunkChars);
-      expect(fit).toBeGreaterThanOrEqual(30);
+      // Platform-dependent (36 on macOS, 31 on the Ubuntu runner); anything sane fits 20.
+      expect(fit).toBeGreaterThanOrEqual(20);
       expect(fit).toBeLessThan(80);
       // Re-read a document whose one chunk is exactly `fit` characters of ordinary lowercase prose.
       await page.evaluate((n) => {
         const w = window as unknown as { __reader: { player: { close(): void } } };
         w.__reader.player.close();
-        document.getElementById('content')!.innerHTML = `<p>${'the quick brown fox jumps over a lazy dog'.slice(0, n)}</p>`;
+        // Exactly n characters ending on a letter: a cut that lands on a space would be trimmed to n − 1.
+        let text = 'the quick brown fox jumps over a lazy dog '.repeat(3).slice(0, n);
+        if (text.endsWith(' ')) text = `${text.slice(0, -1)}s`;
+        document.getElementById('content')!.innerHTML = `<p>${text}</p>`;
         (document.getElementById('open') as HTMLButtonElement).click();
       }, fit);
       await expect(page.locator('.sr-reader')).toBeFocused();
