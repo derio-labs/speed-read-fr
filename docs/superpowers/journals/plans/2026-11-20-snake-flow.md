@@ -230,3 +230,8 @@ Rename RunWindow/RunRange.
 ### l-simplicity-r3 · finding [open] (reviewer: in scope) · keyOf/exhibitKey/stepExhibitKey: three functions for one key
 
 timeline.ts:69-78. One exhibitKey({blockIndex, inlineIndex?}).
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r4 created=2026-11-21T12:56:46+00:00 state=open review_scope=in -->
+### l-simplicity-r4 · finding [open] (reviewer: in scope) · Chip number formatted into token text then regex-parsed back
+
+timeline.ts:225. Carry chip on the token.
