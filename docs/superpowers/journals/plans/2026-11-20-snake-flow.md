@@ -60,3 +60,33 @@ stage.ts:230; ribbon-geometry.ts:199. Fix: measure row width in measureRibbon an
 ### p1-r4 · finding [open] (reviewer: out of scope) · Pre-existing dial wheel gain (x4-x6.8) makes fast wheel turns jump many words (phase 1)
 
 dial-strip.ts, untouched by this change. Operator asked the wheel to work 'as before'; slow turns step word by word.
+
+<!-- fr:journal kind=review scope=plan id=p1-review-1 created=2026-11-21T12:23:37+00:00 phase=1 -->
+### p1-review-1 · review · phase 1 independent review: 3 in-scope (minor), 1 out-of-scope (phase 1)
+
+Independent reviewer measured the bottom-stage demo (floating, panel, 700px): row seams join to the pixel, no skipped or duplicated words, middle letter within 0.02px of target, braces = word width + 8px, glide 66.7ms at 300 wpm and 0 under reduced motion, stage 1198px floating / 1440px panel, chunk mode 420px unchanged, ~0.5ms per step. Raised p1-r1 (glide lost on window re-centre), p1-r2 (lit letter during speech hold), p1-r3 (row width measured per step), p1-r4 (out: pre-existing dial wheel gain); confirmed p1-panel-outline-overlap-f. All in-scope findings fixed in 1482a35 and f0bc84e with tests; full suite green after the fixes (.visual/phase1-fix-suite.log).
+
+<!-- fr:journal kind=finding scope=plan id=p1-r1-resolved created=2026-11-21T12:23:37+00:00 phase=1 state=fixed resolves=p1-r1 -->
+### p1-r1-resolved · finding [fixed] · resolves p1-r1: Window re-centre rebuild resets x to null, so that step snaps without the glide every ~100 words (phase 1)
+
+1482a35: new window seeded at the previous position and glides; unit test asserts non-zero --sr-glide on the re-centring step.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r2-resolved created=2026-11-21T12:23:37+00:00 phase=1 state=fixed resolves=p1-r2 -->
+### p1-r2-resolved · finding [fixed] · resolves p1-r2: Speech hold with no boundaries still lights the red middle letter while braces are hidden (phase 1)
+
+1482a35: held ribbon lights no middle letter; tts-panel tests expect no .sr-flow-mid while held.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r3-resolved created=2026-11-21T12:23:37+00:00 phase=1 state=fixed resolves=p1-r3 -->
+### p1-r3-resolved · finding [fixed] · resolves p1-r3: placeRibbon re-measures the middle row width every step; glideMs duplicates baseMs (phase 1)
+
+1482a35: row width measured once per layout in measureRibbon; glideMs reuses pacing.baseMs.
+
+<!-- fr:journal kind=finding scope=plan id=p1-panel-outline-overlap-f-resolved created=2026-11-21T12:23:37+00:00 phase=1 state=fixed resolves=p1-panel-outline-overlap-f -->
+### p1-panel-outline-overlap-f-resolved · finding [fixed] · resolves p1-panel-outline-overlap-f: Wide panel: contents sidebar covers the left of the flow ribbon (phase 1)
+
+f0bc84e: flow stage starts at the open sidebar's right edge (--sr-flow-inset, updated on resize and drawer toggle); Playwright check at 1440px panel.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r4-resolved created=2026-11-21T12:23:37+00:00 phase=1 state=open resolves=p1-r4 out_of_scope=true -->
+### p1-r4-resolved · finding [out-of-scope] · resolves p1-r4: Pre-existing dial wheel gain (x4-x6.8) makes fast wheel turns jump many words (phase 1)
+
+Dial wheel gain lives in dial-strip.ts, untouched by this change; the operator asked the wheel to behave as before. Raised with the operator as an optional flow-mode cap.
