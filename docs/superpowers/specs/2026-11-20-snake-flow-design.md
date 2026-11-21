@@ -103,7 +103,7 @@ sentence's first word and hides the target braces.
 strategy: none
 gate: tester
 
-- reader-three-row-flow: live — only an operator watching it at reading speed in Chrome and VS Code can judge that the snake reads naturally; before merge, unit tests cover the ribbon offsets, wrapping, middle-letter choice, atom split and timeline, and Playwright (`tests/e2e/core.spec.ts`, webview spec) checks three rows of consecutive text, the middle letter on the target centre, brace width matching the word, forward and backward wheel movement, and the wide window, with screenshots attached to the PR.
+- reader-snake-flow: live — only an operator watching it at reading speed in Chrome and VS Code can judge that the snake reads naturally; before merge, unit tests cover the ribbon offsets, wrapping, middle-letter choice, atom split and timeline, and Playwright (`tests/e2e/core.spec.ts`, webview spec) checks three rows of consecutive text, the middle letter on the target centre, brace width matching the word, forward and backward wheel movement, and the wide window, with screenshots attached to the PR.
 - reader-inline-code-split: none — unit tests on the flow timeline (chip and exhibit for a 21-character atom, inline flow for a 20-character one, pacing growth) and a Playwright check of the chip and its exhibit card verify it before merge.
 - reader-dock-chunk-limits: none — unit tests on settings capping in `bottomStage` and a Playwright check that a 6-word / 40-character chunk shows whole in the dock verify it before merge.
 
