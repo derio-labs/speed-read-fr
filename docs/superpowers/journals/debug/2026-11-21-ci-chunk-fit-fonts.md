@@ -30,3 +30,8 @@ core.spec.ts:1138: short words, chunkWords capped at 10, so a platform with fit 
 ### 67682a95d31a · review · Independent review of e60a61c: root cause confirmed, 1 out-of-scope finding
 
 A separate reviewer confirmed the root cause (fit 31 vs 36; the 33 floor and the space-ending slice), that both tests still assert their original intent (stricter: toHaveText proves no split), and no new flakiness. Raised d-r1 (out): hypothetical split above fit 42. Full suite after e60a61c: typecheck clean, vitest 711 passed / 7 skipped, Playwright 108 passed.
+
+<!-- fr:journal kind=finding scope=debug id=d-r1-resolved created=2026-11-21T15:13:57+00:00 state=open resolves=d-r1 out_of_scope=true -->
+### d-r1-resolved · finding [out-of-scope] · resolves d-r1: Exact-fit test text would split by word count where fit > ~42
+
+Hypothetical: no platform in use has fit above 42 (macOS 36, Ubuntu 31); the CI fix does not depend on it.
