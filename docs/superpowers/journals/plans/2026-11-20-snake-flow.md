@@ -150,3 +150,8 @@ mount.ts:266-272. Measure/keep fit only in chunk mode; on switch measure after d
 ### p2-r3 · finding [open] (reviewer: in scope) · Exhibits sync never removes cards: inline exhibit cards stay after flow->chunk (phase 2)
 
 exhibits.ts sync. Drop shown entries not in revealedExhibits(sectionId).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r4 created=2026-11-21T12:50:30+00:00 phase=2 state=open review_scope=in -->
+### p2-r4 · finding [open] (reviewer: in scope) · Chip number not surfaced in stop prompt or exhibit caption (phase 2)
+
+timeline.ts stopPrompt(token.atom, {}), exhibits.ts exhibitDetails. Store chip number on InlineExhibit; 'Code 2' in prompt title and caption.
