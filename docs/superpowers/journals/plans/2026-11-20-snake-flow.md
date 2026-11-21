@@ -275,3 +275,8 @@ core.spec.ts:256. Assert computed transitionDuration ~0.067s at 300 wpm, mid-gli
 ### l-tests-r2 · finding [open] (reviewer: in scope) · Row-seam e2e checks word indices only; a ~22px gap passes
 
 core.spec.ts:284-287. Check seams at px precision across the cut word.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3 created=2026-11-21T13:01:30+00:00 state=open review_scope=in -->
+### l-tests-r3 · finding [open] (reviewer: in scope) · Fit e2e recomputes fit from the same probe and never checks --sr-scale
+
+core.spec.ts:936/964. Assert at-fit chunk unscaled; cover floating too.
