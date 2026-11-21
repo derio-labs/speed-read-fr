@@ -240,3 +240,8 @@ timeline.ts:225. Carry chip on the token.
 ### l-simplicity-r5 · finding [open] (reviewer: in scope) · Stop/dwell inline?: true redundant with inlineIndex
 
 timeline.ts:39-40. Drop or group into one inline object.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r6 created=2026-11-21T12:56:48+00:00 state=open review_scope=in -->
+### l-simplicity-r6 · finding [open] (reviewer: in scope) · chunkOptions ternary repeats chunkChars and precedes flow
+
+timeline.ts:166-171.
