@@ -71,3 +71,12 @@ amendments:
       restores it unchanged.
     why: Narrowed to mode selection and persistence; the snake display itself is row
       reader-snake-flow (spec 2026-11-20-snake-flow).
+  - row: reader-dock-chunk-limits
+    op: reword
+    base: 0
+    acceptance: In every bottom-stage reader (browser overlay, browser dock, VS Code
+      panel) chunk settings go up to 10 words and 80 characters, the characters limit
+      capped by what fits the chunk stage, and a too-wide chunk shrinks and wraps instead
+      of being cut off.
+    why: 'Spec review s-r3: the cap applies to every bottom-stage host, not only the
+      dock'
