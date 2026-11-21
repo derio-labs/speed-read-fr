@@ -24,7 +24,7 @@ const MODES: [ExhibitMode, string][] = [
 let panels = 0;
 
 /** The settings panel (gear button or `,`): every R12 setting, applied at once through `onChange`. */
-export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Settings) => void, limits?: { words: number; chars: number }): SettingsPanel {
+export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Settings) => void, charsMax?: () => number): SettingsPanel {
   const { h, reader } = ctx;
   const titleId = `sr-settings-title-${++panels}`;
 
@@ -65,8 +65,8 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       {},
       h('legend', {}, 'Pacing'),
       field('Speed', 'words per minute', number('wpm', 100, 1000, 25)),
-      field('Words per chunk', null, number('chunkWords', 1, limits?.words ?? 10, 1)),
-      field('Characters per chunk', 'maximum', number('chunkChars', 5, limits?.chars ?? 80, 1)),
+      field('Words per chunk', null, number('chunkWords', 1, 10, 1)),
+      field('Characters per chunk', 'maximum', number('chunkChars', 5, charsMax?.() ?? 80, 1)),
     ),
     h('fieldset', {}, h('legend', {}, 'Stop at headings'), levels),
     h(
@@ -237,6 +237,8 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
   return {
     isOpen: () => !backdrop.hidden,
     open() {
+      // The characters maximum is what fits the stage now, which a resize may have changed.
+      if (charsMax) control('chunkChars').max = String(charsMax());
       show(ctx.settings);
       backdrop.hidden = false;
       focusables(panel)[0]?.focus();

@@ -1,0 +1,98 @@
+# Acceptance rows owned by one feature (spec 2026-11-04-repo-feature-settings R16).
+# The effective matrix is a fold over every fragment in this directory
+# (`fr acceptance status`); it is never stored. Write rows with
+# `fr acceptance add` / `set-status`, never by hand. Keep `rows:` before
+# `amendments:`.
+schema_version: 2
+feature: 2026-11-20-snake-flow
+repo: derio-labs/speed-read-fr
+rows:
+  - id: reader-inline-code-split
+    capability: reader-ui
+    acceptance: In flow mode, inline code or math up to 20 characters flows through
+      the target like a word with extra time; longer code shows as a numbered chip in
+      the ribbon and in full in the exhibits panel, following the code exhibit setting.
+    origin:
+    - spec:2026-11-20-snake-flow#R8
+    - spec:2026-11-20-snake-flow#R9
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/timeline.test.ts
+      - speed-read-fr:packages/core/src/ui/exhibits.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Flow timeline, inline exhibits, stop prompt beside the ribbon and speech
+      covered by unit tests; Playwright on the bottom-stage demo (core.spec.ts) checks
+      the chip on the target, its stop prompt and exhibit card. CI runs npm test and
+      the e2e suite.
+    verify: none
+  - id: reader-dock-chunk-limits
+    capability: reader-ui
+    acceptance: In the docked reader (browser dock and VS Code panel) chunk settings
+      go up to 10 words and 80 characters, capped by what fits the reading window, and
+      long chunks are shown whole.
+    origin:
+    - spec:2026-11-20-snake-flow#R11
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/ui/chunk-cap.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Effective-cap clamp, stored value kept, panel max and align/wrap covered
+      by unit tests; Playwright on the bottom-stage demo checks a 6-word chunk whole
+      and an over-wide chunk wrapped. CI runs npm test and the e2e suite.
+    verify: none
+  - id: reader-snake-flow
+    capability: reader-ui
+    acceptance: In flow mode the reader shows three rows of one continuous text ribbon
+      in a near-full-width window; words glide one at a time into a fixed braced target
+      at the middle row's centre with their middle letter red, the ribbon wrapping upward
+      bottom to middle to top; the wheel moves it backward or forward word by word,
+      and cards and stops behave as in chunk mode.
+    origin:
+    - spec:2026-11-20-snake-flow#R1
+    - spec:2026-11-20-snake-flow#R2
+    - spec:2026-11-20-snake-flow#R3
+    - spec:2026-11-20-snake-flow#R4
+    - spec:2026-11-20-snake-flow#R5
+    - spec:2026-11-20-snake-flow#R6
+    - spec:2026-11-20-snake-flow#R7
+    - spec:2026-11-20-snake-flow#R10
+    - spec:2026-11-20-snake-flow#R12
+    levels: {}
+    status: walk-owed
+    notes: Snake ribbon built; covered by unit tests (core/ui/ribbon-geometry.test.ts,
+      ui/stage.test.ts, ui/tts-panel.test.ts, timeline.test.ts) and Playwright on the
+      bottom-stage demo (tests/e2e/core.spec.ts, webview.spec.ts); operator walk in
+      Chrome and VS Code owed post-merge
+    verify: live
+amendments:
+  - row: reader-three-row-flow
+    op: reword
+    base: 0
+    acceptance: In flow mode the reader shows three rows of one continuous text ribbon
+      in a near-full-width window; words glide one at a time into a fixed braced target
+      at the middle row's centre with their middle letter red, the ribbon wrapping upward
+      bottom to middle to top, and the wheel moves it backward or forward word by word;
+      cards and stops behave as in chunk mode.
+    why: The shipped display misread the intent; the snake ribbon replaces it (spec
+      2026-11-20-snake-flow R1-R7, R10, R12).
+  - row: reader-three-row-flow
+    op: reword
+    base: 1
+    acceptance: The user can select a persisted flow reading mode in Settings across
+      Chrome, Firefox and VS Code; chunk mode stays the default, and switching back
+      restores it unchanged.
+    why: Narrowed to mode selection and persistence; the snake display itself is row
+      reader-snake-flow (spec 2026-11-20-snake-flow).
+  - row: reader-dock-chunk-limits
+    op: reword
+    base: 0
+    acceptance: In every bottom-stage reader (browser overlay, browser dock, VS Code
+      panel) chunk settings go up to 10 words and 80 characters, the characters limit
+      capped by what fits the chunk stage, and a too-wide chunk shrinks and wraps instead
+      of being cut off.
+    why: 'Spec review s-r3: the cap applies to every bottom-stage host, not only the
+      dock'

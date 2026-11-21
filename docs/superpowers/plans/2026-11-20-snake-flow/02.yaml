@@ -1,0 +1,122 @@
+schema_version: 2
+phase:
+  number: 2
+  title: Long inline code as exhibits, and lifted chunk limits
+  tag: agentic
+  depends_on:
+  - 1
+  tracking_issue: null
+  acceptance:
+  - reader-inline-code-split
+  - reader-dock-chunk-limits
+  tier: standard
+  files:
+  - packages/core/src/model.ts
+  - packages/core/src/timeline.ts
+  - packages/core/src/timeline.test.ts
+  - packages/core/src/pacing.ts
+  - packages/core/src/pacing.test.ts
+  - packages/core/src/player.ts
+  - packages/core/src/player.test.ts
+  - packages/core/src/tts.ts
+  - packages/core/src/tts.test.ts
+  - packages/core/src/ui/**
+  - tests/e2e/core.spec.ts
+  - README.md
+  estimate_lines: 550
+tasks:
+- number: 1
+  title: Atom pacing and chip tokens in the flow timeline
+  steps:
+  - id: P2.T1.S1
+    text: |-
+      Add failing tests: an atom step takes base × max(1, ceil(len/8)) with no flat long-token bonus (words unchanged); in flow mode a 20-character atom stays inline, a 21-character one becomes a chip token `⟨code n⟩` with `full` set, numbered per section, followed by a stop/dwell per the code (or math) setting and none with skip; two long atoms in one block produce two inline exhibits with keys `b<k>i1`, `b<k>i2`; chunk mode is unchanged.
+  - id: P2.T1.S2
+    text: |-
+      Implement the optional `full` field on atom tokens, the inline TimelineExhibit variant with its identity key, the chip substitution in buildTimeline (flow mode only) and the atom pacing rule; run the focused tests green.
+  - id: P2.T1.S3
+    text: |-
+      Refactor the exhibit-key helper into one place used by timeline and player; re-run.
+- number: 2
+  title: Inline exhibits in the panel, the ribbon and speech
+  steps:
+  - id: P2.T2.S1
+    text: |-
+      Add failing tests: the exhibits panel's shown map, active highlight and E-to-expand key on the exhibit identity; an inline exhibit renders in core as `<pre><code>` (math as TeX source) without calling host.exhibit; an inline stop/dwell in flow mode keeps the ribbon with the chip on the target and puts the prompt in stage-details (status line without it); speech reads a chip as "code"/"formula" and resumes the rest of the sentence after the stop.
+  - id: P2.T2.S2
+    text: |-
+      Implement the keyed exhibits panel and core inline rendering, the inline-stop branch in stage.ts's setDisplay path, player.ts exhibitKey for inline exhibits, and the chip text in tts.ts; run the core suite green.
+  - id: P2.T2.S3
+    text: |-
+      Refactor any duplicated stop/dwell card building between block and inline exhibits; re-run.
+- number: 3
+  title: Lift the bottom-stage chunk cap with a measured fit
+  steps:
+  - id: P2.T3.S1
+    text: |-
+      Add failing tests: no fixed 3/20 cap in bottom-stage mounts; the effective chunkChars is clamped to fit = floor(stageWidth / charWidth) in [5, 80], measured after first layout and on resize, with no cap at width 0; the stored value is unchanged; the settings panel's characters max shows fit, refreshed on open; words max is 10; in bottom-stage hosts align() runs with the axis at 50%, shrinks to MIN_SCALE and then sets data-wrap.
+  - id: P2.T3.S2
+    text: |-
+      Implement the measured fit in mount.ts (readSettings, timeline rebuild on effective change keeping position), the panel max refresh, align() in bottom-stage hosts, and bottom-stage `data-wrap` CSS wrapping onto two centred lines with no ellipsis; run the core suite green.
+  - id: P2.T3.S3
+    text: |-
+      Refactor the cap plumbing so limits are computed in one place; re-run.
+- number: 4
+  title: Browser checks and docs
+  steps:
+  - id: P2.T4.S1
+    text: |-
+      Add Playwright checks on the bottom-stage demo: a long inline-code atom shows as a chip on the target with its stop prompt beside the ribbon and its exhibit card listed; a 6-word / 40-character chunk shows whole in panel layout; an over-wide chunk wraps with no ellipsis; capture screenshots into a git-ignored dir and open them.
+  - id: P2.T4.S2
+    text: |-
+      Update the README (long inline code, chunk limits); run `npm run typecheck`, `npx vitest run` and `npx playwright test` green after the last code commit.
+state:
+  steps:
+    P2.T1.S1:
+      state: x
+      ticked_at: '2026-11-21T12:41:46+00:00'
+      note: null
+    P2.T1.S2:
+      state: x
+      ticked_at: '2026-11-21T12:41:46+00:00'
+      note: null
+    P2.T1.S3:
+      state: x
+      ticked_at: '2026-11-21T12:41:46+00:00'
+      note: null
+    P2.T2.S1:
+      state: x
+      ticked_at: '2026-11-21T12:41:46+00:00'
+      note: null
+    P2.T2.S2:
+      state: x
+      ticked_at: '2026-11-21T12:41:46+00:00'
+      note: null
+    P2.T2.S3:
+      state: x
+      ticked_at: '2026-11-21T12:41:46+00:00'
+      note: null
+    P2.T3.S1:
+      state: x
+      ticked_at: '2026-11-21T12:41:46+00:00'
+      note: null
+    P2.T3.S2:
+      state: x
+      ticked_at: '2026-11-21T12:41:46+00:00'
+      note: null
+    P2.T3.S3:
+      state: x
+      ticked_at: '2026-11-21T12:41:46+00:00'
+      note: null
+    P2.T4.S1:
+      state: x
+      ticked_at: '2026-11-21T12:41:46+00:00'
+      note: null
+    P2.T4.S2:
+      state: x
+      ticked_at: '2026-11-21T12:41:46+00:00'
+      note: null
+  completion:
+    at: '2026-11-21T12:41:46+00:00'
+    note: null
+    observed_prs: []

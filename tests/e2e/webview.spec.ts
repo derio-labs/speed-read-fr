@@ -66,6 +66,24 @@ test('the webview renders the Markdown into the reader, offline and within its C
   await expect(page.locator('.sr-outline-row')).toHaveText([/Reading a structured answer/, /Lists/, /Math and a diagram/, /Code and a table/, /Pictures/]);
 });
 
+test('flow mode in the webview reads a three-row ribbon across the panel with the middle letter on the target', async ({ page }) => {
+  await open(page, { ...FAST, readingMode: 'flow', wpm: 300 });
+  await page.keyboard.press('Space');
+  await expect(page.locator('.sr-ribbon-row')).toHaveCount(3, { timeout: 20_000 });
+  await expect(page.locator('.sr-flow-mid')).toHaveCount(1);
+  await page.keyboard.press('Space');
+  await expect(page.locator('.sr-status-state')).toHaveText('Paused');
+  await page.waitForTimeout(250);
+  const g = await page.evaluate(() => {
+    const row = document.querySelector('.sr-ribbon-row[data-position="middle"]')!.getBoundingClientRect();
+    const mid = document.querySelector('.sr-flow-mid')!.getBoundingClientRect();
+    return { dx: Math.abs(mid.x + mid.width / 2 - (row.x + row.width / 2)), stage: document.querySelector('.sr-stage')!.getBoundingClientRect().width, window: innerWidth };
+  });
+  expect(g.dx).toBeLessThan(1);
+  expect(g.stage).toBeGreaterThan(420);
+  expect(await page.locator('.sr-flow-axis').count()).toBe(0);
+});
+
 test('math and the diagram appear as exhibits with real rendered size', async ({ page }) => {
   await open(page);
   await page.keyboard.press('Space');

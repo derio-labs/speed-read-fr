@@ -7,7 +7,7 @@ import { fakeClock } from './testing/clock';
 import { doc, exhibit, flatList, item, list, prose, section } from './testing/doc';
 import { fakeSpeech, voice } from './testing/speech';
 import { createSpeechDriver } from './tts';
-import { buildTimeline } from './timeline';
+import { buildTimeline, exhibitKind } from './timeline';
 
 const base = 200; // 300 wpm
 const one: Settings = { ...DEFAULT_SETTINGS, chunkWords: 1 };
@@ -309,7 +309,7 @@ describe('player: speed, reading, exhibits', () => {
       section('b', { level: 4, text: 'B' }, prose('cc')),
     );
     const r = setup(d, s);
-    const kinds = (id: string) => r.player.revealedExhibits(id).map((e) => e.block.kind);
+    const kinds = (id: string) => r.player.revealedExhibits(id).map((e) => exhibitKind(e));
     expect(kinds('a')).toEqual([]);
     r.player.toggle();
     expect(kinds('a')).toEqual([]);
@@ -336,7 +336,7 @@ describe('player: speed, reading, exhibits', () => {
     r.player.toggle();
     expect(r.player.revealedExhibits('b')).toEqual([]);
     r.player.jumpToSection('c');
-    expect(r.player.revealedExhibits('b').map((e) => e.block.kind)).toEqual(['image']);
+    expect(r.player.revealedExhibits('b').map((e) => exhibitKind(e))).toEqual(['image']);
   });
 });
 
@@ -557,7 +557,7 @@ describe('review p1-r6: replaceTimeline and setSpeed', () => {
     r.player.replaceTimeline(buildTimeline(d, skipAll), skipAll);
     expect(last(r)).toBe('Bb.');
     expect(r.player.state).toBe('playing');
-    expect(r.player.revealedExhibits('a').map((e) => e.block.kind)).toEqual(['code']);
+    expect(r.player.revealedExhibits('a').map((e) => exhibitKind(e))).toEqual(['code']);
     r.clock.advance(600000);
     const end = r.steps[r.steps.length - 1].step;
     expect(end.kind === 'end' && end.words).toBe(2);
@@ -588,7 +588,7 @@ describe('review p1-r7: skipped exhibits are revealed by position passed', () =>
     r.player.toggle();
     expect(r.player.revealedExhibits('b')).toEqual([]);
     r.clock.advance(r.steps[0].durationMs!);
-    expect(r.player.revealedExhibits('b').map((e) => e.block.kind)).toEqual(['table']);
+    expect(r.player.revealedExhibits('b').map((e) => exhibitKind(e))).toEqual(['table']);
   });
 
   it('reveals a trailing skipped exhibit when the reader leaves with section(+1)', () => {
@@ -597,7 +597,7 @@ describe('review p1-r7: skipped exhibits are revealed by position passed', () =>
     r.player.toggle();
     expect(r.player.revealedExhibits('a')).toEqual([]);
     r.player.section(1);
-    expect(r.player.revealedExhibits('a').map((e) => e.block.kind)).toEqual(['code']);
+    expect(r.player.revealedExhibits('a').map((e) => exhibitKind(e))).toEqual(['code']);
   });
 
   it('reveals a trailing skipped exhibit of the last section at the end', () => {
@@ -605,7 +605,7 @@ describe('review p1-r7: skipped exhibits are revealed by position passed', () =>
     const r = setup(d, skipAll);
     r.player.toggle();
     r.clock.advance(600000);
-    expect(r.player.revealedExhibits('a').map((e) => e.block.kind)).toEqual(['code']);
+    expect(r.player.revealedExhibits('a').map((e) => exhibitKind(e))).toEqual(['code']);
   });
 });
 

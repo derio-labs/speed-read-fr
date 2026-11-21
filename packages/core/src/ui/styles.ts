@@ -189,23 +189,33 @@ export const READER_CSS = `
 }
 .sr-display { position: relative; flex-shrink: 0; min-height: 120px; display: flex; align-items: safe center; justify-content: safe center; }
 .sr-display[data-kind="chunk"], .sr-display[data-kind="item-chunk"] { display: block; height: 150px; }
-.sr-display[data-kind="flow"] { height: 174px; min-height: 174px; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(3, minmax(0, 1fr)); align-items: stretch; justify-content: stretch; overflow: hidden; }
-.sr-flow-row { display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; white-space: nowrap; color: var(--sr-muted); font-size: 24px; line-height: 1.2; }
-.sr-flow-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.sr-flow-current { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); color: var(--sr-text); font-size: 30px; font-weight: 500; }
-.sr-flow-before, .sr-flow-after { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
-.sr-flow-before { text-align: right; }
-.sr-flow-after { text-align: left; }
-.sr-flow-pivot { color: var(--sr-accent); font-weight: 700; }
-.sr-flow-whole { display: block; font-size: 22px; line-height: 1.15; text-align: center; white-space: normal; }
-.sr-flow-whole-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-.sr-flow-row[data-position="top"] { grid-row: 1; grid-column: 1; }
-.sr-flow-row[data-position="middle"] { grid-row: 2; grid-column: 1; }
-.sr-flow-row[data-position="bottom"] { grid-row: 3; grid-column: 1; }
-.sr-flow-axis { position: relative; z-index: 1; grid-row: 2; grid-column: 1; justify-self: start; margin-left: -1px; width: 2px; pointer-events: none; }
-.sr-flow-axis::before, .sr-flow-axis::after { content: ""; position: absolute; left: 0; width: 2px; height: 8px; background: var(--sr-accent); opacity: .7; }
-.sr-flow-axis::before { top: 0; }
-.sr-flow-axis::after { bottom: 0; }
+.sr-display[data-kind="flow"] {
+  --sr-row-h: 50px; --sr-ribbon-font: 26px;
+  height: calc(var(--sr-row-h) * 3); min-height: calc(var(--sr-row-h) * 3); display: block; overflow: hidden;
+}
+.sr-ribbon {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(3, var(--sr-row-h));
+  font-size: var(--sr-ribbon-font); line-height: 1.2; font-weight: 400; --sr-glide: 0ms;
+}
+.sr-ribbon-row { grid-column: 1; position: relative; display: flex; align-items: center; min-width: 0; overflow: hidden; color: var(--sr-muted); }
+.sr-ribbon-row[data-position="top"] { grid-row: 1; --sr-shift: calc(var(--sr-w, 0) * 1.5px); }
+.sr-ribbon-row[data-position="middle"] { grid-row: 2; color: var(--sr-text); --sr-shift: calc(var(--sr-w, 0) * 0.5px); }
+.sr-ribbon-row[data-position="bottom"] { grid-row: 3; --sr-shift: calc(var(--sr-w, 0) * -0.5px); }
+.sr-ribbon-line {
+  flex: none; white-space: nowrap; will-change: transform;
+  transform: translateX(calc(var(--sr-x, 0) * -1px + var(--sr-shift, 0px))); transition: transform var(--sr-glide) ease-out;
+}
+.sr-ribbon-sep { color: var(--sr-faint); }
+.sr-flow-mid { color: var(--sr-accent); font-weight: inherit; }
+.sr-flow-target {
+  grid-row: 2; grid-column: 1; position: relative; z-index: 1; align-self: stretch; justify-self: start; pointer-events: none;
+  margin-left: calc(var(--sr-target-x, 0) * 1px); width: calc(var(--sr-target-w, 0) * 1px);
+  transition: margin-left var(--sr-glide) ease-out, width var(--sr-glide) ease-out;
+}
+.sr-flow-target[hidden] { display: none; }
+.sr-flow-brace { position: absolute; left: 0; right: 0; height: 6px; border: 2px solid var(--sr-accent); box-sizing: border-box; }
+.sr-flow-brace[data-side="top"] { top: 1px; border-bottom: none; border-radius: 4px 4px 0 0; }
+.sr-flow-brace[data-side="bottom"] { bottom: 1px; border-top: none; border-radius: 0 0 4px 4px; }
 .sr-axis { position: absolute; left: calc(var(--sr-axis) + var(--sr-depth, 0) * 28px); top: 0; bottom: 0; width: 0; pointer-events: none; }
 .sr-axis::before, .sr-axis::after {
   content: ""; position: absolute; left: -1px; width: 2px; height: 16px; border-radius: 1px; background: var(--sr-accent); opacity: .55;
@@ -292,6 +302,7 @@ export const READER_CSS = `
 .sr-exhibit-caption { display: flex; justify-content: space-between; gap: 8px; padding: 7px 12px; font-size: 12px; color: var(--sr-muted); border-bottom: 1px solid var(--sr-border); background: var(--sr-surface); }
 .sr-exhibit-kind { font-weight: 650; color: var(--sr-text); }
 .sr-exhibit-body { padding: 10px 12px; overflow: auto; max-height: 420px; }
+.sr-inline-exhibit { margin: 0; font-family: var(--sr-mono); font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* Pictures and diagrams fit; an SVG inside KaTeX (a radical, an arrow) keeps KaTeX's own sizing. */
 .sr-exhibit-body img, .sr-exhibit-body svg:not(.katex svg), .sr-expanded-body img, .sr-expanded-body svg:not(.katex svg), .sr-reading img, .sr-reading svg:not(.katex svg) { max-width: 100%; height: auto; }
 /* Expanded over the whole reader (spec section 13): up to 92 % of its width and 88 % of its height. */
@@ -443,11 +454,7 @@ export const READER_CSS = `
   .sr-reader[data-layout="floating"] .sr-stage { padding: 8px 14px 10px; }
   .sr-reader[data-layout="floating"] .sr-display { min-height: 0; }
   .sr-reader[data-layout="floating"] .sr-display[data-kind="chunk"], .sr-reader[data-layout="floating"] .sr-display[data-kind="item-chunk"] { height: 96px; }
-  .sr-reader[data-layout="floating"] .sr-display[data-kind="flow"] { height: 144px; min-height: 144px; }
-  .sr-reader[data-layout="floating"] .sr-flow-row { font-size: 17px; }
-  .sr-reader[data-layout="floating"] .sr-flow-current { font-size: 22px; }
-  .sr-reader[data-layout="floating"] .sr-flow-whole { font-size: 16px; }
-  .sr-reader[data-layout="floating"] .sr-flow-axis::before, .sr-reader[data-layout="floating"] .sr-flow-axis::after { height: 6px; }
+  .sr-reader[data-layout="floating"] .sr-display[data-kind="flow"] { --sr-row-h: 40px; --sr-ribbon-font: 20px; }
   .sr-reader[data-layout="floating"] .sr-chunk { line-height: 96px; font-size: calc(38px * var(--sr-scale, 1)); }
   .sr-reader[data-layout="floating"] .sr-axis::before { top: 8px; }
   .sr-reader[data-layout="floating"] .sr-axis::after { bottom: 8px; }
@@ -460,10 +467,10 @@ export const READER_CSS = `
   .sr-reader[data-layout="floating"] .sr-dial { height: 26px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sr-reader .sr-stage, .sr-reader .sr-main, .sr-reader .sr-exhibits { transition: none !important; }
+  .sr-reader .sr-stage, .sr-reader .sr-main, .sr-reader .sr-exhibits, .sr-ribbon-line, .sr-flow-target { transition: none !important; }
 }
 /* Browser only: content takes the spare room, never the chunk box's room. */
-.sr-reader[data-bottom-stage] { --sr-axis: 50%; min-height: 0; }
+.sr-reader[data-bottom-stage] { --sr-axis: 50%; --sr-chunk-font: 24px; min-height: 0; }
 .sr-reader[data-bottom-stage] .sr-main { min-height: 0; }
 .sr-reader[data-bottom-stage] .sr-toolbar { padding-block: 5px; }
 .sr-reader[data-bottom-stage] .sr-status-wpm { white-space: nowrap; }
@@ -472,18 +479,30 @@ export const READER_CSS = `
   justify-content: flex-start; overflow: hidden;
 }
 .sr-reader[data-bottom-stage] .sr-stage .sr-display { height: 80px; min-height: 80px; }
-.sr-reader[data-bottom-stage] .sr-stage .sr-display[data-kind="flow"] { height: 84px; min-height: 84px; }
-.sr-reader[data-bottom-stage] .sr-flow-row { font-size: 14px; }
-.sr-reader[data-bottom-stage] .sr-flow-current { font-size: 18px; }
-.sr-reader[data-bottom-stage] .sr-flow-whole { font-size: 12px; line-height: 1.1; }
-.sr-reader[data-bottom-stage] .sr-flow-axis::before, .sr-reader[data-bottom-stage] .sr-flow-axis::after { height: 3px; }
+.sr-reader[data-bottom-stage] .sr-stage .sr-display[data-kind="flow"] { --sr-row-h: 44px; --sr-ribbon-font: 22px; height: calc(var(--sr-row-h) * 3); min-height: calc(var(--sr-row-h) * 3); }
+/* Flow mode reads a wide ribbon: the overlay's window and the docked stage widen (chunk mode keeps its width). */
+.sr-reader[data-bottom-stage][data-reading-mode="flow"] .sr-stage { width: 100%; }
+/* Docked panel: the contents sidebar overlays the left edge, so the flow stage starts at its right edge. */
+.sr-reader[data-bottom-stage][data-layout="panel"][data-reading-mode="flow"] .sr-stage {
+  width: calc(100% - var(--sr-flow-inset, 0px)); margin-left: var(--sr-flow-inset, 0px);
+}
 .sr-reader[data-bottom-stage] .sr-axis { left: 50%; }
 .sr-reader[data-bottom-stage] .sr-axis::before { top: 10px; height: 10px; }
 .sr-reader[data-bottom-stage] .sr-axis::after { bottom: 10px; height: 10px; }
 .sr-reader[data-bottom-stage] .sr-chunk {
   position: absolute; inset: 0; margin: 0; display: grid; align-items: center;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  font-size: 24px; line-height: 1.4; letter-spacing: normal; white-space: pre;
+  font-size: calc(var(--sr-chunk-font) * var(--sr-scale, 1)); line-height: 1.4; letter-spacing: normal; white-space: pre;
+}
+/* Chunk wider than the stage even at the smallest scale: two centred lines, never cut off. */
+.sr-reader[data-bottom-stage] .sr-display[data-wrap] .sr-chunk {
+  position: static; display: block; width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; line-height: 1.25;
+}
+.sr-reader[data-bottom-stage] .sr-display[data-wrap] :is(.sr-before, .sr-after) { text-align: inherit; overflow: visible; text-overflow: clip; }
+/* Measures one character of the chunk font for the characters that fit the stage (mount.ts). */
+.sr-fit-probe {
+  position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; white-space: pre;
+  font-size: var(--sr-chunk-font, 24px); font-weight: 500; letter-spacing: normal; line-height: 1;
 }
 .sr-reader[data-bottom-stage] .sr-before { text-align: right; overflow: hidden; }
 .sr-reader[data-bottom-stage] .sr-after { overflow: hidden; text-overflow: ellipsis; }
@@ -508,7 +527,7 @@ export const READER_CSS = `
 .sr-reader[data-bottom-stage][data-layout="panel"] .sr-layout { grid-template: minmax(0, 1fr) / minmax(0, 1fr); grid-template-areas: "main"; }
 .sr-reader[data-bottom-stage][data-layout="panel"] .sr-main { grid-area: main; }
 .sr-reader[data-bottom-stage][data-layout="panel"] .sr-outline { position: absolute; inset: 0 auto 0 0; }
-.sr-reader[data-bottom-stage][data-layout="panel"] .sr-stage-support { flex: 1; padding: 10px 12px; overflow: hidden; }
+.sr-reader[data-bottom-stage][data-layout="panel"] .sr-stage-support { flex: 1; padding: 10px 12px; overflow: hidden; margin-left: var(--sr-flow-inset, 0px); }
 .sr-reader[data-bottom-stage][data-layout="floating"] .sr-layout {
   display: grid; grid-template: minmax(0, 1fr) auto auto / minmax(0, 1fr); padding: 8px 8px 12px;
 }
@@ -516,6 +535,7 @@ export const READER_CSS = `
   grid-area: 3 / 1; position: relative; inset: auto; transform: none; width: min(420px, 100%); max-height: none;
   justify-self: center;
 }
+.sr-reader[data-bottom-stage][data-layout="floating"][data-reading-mode="flow"] .sr-main { width: min(1200px, calc(100% - 64px)); }
 .sr-reader[data-bottom-stage][data-layout="floating"] .sr-stage-support {
   grid-area: 2 / 1; justify-self: center; width: min(880px, 100%); max-height: min(48vh, max(0px, calc(100vh - 245px)));
 }

@@ -1,0 +1,412 @@
+<!-- fr:journal-schema=4 -->
+# Journal: 2026-11-20-snake-flow
+
+<!-- fr:journal kind=decision scope=plan id=p1-push-skipped created=2026-11-21T12:12:25+00:00 phase=1 -->
+### p1-push-skipped · decision · P1.T1.S2 'push so CI runs' skipped; the orchestrator pushes (phase 1)
+
+The repo has no CI config and the brief says the orchestrator pushes. The smoke test ran locally in Playwright.
+
+<!-- fr:journal kind=decision scope=plan id=p1-suite-log-location created=2026-11-21T12:12:25+00:00 phase=1 -->
+### p1-suite-log-location · decision · Suite log kept in .visual/, not test-results/ (phase 1)
+
+Playwright empties test-results/ at the start of a run, which would unlink a log being written there. .visual/ is git-ignored and untouched by Playwright, so the suite log and the screenshots live there.
+
+<!-- fr:journal kind=decision scope=plan id=p1-atom-lit-one-box created=2026-11-21T12:12:25+00:00 phase=1 -->
+### p1-atom-lit-one-box · decision · A lit atom word keeps one .sr-atom box with the middle letter inside (phase 1)
+
+Splitting an atom across tokenNodes slices gave each slice its own padding and shifted the middle letter 5px off the target (found by the e2e 1px check on the word Space). The lit word now wraps the whole text in one .sr-atom span.
+
+<!-- fr:journal kind=discovery scope=plan id=p1-panel-outline-overlap created=2026-11-21T12:12:25+00:00 phase=1 -->
+### p1-panel-outline-overlap · discovery · Panel layout: the open contents sidebar overlays the left ~300px of the wide flow stage (phase 1)
+
+In bottom-stage panel layout the outline is position:absolute at the left (styles.ts .sr-outline inset:0 auto 0 0). The chunk stage was a centred 420px so never met it; the full-width flow stage now runs under it at wide viewports, hiding the left of the ribbon (and most of a short bottom row). R7 says the full panel width, so the stage was left at 100%; see the finding.
+
+<!-- fr:journal kind=finding scope=plan id=p1-panel-outline-overlap-f created=2026-11-21T12:12:25+00:00 phase=1 state=open review_scope=in -->
+### p1-panel-outline-overlap-f · finding [open] (reviewer: in scope) · Wide panel: contents sidebar covers the left of the flow ribbon (phase 1)
+
+At 1440px in panel layout with the contents sidebar showing, the ribbon's left edge, including the whole short bottom row near the end of a run, is hidden under it (see panel-flow-paused.png). Chosen not to change the sidebar or inset the stage inside phase 1; a follow-up could inset the flow stage by the sidebar width while it is open. The narrow viewport (900px) shot shows the same overlap.
+
+<!-- fr:journal kind=discovery scope=plan id=p1-node-modules created=2026-11-21T12:12:25+00:00 phase=1 -->
+### p1-node-modules · discovery · The worktree had no node_modules; npm ci --prefer-offline fixed it (phase 1)
+
+node_modules is git-ignored; installed in the worktree so typecheck, vitest and Playwright run.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p1-t1 created=2026-11-21T12:12:25+00:00 phase=1 -->
+### no-refactor-p1-t1 · discovery · no-refactor-because P1.T1 (phase 1)
+
+a one-line query switch on the demo and a smoke assertion; nothing to restructure
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p1-t5 created=2026-11-21T12:12:25+00:00 phase=1 -->
+### no-refactor-p1-t5 · discovery · no-refactor-because P1.T5 (phase 1)
+
+tests and README text only; the dead flow-row code was already removed in P1.T4.S4
+
+<!-- fr:journal kind=finding scope=plan id=p1-r1 created=2026-11-21T12:19:36+00:00 phase=1 state=open review_scope=in -->
+### p1-r1 · finding [open] (reviewer: in scope) · Window re-centre rebuild resets x to null, so that step snaps without the glide every ~100 words (phase 1)
+
+stage.ts:256/235. Fix: seed the new ribbon at the previous index's mid with --sr-glide 0, reflow, then place with r.x set; unit assert non-zero glide on the re-centring step.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r2 created=2026-11-21T12:19:37+00:00 phase=1 state=open review_scope=in -->
+### p1-r2 · finding [open] (reviewer: in scope) · Speech hold with no boundaries still lights the red middle letter while braces are hidden (phase 1)
+
+stage.ts:243. Fix: lightMiddle(r, hidden ? null : index); tts-panel tests expect no .sr-flow-mid while held.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r3 created=2026-11-21T12:19:38+00:00 phase=1 state=open review_scope=in -->
+### p1-r3 · finding [open] (reviewer: in scope) · placeRibbon re-measures the middle row width every step; glideMs duplicates baseMs (phase 1)
+
+stage.ts:230; ribbon-geometry.ts:199. Fix: measure row width in measureRibbon and store it; reuse pacing.baseMs.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r4 created=2026-11-21T12:19:39+00:00 phase=1 state=open review_scope=out -->
+### p1-r4 · finding [open] (reviewer: out of scope) · Pre-existing dial wheel gain (x4-x6.8) makes fast wheel turns jump many words (phase 1)
+
+dial-strip.ts, untouched by this change. Operator asked the wheel to work 'as before'; slow turns step word by word.
+
+<!-- fr:journal kind=review scope=plan id=p1-review-1 created=2026-11-21T12:23:37+00:00 phase=1 -->
+### p1-review-1 · review · phase 1 independent review: 3 in-scope (minor), 1 out-of-scope (phase 1)
+
+Independent reviewer measured the bottom-stage demo (floating, panel, 700px): row seams join to the pixel, no skipped or duplicated words, middle letter within 0.02px of target, braces = word width + 8px, glide 66.7ms at 300 wpm and 0 under reduced motion, stage 1198px floating / 1440px panel, chunk mode 420px unchanged, ~0.5ms per step. Raised p1-r1 (glide lost on window re-centre), p1-r2 (lit letter during speech hold), p1-r3 (row width measured per step), p1-r4 (out: pre-existing dial wheel gain); confirmed p1-panel-outline-overlap-f. All in-scope findings fixed in 1482a35 and f0bc84e with tests; full suite green after the fixes (.visual/phase1-fix-suite.log).
+
+<!-- fr:journal kind=finding scope=plan id=p1-r1-resolved created=2026-11-21T12:23:37+00:00 phase=1 state=fixed resolves=p1-r1 -->
+### p1-r1-resolved · finding [fixed] · resolves p1-r1: Window re-centre rebuild resets x to null, so that step snaps without the glide every ~100 words (phase 1)
+
+1482a35: new window seeded at the previous position and glides; unit test asserts non-zero --sr-glide on the re-centring step.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r2-resolved created=2026-11-21T12:23:37+00:00 phase=1 state=fixed resolves=p1-r2 -->
+### p1-r2-resolved · finding [fixed] · resolves p1-r2: Speech hold with no boundaries still lights the red middle letter while braces are hidden (phase 1)
+
+1482a35: held ribbon lights no middle letter; tts-panel tests expect no .sr-flow-mid while held.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r3-resolved created=2026-11-21T12:23:37+00:00 phase=1 state=fixed resolves=p1-r3 -->
+### p1-r3-resolved · finding [fixed] · resolves p1-r3: placeRibbon re-measures the middle row width every step; glideMs duplicates baseMs (phase 1)
+
+1482a35: row width measured once per layout in measureRibbon; glideMs reuses pacing.baseMs.
+
+<!-- fr:journal kind=finding scope=plan id=p1-panel-outline-overlap-f-resolved created=2026-11-21T12:23:37+00:00 phase=1 state=fixed resolves=p1-panel-outline-overlap-f -->
+### p1-panel-outline-overlap-f-resolved · finding [fixed] · resolves p1-panel-outline-overlap-f: Wide panel: contents sidebar covers the left of the flow ribbon (phase 1)
+
+f0bc84e: flow stage starts at the open sidebar's right edge (--sr-flow-inset, updated on resize and drawer toggle); Playwright check at 1440px panel.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r4-resolved created=2026-11-21T12:23:37+00:00 phase=1 state=open resolves=p1-r4 out_of_scope=true -->
+### p1-r4-resolved · finding [out-of-scope] · resolves p1-r4: Pre-existing dial wheel gain (x4-x6.8) makes fast wheel turns jump many words (phase 1)
+
+Dial wheel gain lives in dial-strip.ts, untouched by this change; the operator asked the wheel to behave as before. Raised with the operator as an optional flow-mode cap.
+
+<!-- fr:journal kind=decision scope=plan id=p2-stored-vs-effective created=2026-11-21T12:41:46+00:00 phase=2 -->
+### p2-stored-vs-effective · decision · Settings stay as the user set them; the reader runs on an effective copy (phase 2)
+
+mount.ts keeps `settings` (stored, saved, shown in the panel) and builds the timeline and player from `effective(settings)`, whose chunkChars is clamped to the measured fit. The player's speed-only settings event now merges just wpm back, so a speed change never saves the clamped characters value.
+
+<!-- fr:journal kind=decision scope=plan id=p2-fit-from-display created=2026-11-21T12:41:46+00:00 phase=2 -->
+### p2-fit-from-display · decision · Fit is measured from the .sr-display width and a hidden .sr-fit-probe (phase 2)
+
+chunkFit(displayWidth, probeWidth) = floor(display / (probe/10)) in [5,80], null at width 0. The probe has its own class (not sr-chunk) so queries for .sr-chunk never hit it; both read the --sr-chunk-font variable. Measured at mount and from a ResizeObserver on the stage; a changed effective limit rebuilds the timeline in chunk mode only (flow steps one word at a time).
+
+<!-- fr:journal kind=decision scope=plan id=p2-atom-pacing-every-mode created=2026-11-21T12:41:46+00:00 phase=2 -->
+### p2-atom-pacing-every-mode · decision · Atom pacing (base x max(1, ceil(len/8)), no long-token bonus) applies to every chunk step, not only flow (phase 2)
+
+The spec words it per atom token, so stepDuration times each atom token that way wherever it sits; words keep base plus 0.3 base above 8 characters. In flow every step is one token, so it is exactly the spec's rule.
+
+<!-- fr:journal kind=discovery scope=plan id=p2-dock-test-followed-cap created=2026-11-21T12:41:46+00:00 phase=2 -->
+### p2-dock-test-followed-cap · discovery · extension.spec 'dock keeps the chunk stage fixed' encoded the old 3/20 cap (phase 2)
+
+It saved chunkWords 10 / chunkChars 80 and relied on the cap; it now saves 3/20, and the wide-identifier step accepts that a chunk wider than the stage shrinks (its atoms scale with the chunk) instead of keeping the stage's 24px.
+
+<!-- fr:journal kind=decision scope=plan id=p2-inline-fixture created=2026-11-21T12:41:46+00:00 phase=2 -->
+### p2-inline-fixture · decision · Demo reads tests/fixtures/inline-code.html with ?doc=inline (phase 2)
+
+The shared article fixture is used by the extension suites, so it was left alone; the demo gained a ?doc=inline switch for a document with a long inline code atom, a 6-word clause and a very wide token.
+
+<!-- fr:journal kind=discovery scope=plan id=p2-chunk-stage-420-fit created=2026-11-21T12:41:46+00:00 phase=2 -->
+### p2-chunk-stage-420-fit · discovery · A 40-character chunk cannot show in the 420px chunk stage: fit is about 29 (phase 2)
+
+Chunk mode keeps its 420px stage (spec out of scope), so at 24px the fit is ~29 characters and a stored 40 is clamped to it (stored value kept). The e2e shows the 6-word clause 'To be or not to be,' whole in panel layout, asserts the effective limit equals min(stored, fit), the panel's maximum shows fit and words max 10, and the over-wide token wraps with no ellipsis.
+
+<!-- fr:journal kind=discovery scope=plan id=p2-bottom-stage-grid-text-width created=2026-11-21T12:41:46+00:00 phase=2 -->
+### p2-bottom-stage-grid-text-width · discovery · The bottom-stage chunk is a stretched grid, so align() measures text with a Range (phase 2)
+
+Its .sr-chunk is position:absolute inset:0 with 1fr/auto/1fr columns, so a part's box width is not its text width. In bottom-stage hosts align() sums Range widths of before, pivot and after (an empty part is 0) and uses the axis at 50%; elsewhere it measures boxes as before.
+
+<!-- fr:journal kind=finding scope=plan id=p2-panel-support-under-outline created=2026-11-21T12:41:46+00:00 phase=2 state=open review_scope=out -->
+### p2-panel-support-under-outline · finding [open] (reviewer: out of scope) · Panel layout: the open contents sidebar also covers the left of the stop prompt and exhibit cards (phase 2)
+
+Same cause as p1-panel-outline-overlap: .sr-outline is absolutely placed over the left ~290px of the full-width panel, and the stage-support area (details card and exhibits list) spans the whole width. Block stops show it today as well; the inline stop prompt and exhibit card (panel-inline-code-stop.png) are half hidden until the sidebar is closed. Left alone: the stage inset fix does not extend to the support area and the spec has no requirement for it.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p2-t4 created=2026-11-21T12:41:46+00:00 phase=2 -->
+### no-refactor-p2-t4 · discovery · no-refactor-because P2.T4 (phase 2)
+
+tests, a demo fixture and README text only; nothing to restructure
+
+<!-- fr:journal kind=finding scope=plan id=p2-r1 created=2026-11-21T12:50:27+00:00 phase=2 state=open review_scope=in -->
+### p2-r1 · finding [open] (reviewer: in scope) · Fit probe '0'x10 at weight 500 overstates char width (15.1 vs 10.8px): fit 26 where ~36 fit; 40-char check became 19-char (phase 2)
+
+mount.ts:154, styles.ts .sr-fit-probe. Measure a prose sample at the chunk's real weight; e2e shows a chunk at/near fit whole.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r2 created=2026-11-21T12:50:28+00:00 phase=2 state=open review_scope=in -->
+### p2-r2 · finding [open] (reviewer: in scope) · Fit measured on the wide flow stage: flow->chunk rebuilds twice, flow-mode panel max 77-80 (phase 2)
+
+mount.ts:266-272. Measure/keep fit only in chunk mode; on switch measure after data-reading-mode changes, before building the timeline.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r3 created=2026-11-21T12:50:29+00:00 phase=2 state=open review_scope=in -->
+### p2-r3 · finding [open] (reviewer: in scope) · Exhibits sync never removes cards: inline exhibit cards stay after flow->chunk (phase 2)
+
+exhibits.ts sync. Drop shown entries not in revealedExhibits(sectionId).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r4 created=2026-11-21T12:50:30+00:00 phase=2 state=open review_scope=in -->
+### p2-r4 · finding [open] (reviewer: in scope) · Chip number not surfaced in stop prompt or exhibit caption (phase 2)
+
+timeline.ts stopPrompt(token.atom, {}), exhibits.ts exhibitDetails. Store chip number on InlineExhibit; 'Code 2' in prompt title and caption.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r5 created=2026-11-21T12:50:30+00:00 phase=2 state=open review_scope=out -->
+### p2-r5 · finding [open] (reviewer: out of scope) · Panel layout: contents sidebar covers the stage-support area (prompts, exhibits); also for block stops in chunk mode (phase 2)
+
+Pre-existing for block stops. Cheap fix: apply --sr-flow-inset to .sr-stage-support.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r6 created=2026-11-21T12:50:31+00:00 phase=2 state=open review_scope=in -->
+### p2-r6 · finding [open] (reviewer: in scope) · Panel e2e asserts toBeVisible on a stop card covered by the outline; needs a hit-test (phase 2)
+
+tests/e2e/core.spec.ts inline-chip panel test. Assert elementFromPoint at card centre hits the card; requires making the support area clear the sidebar in flow mode.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r7 created=2026-11-21T12:50:32+00:00 phase=2 state=open review_scope=in -->
+### p2-r7 · finding [open] (reviewer: in scope) · exhibitKey and stepExhibitKey each build the b<k>i<n> key (phase 2)
+
+timeline.ts:69-74. One helper from (blockIndex, inlineIndex?).
+
+<!-- fr:journal kind=review scope=plan id=p2-review-1 created=2026-11-21T12:54:41+00:00 phase=2 -->
+### p2-review-1 · review · phase 2 independent review: 6 in-scope, 1 out-of-scope (phase 2)
+
+Independent reviewer drove the bottom-stage demo (floating 1440, panel, resize) and confirmed chips only in flow mode, per-section numbering, distinct keys for two long atoms in one paragraph (highlight and E-expand correct), core rendering of inline exhibits (no host.exhibit), inline stop keeps the ribbon without bounding the run, skip mode, speech "code"/"formula" with sentence resume, atom pacing, measured fit on resize with stored value kept, bottom-stage align shrink-then-wrap, non-bottom-stage unchanged, rows at ci justified by ci.yml. Raised p2-r1 (probe overstated char width), p2-r2 (fit measured on flow stage, double rebuild), p2-r3 (stale inline cards), p2-r4 (chip number not surfaced), p2-r5 (out: sidebar covers support area, pre-existing for block stops), p2-r6 (panel e2e passed on a covered card), p2-r7 (duplicated key builder). In-scope findings fixed in e06dcc8 and eae9dff with tests; fit at 1440 panel now 36 (was 26); full suite green after fixes (.visual/phase2-fix-suite.log).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r1-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=fixed resolves=p2-r1 -->
+### p2-r1-resolved · finding [fixed] · resolves p2-r1: Fit probe '0'x10 at weight 500 overstates char width (15.1 vs 10.8px): fit 26 where ~36 fit; 40-char check became 19-char (phase 2)
+
+e06dcc8: fit measured on a lowercase prose sample at the chunk font; e2e shows a 35-character chunk whole; fit 36 at 1440.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r2-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=fixed resolves=p2-r2 -->
+### p2-r2-resolved · finding [fixed] · resolves p2-r2: Fit measured on the wide flow stage: flow->chunk rebuilds twice, flow-mode panel max 77-80 (phase 2)
+
+e06dcc8: fit kept only in chunk mode, measured after the mode attribute changes; one rebuild on flow->chunk (unit test).
+
+<!-- fr:journal kind=finding scope=plan id=p2-r3-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=fixed resolves=p2-r3 -->
+### p2-r3-resolved · finding [fixed] · resolves p2-r3: Exhibits sync never removes cards: inline exhibit cards stay after flow->chunk (phase 2)
+
+e06dcc8: sync drops shown entries no longer revealed; unit test.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r4-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=fixed resolves=p2-r4 -->
+### p2-r4-resolved · finding [fixed] · resolves p2-r4: Chip number not surfaced in stop prompt or exhibit caption (phase 2)
+
+e06dcc8: chip number stored on the inline exhibit; 'Code n' in the stop title and caption; unit test.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r6-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=fixed resolves=p2-r6 -->
+### p2-r6-resolved · finding [fixed] · resolves p2-r6: Panel e2e asserts toBeVisible on a stop card covered by the outline; needs a hit-test (phase 2)
+
+eae9dff: support area clears the open sidebar in panel layout (inset applied); e2e hit-tests the stop prompt and exhibit card.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r7-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=fixed resolves=p2-r7 -->
+### p2-r7-resolved · finding [fixed] · resolves p2-r7: exhibitKey and stepExhibitKey each build the b<k>i<n> key (phase 2)
+
+e06dcc8: one key helper used by exhibitKey and stepExhibitKey.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r5-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=open resolves=p2-r5 out_of_scope=true -->
+### p2-r5-resolved · finding [out-of-scope] · resolves p2-r5: Panel layout: contents sidebar covers the stage-support area (prompts, exhibits); also for block stops in chunk mode (phase 2)
+
+The sidebar covering the support area predates this change (block stops in chunk mode show it too). The p2-r6 fix (eae9dff) applies the inset to the support area, which also clears it for block stops; recorded out-of-scope pending operator confirmation.
+
+<!-- fr:journal kind=finding scope=plan id=p2-panel-support-under-outline-resolved created=2026-11-21T12:54:41+00:00 phase=2 state=open resolves=p2-panel-support-under-outline out_of_scope=true -->
+### p2-panel-support-under-outline-resolved · finding [out-of-scope] · resolves p2-panel-support-under-outline: Panel layout: the open contents sidebar also covers the left of the stop prompt and exhibit cards (phase 2)
+
+Same as p2-r5: pre-existing panel-layout overlap of the support area; the p2-r6 fix also clears it.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r1 created=2026-11-21T12:56:43+00:00 state=open review_scope=in -->
+### l-simplicity-r1 · finding [open] (reviewer: in scope) · RibbonOffsets top/middle/bottom and clamp are dead; stage uses only .x
+
+ribbon-geometry.ts:13-31. Replace with spans[at].mid.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r2 created=2026-11-21T12:56:44+00:00 state=open review_scope=in -->
+### l-simplicity-r2 · finding [open] (reviewer: in scope) · Types Window/Range shadow DOM globals, forcing aliases in stage.ts:12
+
+Rename RunWindow/RunRange.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r3 created=2026-11-21T12:56:45+00:00 state=open review_scope=in -->
+### l-simplicity-r3 · finding [open] (reviewer: in scope) · keyOf/exhibitKey/stepExhibitKey: three functions for one key
+
+timeline.ts:69-78. One exhibitKey({blockIndex, inlineIndex?}).
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r4 created=2026-11-21T12:56:46+00:00 state=open review_scope=in -->
+### l-simplicity-r4 · finding [open] (reviewer: in scope) · Chip number formatted into token text then regex-parsed back
+
+timeline.ts:225. Carry chip on the token.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r5 created=2026-11-21T12:56:47+00:00 state=open review_scope=in -->
+### l-simplicity-r5 · finding [open] (reviewer: in scope) · Stop/dwell inline?: true redundant with inlineIndex
+
+timeline.ts:39-40. Drop or group into one inline object.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r6 created=2026-11-21T12:56:48+00:00 state=open review_scope=in -->
+### l-simplicity-r6 · finding [open] (reviewer: in scope) · chunkOptions ternary repeats chunkChars and precedes flow
+
+timeline.ts:166-171.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r7 created=2026-11-21T12:56:49+00:00 state=open review_scope=in -->
+### l-simplicity-r7 · finding [open] (reviewer: in scope) · mount.ts fit plumbing hard to follow; redundant check, stale comment, data-reading-mode owned twice
+
+mount.ts:125-288, :252 vs stage.ts:541.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r8 created=2026-11-21T12:56:49+00:00 state=open review_scope=in -->
+### l-simplicity-r8 · finding [open] (reviewer: in scope) · Chip label built in four places
+
+timeline stopPrompt, exhibits.ts:20, stage.ts:385, tts.ts:241. One chipLabel helper by EXHIBIT_LABELS.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r9 created=2026-11-21T12:56:50+00:00 state=open review_scope=out -->
+### l-simplicity-r9 · finding [open] (reviewer: out of scope) · [5,80] chunkChars bounds duplicated across settings.ts, settings-panel and chunk-fit.ts
+
+Pre-existing literals in settings.ts:97 and settings-panel; chunk-fit adds a copy.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r10 created=2026-11-21T12:56:51+00:00 state=open review_scope=in -->
+### l-simplicity-r10 · finding [open] (reviewer: in scope) · stage.ts measure ternary repeated thrice; middle-letter end offset duplicated
+
+stage.ts:335-337, :176/:218. Pick measure once; middleLetter returns [start,end].
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1 created=2026-11-21T13:01:29+00:00 state=open review_scope=in -->
+### l-tests-r1 · finding [open] (reviewer: in scope) · Glide never verified in real layout: removing the ribbon transition passes all flow e2e
+
+core.spec.ts:256. Assert computed transitionDuration ~0.067s at 300 wpm, mid-glide transform not at end, 0s on jump and reduced motion.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2 created=2026-11-21T13:01:30+00:00 state=open review_scope=in -->
+### l-tests-r2 · finding [open] (reviewer: in scope) · Row-seam e2e checks word indices only; a ~22px gap passes
+
+core.spec.ts:284-287. Check seams at px precision across the cut word.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3 created=2026-11-21T13:01:30+00:00 state=open review_scope=in -->
+### l-tests-r3 · finding [open] (reviewer: in scope) · Fit e2e recomputes fit from the same probe and never checks --sr-scale
+
+core.spec.ts:936/964. Assert at-fit chunk unscaled; cover floating too.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4 created=2026-11-21T13:01:31+00:00 state=open review_scope=in -->
+### l-tests-r4 · finding [open] (reviewer: in scope) · Inline-exhibit identity across rebuilds untested
+
+player.ts:107. Flow-to-flow rebuild keeps b0i1 revealed; same key in two sections stays distinct.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r5 created=2026-11-21T13:01:32+00:00 state=open review_scope=in -->
+### l-tests-r5 · finding [open] (reviewer: in scope) · chunk-cap 'keeping the position' test cannot fail
+
+chunk-cap.test.ts:76-102. Assert same source and sentenceIndex after rebuild.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r6 created=2026-11-21T13:01:33+00:00 state=open review_scope=in -->
+### l-tests-r6 · finding [open] (reviewer: in scope) · Ribbon visibility is toBeVisible only; no hit-test
+
+Add elementFromPoint for each row and the lit .sr-flow-mid on both layouts, sidebar open.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r7 created=2026-11-21T13:01:34+00:00 state=open review_scope=in -->
+### l-tests-r7 · finding [open] (reviewer: in scope) · No extension (dock/overlay, shadow DOM) test covers flow mode or the measured fit
+
+extension.spec.ts:547. Add flow-mode and fit checks for dock and overlay.
+
+<!-- fr:journal kind=review scope=plan id=lens-review-1 created=2026-11-21T13:10:42+00:00 -->
+### lens-review-1 · review · lens review: simplicity 9 in / 1 out, tests 7 in
+
+One reviewer per lens over a88f0b0..HEAD. Simplicity found dead geometry fields, shadowed type names, triplicated exhibit keys, regex-parsed chip numbers, a redundant inline flag, tangled fit plumbing and a quadruplicated chip label; tests confirmed by mutation that the glide, row seams, fit, inline-exhibit identity, rebuild position, ribbon occlusion and extension flow/fit were unguarded. All in-scope findings fixed in fbb02a7, c146275, c17045a; each new test verified red against its mutation; full suite green (.visual/lens-fix-suite.log). Note: an exactly-at-fit chunk renders at ~0.958 scale because fit ignores the 12px edge margins, per the spec's fit formula; tests assert >=0.9 and no wrap.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r1-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r1 -->
+### l-simplicity-r1-resolved · finding [fixed] · resolves l-simplicity-r1: RibbonOffsets top/middle/bottom and clamp are dead; stage uses only .x
+
+fbb02a7: Dead offsets removed; placeRibbon reads the span mid.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r2-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r2 -->
+### l-simplicity-r2-resolved · finding [fixed] · resolves l-simplicity-r2: Types Window/Range shadow DOM globals, forcing aliases in stage.ts:12
+
+fbb02a7: Types renamed RunRange/RunWindow; aliases dropped.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r3-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r3 -->
+### l-simplicity-r3-resolved · finding [fixed] · resolves l-simplicity-r3: keyOf/exhibitKey/stepExhibitKey: three functions for one key
+
+fbb02a7: One exhibitKey({blockIndex, inlineIndex?}).
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r4-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r4 -->
+### l-simplicity-r4-resolved · finding [fixed] · resolves l-simplicity-r4: Chip number formatted into token text then regex-parsed back
+
+fbb02a7: Chip number carried on the token.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r5-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r5 -->
+### l-simplicity-r5-resolved · finding [fixed] · resolves l-simplicity-r5: Stop/dwell inline?: true redundant with inlineIndex
+
+fbb02a7: Redundant inline flag dropped for inlineIndex.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r6-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r6 -->
+### l-simplicity-r6-resolved · finding [fixed] · resolves l-simplicity-r6: chunkOptions ternary repeats chunkChars and precedes flow
+
+fbb02a7: flow declared first; single chunkOptions literal.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r7-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r7 -->
+### l-simplicity-r7-resolved · finding [fixed] · resolves l-simplicity-r7: mount.ts fit plumbing hard to follow; redundant check, stale comment, data-reading-mode owned twice
+
+fbb02a7: measureFit merged into currentFit, redundant check and stale comment removed, mount.ts owns data-reading-mode.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r8-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r8 -->
+### l-simplicity-r8-resolved · finding [fixed] · resolves l-simplicity-r8: Chip label built in four places
+
+fbb02a7: One chipLabel helper used by timeline, exhibits, stage and tts.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r10-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-simplicity-r10 -->
+### l-simplicity-r10-resolved · finding [fixed] · resolves l-simplicity-r10: stage.ts measure ternary repeated thrice; middle-letter end offset duplicated
+
+fbb02a7: measure chosen once in align(); middleLetter returns [start,end].
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r9-resolved created=2026-11-21T13:10:42+00:00 state=open resolves=l-simplicity-r9 out_of_scope=true -->
+### l-simplicity-r9-resolved · finding [out-of-scope] · resolves l-simplicity-r9: [5,80] chunkChars bounds duplicated across settings.ts, settings-panel and chunk-fit.ts
+
+The [5,80] chunkChars literals predate this change in settings.ts and settings-panel; chunk-fit mirrors them.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r1 -->
+### l-tests-r1-resolved · finding [fixed] · resolves l-tests-r1: Glide never verified in real layout: removing the ribbon transition passes all flow e2e
+
+c17045a: Browser test asserts computed transitionDuration, mid-glide transform, 0s on jump and reduced motion; red under transition removal.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r2 -->
+### l-tests-r2-resolved · finding [fixed] · resolves l-tests-r2: Row-seam e2e checks word indices only; a ~22px gap passes
+
+c17045a: Seams checked to the pixel across the cut word; red under 1.52 shift.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r3 -->
+### l-tests-r3-resolved · finding [fixed] · resolves l-tests-r3: Fit e2e recomputes fit from the same probe and never checks --sr-scale
+
+c17045a: At-fit prose chunk asserted unscaled (>=0.9, no wrap) on floating and panel; red under 0.75x probe.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r4 -->
+### l-tests-r4-resolved · finding [fixed] · resolves l-tests-r4: Inline-exhibit identity across rebuilds untested
+
+c146275: Unit tests for flow-to-flow rebuild and same key in two sections; red under both mutations.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r5-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r5 -->
+### l-tests-r5-resolved · finding [fixed] · resolves l-tests-r5: chunk-cap 'keeping the position' test cannot fail
+
+c146275: Asserts same source and sentenceIndex after rebuild; red under reset-to-0.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r6-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r6 -->
+### l-tests-r6-resolved · finding [fixed] · resolves l-tests-r6: Ribbon visibility is toBeVisible only; no hit-test
+
+c17045a: elementFromPoint hit-tests for rows and lit letter, both layouts, sidebar open; red with target pointer-events auto.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r7-resolved created=2026-11-21T13:10:42+00:00 state=fixed resolves=l-tests-r7 -->
+### l-tests-r7-resolved · finding [fixed] · resolves l-tests-r7: No extension (dock/overlay, shadow DOM) test covers flow mode or the measured fit
+
+c17045a: Extension dock/overlay flow and measured-fit tests; red under r3/r6 mutations.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r4-resolved-2 created=2026-11-21T14:13:43+00:00 phase=1 state=open resolves=p1-r4 tracked_by=https://github.com/derio-labs/speed-read-fr/issues/12 -->
+### p1-r4-resolved-2 · finding [deferred → https://github.com/derio-labs/speed-read-fr/issues/12] · resolves p1-r4: Pre-existing dial wheel gain (x4-x6.8) makes fast wheel turns jump many words (phase 1)
+
+Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/12.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r9-resolved-2 created=2026-11-21T14:13:43+00:00 state=open resolves=l-simplicity-r9 tracked_by=https://github.com/derio-labs/speed-read-fr/issues/13 -->
+### l-simplicity-r9-resolved-2 · finding [deferred → https://github.com/derio-labs/speed-read-fr/issues/13] · resolves l-simplicity-r9: [5,80] chunkChars bounds duplicated across settings.ts, settings-panel and chunk-fit.ts
+
+Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/13.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r5-resolved-2 created=2026-11-21T14:13:59+00:00 state=fixed resolves=p2-r5 answered_by=operator -->
+### p2-r5-resolved-2 · finding [fixed] · resolves p2-r5: Panel layout: contents sidebar covers the stage-support area (prompts, exhibits); also for block stops in chunk mode
+
+eae9dff applies the sidebar inset to the stage-support area, clearing the stop prompt and exhibit cards for inline and block stops alike; operator approved marking it fixed.
+
+<!-- fr:journal kind=finding scope=plan id=p2-panel-support-under-outline-resolved-2 created=2026-11-21T14:14:00+00:00 state=fixed resolves=p2-panel-support-under-outline answered_by=operator -->
+### p2-panel-support-under-outline-resolved-2 · finding [fixed] · resolves p2-panel-support-under-outline: Panel layout: the open contents sidebar also covers the left of the stop prompt and exhibit cards
+
+eae9dff applies the sidebar inset to the stage-support area, clearing the stop prompt and exhibit cards for inline and block stops alike; operator approved marking it fixed.

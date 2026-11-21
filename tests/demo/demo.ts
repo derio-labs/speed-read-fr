@@ -33,13 +33,20 @@ function open() {
   container.hidden = false;
   const host = createCloneHost(content, { wrapperClass: 'doc', onClose: close });
   // ?layout=floating mounts the floating cards (the browser overlay's layout) instead of the panel.
-  const layout = new URLSearchParams(location.search).get('layout') === 'floating' ? 'floating' : 'panel';
-  handle = mountReader(container, extract(content), { settings: DEFAULT_SETTINGS, store, host, layout });
+  // ?bottomStage mounts the bottom-stage reader every shipping host uses: floating by default,
+  // `&layout=panel` for the docked panel.
+  const params = new URLSearchParams(location.search);
+  const bottomStage = params.has('bottomStage');
+  const layoutParam = params.get('layout');
+  const layout = layoutParam === 'floating' || (bottomStage && layoutParam !== 'panel') ? 'floating' : 'panel';
+  handle = mountReader(container, extract(content), { settings: DEFAULT_SETTINGS, store, host, layout, bottomStage });
   (window as unknown as { __reader?: ReaderHandle }).__reader = handle;
 }
 
 async function main() {
-  const response = await fetch(new URL('../fixtures/article.html', location.href));
+  // ?doc=inline reads the long-inline-code fixture instead of the article.
+  const fixture = new URLSearchParams(location.search).get('doc') === 'inline' ? 'inline-code.html' : 'article.html';
+  const response = await fetch(new URL(`../fixtures/${fixture}`, location.href));
   const parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
   const content = parsed.getElementById('content');
   if (!content) throw new Error('fixture has no #content');

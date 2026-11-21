@@ -1,5 +1,6 @@
 import type { Block, Doc, ExhibitBlock, ExhibitKind, ExhibitMeta, ListItem, Section, Sentence, SourceRef, Token } from './model';
 import type { Settings } from './settings';
+import { chipLabel } from './ui/format';
 import { chunkSentence, type Chunk, type ChunkOptions } from './text/chunks';
 
 export type ListBlock = Extract<Block, { kind: 'list' }>;
@@ -36,18 +37,41 @@ export type Step = StepPosition &
     | ({ kind: 'item-chunk'; index: number; of: number; depth: number } & SentencePart)
     | { kind: 'item-gap' }
     | { kind: 'list-whole'; block: ListBlock; words: number }
-    | { kind: 'stop'; exhibit: ExhibitKind; prompt: string }
-    | { kind: 'dwell'; exhibit: ExhibitKind; seconds: number }
+    | { kind: 'stop'; exhibit: ExhibitKind; prompt: string; inlineIndex?: number; chip?: number }
+    | { kind: 'dwell'; exhibit: ExhibitKind; seconds: number; inlineIndex?: number; chip?: number }
   );
 
 export type StepKind = Step['kind'];
 
-export interface TimelineExhibit {
+/** A block exhibit: a code, table, math, image or diagram block. */
+export interface BlockExhibit {
+  inline?: undefined;
   blockIndex: number;
   block: ExhibitBlock;
   /** Index of the step at which playback passes the exhibit (the timeline length when nothing follows it). */
   revealAt: number;
 }
+
+/** A long inline code or math atom of a flow-mode sentence, listed as an exhibit of its own. */
+export interface InlineExhibit {
+  inline: true;
+  blockIndex: number;
+  /** 1-based, within the block. */
+  inlineIndex: number;
+  /** The chip's number on the ribbon (`⟨code 2⟩`), per kind within the section. */
+  chip: number;
+  kind: 'code' | 'math';
+  text: string;
+  revealAt: number;
+}
+
+export type TimelineExhibit = BlockExhibit | InlineExhibit;
+
+/** Identity of an exhibit within its section: `b<blockIndex>`, or `b<blockIndex>i<inlineIndex>` for an inline one. */
+export const exhibitKey = ({ blockIndex, inlineIndex }: { blockIndex: number; inlineIndex?: number }): string =>
+  `b${blockIndex}${inlineIndex !== undefined ? `i${inlineIndex}` : ''}`;
+
+export const exhibitKind = (e: TimelineExhibit): ExhibitKind => (e.inline ? e.kind : e.block.kind);
 
 export interface TimelineSection {
   id: string;
@@ -66,13 +90,16 @@ export interface Timeline {
 
 const SHORT_LIST_ITEM_WORDS = 6;
 const SHORT_LIST_MAX_ITEMS = 8;
+/** In flow mode an atom longer than this becomes a chip on the ribbon and an exhibit of its own. */
+export const LONG_ATOM_CHARS = 20;
 const PROMPT_TAIL = ': Space to continue, E to expand';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export const sentenceWords = (sentences: Sentence[]): number => sentences.reduce((n, s) => n + s.tokens.length, 0);
 
-function stopPrompt(kind: 'code' | 'table' | 'math', meta: ExhibitMeta): string {
+function stopPrompt(kind: 'code' | 'table' | 'math', meta: ExhibitMeta, chip?: number): string {
+  if (chip !== undefined) return `${chipLabel(kind === 'math' ? 'math' : 'code', chip)}${PROMPT_TAIL}`;
   if (kind === 'code') return `Code${meta.lines !== undefined ? `, ${plural(meta.lines, 'line')}` : ''}${PROMPT_TAIL}`;
   if (kind === 'table') {
     const size =
@@ -124,14 +151,21 @@ function sentenceParts(sentences: Sentence[], options: ChunkOptions): SentencePa
   );
 }
 
+const isChip = (token: Token): token is Extract<Token, { kind: 'atom' }> & { full: string; chip: number } =>
+  token.kind === 'atom' && token.full !== undefined && token.chip !== undefined;
+
 /** Turn a document into the ordered steps the player runs through (spec section 4). */
 export function buildTimeline(doc: Doc, settings: Settings): Timeline {
   const steps: Step[] = [];
   const sections: TimelineSection[] = [];
-  const chunkOptions: ChunkOptions = { chunkWords: settings.chunkWords, chunkChars: settings.chunkChars };
+  const flow = settings.readingMode === 'flow';
+  // Flow mode steps one word at a time; the stored chunk limits apply again in chunk mode.
+  const chunkOptions: ChunkOptions = { chunkWords: flow ? 1 : settings.chunkWords, chunkChars: settings.chunkChars };
 
   doc.sections.forEach((section, sectionAt) => {
     const sectionId = section.id;
+    /** Chip numbers per kind, from 1 in each section. */
+    const chips = { code: 0, math: 0 };
     const entry: TimelineSection = {
       id: sectionId,
       title: section.heading?.text,
@@ -159,9 +193,41 @@ export function buildTimeline(doc: Doc, settings: Settings): Timeline {
 
     section.blocks.forEach((block, blockIndex) => {
       const at = { sectionId, blockIndex, source: block.source };
+      let inlineCount = 0;
+
+      /** Flow mode: atoms over the limit become chips (numbered per section); the rest is untouched. */
+      const withChips = (sentences: Sentence[]): Sentence[] =>
+        !flow
+          ? sentences
+          : sentences.map((sentence) => ({
+              tokens: sentence.tokens.map((t): Token =>
+                t.kind === 'atom' && t.text.length > LONG_ATOM_CHARS
+                  ? { kind: 'atom', atom: t.atom, text: `⟨${t.atom} ${++chips[t.atom]}⟩`, full: t.text, chip: chips[t.atom] }
+                  : t,
+              ),
+            }));
+
+      /** The chunk steps of the sentences; each chip is followed by its inline exhibit's stop or dwell. */
+      const pushSentences = (sentences: Sentence[], position: StepPosition, build: (part: SentencePart) => Step) => {
+        for (const part of sentenceParts(withChips(sentences), chunkOptions)) {
+          steps.push(build(part));
+          const token = part.chunk.tokens[0];
+          if (!flow || !isChip(token)) continue;
+          const inlineIndex = ++inlineCount;
+          const { chip } = token;
+          entry.exhibits.push({ inline: true, blockIndex, inlineIndex, chip, kind: token.atom, text: token.full, revealAt: steps.length });
+          const behaviour = settings[token.atom];
+          const inline = { inlineIndex, chip };
+          if (behaviour.mode === 'stop')
+            steps.push({ ...position, kind: 'stop', exhibit: token.atom, prompt: stopPrompt(token.atom, {}, chip), ...inline });
+          else if (behaviour.mode === 'dwell')
+            steps.push({ ...position, kind: 'dwell', exhibit: token.atom, seconds: behaviour.dwellSeconds, ...inline });
+        }
+      };
+
       switch (block.kind) {
         case 'prose':
-          for (const part of sentenceParts(block.sentences, chunkOptions)) steps.push({ ...at, kind: 'chunk', ...part });
+          pushSentences(block.sentences, at, (part) => ({ ...at, kind: 'chunk', ...part }));
           return;
         case 'list':
           if (isShortList(block.items)) {
@@ -172,8 +238,7 @@ export function buildTimeline(doc: Doc, settings: Settings): Timeline {
           for (const it of block.items) {
             const itemAt = { ...at, source: it.source };
             const counter = { index: it.index, of: it.of, depth: it.depth };
-            for (const part of sentenceParts(it.sentences, chunkOptions))
-              steps.push({ ...itemAt, kind: 'item-chunk', ...counter, ...part });
+            pushSentences(it.sentences, itemAt, (part) => ({ ...itemAt, kind: 'item-chunk', ...counter, ...part }));
             steps.push({ ...itemAt, kind: 'item-gap' });
           }
           return;

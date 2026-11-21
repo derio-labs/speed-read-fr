@@ -58,108 +58,223 @@ describe('chunk steps', () => {
   });
 });
 
-describe('three-row flow steps', () => {
-  it('keeps exactly three rows and advances the current text through the middle row', () => {
-    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta.</p>', { settings: { readingMode: 'flow', chunkWords: 1 } });
+/**
+ * Fake layout for the ribbon: a character is 10px, a row is 400px wide and 40px tall, and a word's left
+ * edge follows the text before it in its line.
+ */
+function stubRibbonLayout() {
+  const left = (el: Element) => {
+    let x = 0;
+    for (const sibling of Array.from(el.parentElement?.childNodes ?? [])) {
+      if (sibling === el) break;
+      x += (sibling.textContent ?? '').length * 10;
+    }
+    return x;
+  };
+  const rect = (x: number, width: number, height = 0) => ({ width, height, top: 0, left: x, right: x + width, bottom: height, x, y: 0, toJSON() {} }) as DOMRect;
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    if (this.classList.contains('sr-ribbon-row')) return rect(0, 400, 40);
+    if (this.classList.contains('sr-ribbon-line')) return rect(0, (this.textContent ?? '').length * 10);
+    if (this.classList.contains('sr-w')) return rect(left(this), (this.textContent ?? '').length * 10);
+    return rect(0, 0);
+  });
+  (Range.prototype as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = function (this: Range) {
+    const word = this.startContainer.parentElement!.closest('.sr-w')!;
+    return rect(left(word) + this.startOffset * 10, (this.endOffset - this.startOffset) * 10);
+  };
+}
+
+const flowOpts = { readingMode: 'flow' as const };
+const rowText = (t: ReturnType<typeof mountHarness>, position: string) => text(t.q(`.sr-ribbon-row[data-position="${position}"]`));
+const ribbonVar = (t: ReturnType<typeof mountHarness>, name: string) => t.q('.sr-ribbon')!.style.getPropertyValue(name);
+
+describe('flow mode ribbon', () => {
+  afterEach(() => {
+    delete (Range.prototype as unknown as { getBoundingClientRect?: unknown }).getBoundingClientRect;
+  });
+
+  it('renders three row viewports over one line of consecutive words, with no focus axis', () => {
+    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta.</p>', { settings: flowOpts });
     t.handle.player.toggle();
-    const rows = () => t.qa('.sr-flow-row');
-    const middle = () => text(t.q('.sr-flow-row[data-position="middle"]'));
     expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
-    expect(rows()).toHaveLength(3);
-    const first = middle();
+    expect(t.qa('.sr-ribbon-row').map((r) => r.dataset.position)).toEqual(['top', 'middle', 'bottom']);
+    for (const position of ['top', 'middle', 'bottom']) expect(rowText(t, position)).toBe('alpha beta gamma delta epsilon zeta.');
+    expect(t.qa('.sr-ribbon-row[data-position="middle"] .sr-w')).toHaveLength(6);
+    expect(t.q('.sr-flow-axis')).toBeNull();
+    expect(t.q('.sr-flow-row')).toBeNull();
+  });
+
+  it('sets the middle letter of the current word in the accent class, once', () => {
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
+    t.handle.player.toggle();
+    expect(t.qa('.sr-flow-mid').map((e) => e.textContent)).toEqual(['p']);
+    expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('alpha');
+    expect(t.q('.sr-flow-mid')!.closest('.sr-ribbon-row')!.getAttribute('data-position')).toBe('middle');
     t.clock.advance(t.clock.nextIn()!);
-    expect(rows()).toHaveLength(3);
-    expect(middle()).not.toBe(first);
-    expect(text(rows()[0])).toBe(first);
+    expect(t.qa('.sr-flow-mid').map((e) => e.textContent)).toEqual(['e']);
+    expect(rowText(t, 'middle')).toBe('alpha beta gamma.');
   });
 
-  it('keeps the focus marker fixed when reading a nested list item', () => {
-    const t = mountHarness('<ul><li>first list item that is rather long indeed</li><li>second list item that is also long<ul><li>nested target words in the list</li></ul></li></ul>', { settings: { readingMode: 'flow' } });
+  it('sizes the braced target to the current word plus 8px and keeps top and bottom braces', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
     t.handle.player.toggle();
-    const list = t.doc.sections[0].blocks[0];
-    if (list.kind !== 'list') throw new Error('list expected');
-    t.handle.player.jumpToBlock(list.items[2].source);
-    expect(t.q('.sr-flow-axis')).not.toBeNull();
-    expect(t.q('.sr-flow-axis')!.style.left).toBe('50%');
-    expect(t.q('.sr-display')!.style.getPropertyValue('--sr-depth')).toBe('');
-  });
-
-  it('re-centers the flow window after a sentence jump', () => {
-    const t = mountHarness('<p>First sentence has words. Second sentence has other words.</p>', { settings: { readingMode: 'flow', chunkWords: 1 } });
-    t.handle.player.toggle();
-    t.handle.player.sentence(1);
-    expect(text(t.q('.sr-flow-row[data-position="middle"]'))).toBe('Second');
-  });
-
-  it('keeps the space between the pivot and the rest of the middle row', () => {
-    const t = mountHarness('<p>read it all in one go.</p>', { settings: { readingMode: 'flow', chunkWords: 3 } });
-    t.handle.player.toggle();
-    const middle = t.q('.sr-flow-row[data-position="middle"]')!;
-    expect(middle.textContent).toBe('read it all');
-    const parts = ['.sr-flow-before', '.sr-flow-pivot', '.sr-flow-after'].map((s) => t.q(s)!.textContent!);
-    expect(parts.join('')).toBe('read it all');
-    expect(parts.filter((x) => x.startsWith(' ') || x.endsWith(' ')).length).toBeGreaterThan(0);
-  });
-
-  it('leaves the top row empty on the first chunk and the bottom row empty on the last, still three rows', () => {
-    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: { readingMode: 'flow', chunkWords: 1 } });
-    t.handle.player.toggle();
-    expect(t.qa('.sr-flow-row')).toHaveLength(3);
-    expect(text(t.q('.sr-flow-row[data-position="top"]'))).toBe('');
-    expect(text(t.q('.sr-flow-row[data-position="bottom"]'))).toBe('beta');
+    const target = t.q('.sr-flow-target')!;
+    expect(target.querySelector('.sr-flow-brace[data-side="top"]')).not.toBeNull();
+    expect(target.querySelector('.sr-flow-brace[data-side="bottom"]')).not.toBeNull();
+    expect(target.hidden).toBe(false);
+    expect(target.style.getPropertyValue('--sr-target-w')).toBe('58'); // alpha: 5 chars
     t.clock.advance(t.clock.nextIn()!);
+    expect(target.style.getPropertyValue('--sr-target-w')).toBe('48'); // beta
     t.clock.advance(t.clock.nextIn()!);
-    expect(text(t.q('.sr-flow-row[data-position="middle"]'))).toBe('gamma.');
-    expect(t.qa('.sr-flow-row')).toHaveLength(3);
-    expect(text(t.q('.sr-flow-row[data-position="bottom"]'))).toBe('');
-    expect(text(t.q('.sr-flow-row[data-position="top"]'))).toBe('beta');
+    expect(target.style.getPropertyValue('--sr-target-w')).toBe('68'); // gamma.
   });
 
-  it('takes the neighbour across an item gap', () => {
-    const t = mountHarness('<ul><li>first list item that is rather long indeed</li><li>second list item that is also long</li><li>third list item with plenty of words too</li></ul>', { settings: { readingMode: 'flow' } });
+  it('puts the middle letter on the shared offset and the target left of it by the letters before', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
     t.handle.player.toggle();
-    const list = t.doc.sections[0].blocks[0];
-    if (list.kind !== 'list') throw new Error('list expected');
-    t.handle.player.jumpToBlock(list.items[1].source);
-    expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
-    expect(t.qa('.sr-flow-row')).toHaveLength(3);
-    expect(text(t.q('.sr-flow-row[data-position="middle"]'))).toMatch(/^second/);
-    expect(text(t.q('.sr-flow-row[data-position="top"]'))).not.toBe('');
+    // alpha 0..50, middle 'p' centre 25; the row is 400 wide so its centre is 200.
+    expect(ribbonVar(t, '--sr-x')).toBe('25');
+    expect(ribbonVar(t, '--sr-w')).toBe('400');
+    expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-x')).toBe(String(200 - 25 - 4));
+    t.clock.advance(t.clock.nextIn()!);
+    // beta starts at 60; its middle 'e' is the second letter, centre 60 + 15
+    expect(ribbonVar(t, '--sr-x')).toBe('75');
+    expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-x')).toBe(String(200 - 15 - 4));
   });
 
-  it('does not borrow a neighbour from across a card', () => {
-    const t = mountHarness('<p>alpha beta.</p><pre>code</pre><p>gamma delta.</p>', { settings: { readingMode: 'flow', chunkWords: 1 } });
+  it('glides for a third of a word, snaps on the first layout, and snaps for a move over a row width', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>' + Array.from({ length: 40 }, () => 'word').join(' ') + '.</p>', { settings: { ...flowOpts, wpm: 300 } });
+    t.handle.player.toggle();
+    expect(ribbonVar(t, '--sr-glide')).toBe('0ms');
+    t.clock.advance(t.clock.nextIn()!);
+    expect(Number.parseFloat(ribbonVar(t, '--sr-glide'))).toBeCloseTo(200 / 3);
+    t.handle.player.scrub(20);
+    expect(ribbonVar(t, '--sr-glide')).toBe('0ms');
+    t.handle.player.scrub(-1);
+    expect(Number.parseFloat(ribbonVar(t, '--sr-glide'))).toBeCloseTo(200 / 3);
+  });
+
+  it('snaps under reduced motion', () => {
+    stubRibbonLayout();
+    const win = window as unknown as { matchMedia?: unknown };
+    win.matchMedia = (query: string) => ({ matches: query.includes('reduce'), media: query });
+    try {
+      const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
+      t.handle.player.toggle();
+      t.clock.advance(t.clock.nextIn()!);
+      expect(ribbonVar(t, '--sr-glide')).toBe('0ms');
+    } finally {
+      delete win.matchMedia;
+    }
+  });
+
+  it('scrubbing moves the offset word by word and back', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta.</p>', { settings: flowOpts });
+    t.handle.player.toggle();
+    t.handle.player.scrub(2);
+    expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('gamma');
+    expect(ribbonVar(t, '--sr-x')).toBe(String(110 + 20 + 5));
+    t.handle.player.scrub(-1);
+    expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('beta');
+    expect(ribbonVar(t, '--sr-x')).toBe('75');
+  });
+
+  it('lays out at most 400 words around the position and lays out again near the window edge', () => {
+    const body = Array.from({ length: 1000 }, (_, i) => `w${i}`).join(' ') + '.';
+    stubRibbonLayout();
+    const t = mountHarness(`<p>${body}</p>`, { settings: flowOpts });
+    t.handle.player.toggle();
+    const ids = () => t.qa('.sr-ribbon-row[data-position="middle"] .sr-w').map((w) => w.textContent);
+    expect(ids()).toHaveLength(400);
+    expect(ids()[0]).toBe('w0');
+    t.handle.player.scrub(250);
+    expect(ids()[0]).toBe('w0');
+    t.handle.player.scrub(49);
+    expect(ids()[0]).toBe('w0');
+    t.handle.player.scrub(1);
+    expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('w300');
+    expect(ids()[0]).toBe('w100');
+    // The re-centring step glides like any other.
+    expect(Number.parseFloat(t.q('.sr-ribbon')!.style.getPropertyValue('--sr-glide'))).toBeGreaterThan(0);
+    expect(ids()).toHaveLength(400);
+  });
+
+  it('lays a list out as one line with a bullet between the items', () => {
+    const t = mountHarness('<ul><li>first list item that is rather long indeed</li><li>second list item that is also long</li><li>third list item with plenty of words too</li></ul>', { settings: flowOpts });
+    t.handle.player.toggle();
+    expect(rowText(t, 'middle')).toContain('indeed • second');
+    expect(rowText(t, 'middle')).toContain('long • third');
+    expect(t.qa('.sr-ribbon-row[data-position="middle"] .sr-ribbon-sep')).toHaveLength(2);
+  });
+
+  it('puts a chapter card in place of the ribbon and takes the ribbon up again after it', () => {
+    const t = mountHarness('<p>alpha beta.</p><h1>Heading</h1><p>gamma delta.</p>', { settings: flowOpts });
+    t.handle.player.toggle();
+    expect(rowText(t, 'middle')).toBe('alpha beta.');
+    for (let i = 0; i < 4 && !t.q('.sr-card-chapter'); i++) t.clock.advance(t.clock.nextIn()!);
+    expect(t.q('.sr-card-chapter')).not.toBeNull();
+    expect(t.q('.sr-ribbon')).toBeNull();
+    t.handle.player.continue();
+    expect(rowText(t, 'middle')).toBe('gamma delta.');
+  });
+
+  it('does not borrow words from across a code stop', () => {
+    const t = mountHarness('<p>alpha beta.</p><pre>code</pre><p>gamma delta.</p>', { settings: flowOpts });
     t.handle.player.toggle();
     t.handle.player.continue();
-    const row = (pos: string) => text(t.q(`.sr-flow-row[data-position="${pos}"]`));
     t.clock.advance(t.clock.nextIn()!);
-    expect(row('middle')).toBe('beta.');
-    expect(row('bottom')).toBe('');
-    expect(t.qa('.sr-flow-row')).toHaveLength(3);
-    for (let i = 0; i < 20 && row('middle') !== 'gamma'; i++) {
+    expect(rowText(t, 'middle')).toBe('alpha beta.');
+    for (let i = 0; i < 20 && !rowText(t, 'middle').startsWith('gamma'); i++) {
       if (t.q('.sr-card-stop')) t.handle.player.continue();
       else t.clock.advance(t.clock.nextIn()!);
     }
-    expect(row('middle')).toBe('gamma');
-    expect(row('top')).toBe('');
-    expect(t.qa('.sr-flow-row')).toHaveLength(3);
+    expect(rowText(t, 'middle')).toBe('gamma delta.');
+    expect(t.q('.sr-card-stop')).toBeNull();
   });
 
-  it('keeps chapter and structured-content cards instead of replacing them with rows', () => {
-    const t = mountHarness('<h1>Heading</h1><p>Text before code.</p><pre>const x = 1;</pre>', { settings: { readingMode: 'flow' } });
+  it('keeps chapter and structured-content cards instead of the ribbon', () => {
+    const t = mountHarness('<h1>Heading</h1><p>Text before code.</p><pre>const x = 1;</pre>', { settings: flowOpts });
     t.handle.player.toggle();
     expect(t.q('.sr-card-chapter')).not.toBeNull();
-    expect(t.q('.sr-flow-row')).toBeNull();
+    expect(t.q('.sr-ribbon')).toBeNull();
     t.handle.player.continue();
     t.clock.advance(10_000);
     expect(t.q('.sr-card-stop')).not.toBeNull();
-    expect(t.q('.sr-flow-row')).toBeNull();
+    expect(t.q('.sr-ribbon')).toBeNull();
+  });
+
+  it('sets data-reading-mode on the reader, following the setting', () => {
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
+    expect(t.reader.dataset.readingMode).toBe('flow');
+    t.q<HTMLButtonElement>('.sr-settings-button')!.click();
+    const select = t.q<HTMLSelectElement>('.sr-settings [name="readingMode"]')!;
+    select.value = 'chunk';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(t.reader.dataset.readingMode).toBe('chunk');
+    select.value = 'flow';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(t.reader.dataset.readingMode).toBe('flow');
+  });
+
+  it('renders atoms in a monospace span on the ribbon', () => {
+    const t = mountHarness('<p>Run <code>npm ci</code> now.</p>', { settings: flowOpts });
+    t.handle.player.toggle();
+    expect(t.qa('.sr-ribbon-row[data-position="middle"] .sr-atom').map((a) => a.textContent)).toEqual(['npm ci']);
+    // Reaching the atom keeps it one box with the lit letter inside, so nothing shifts.
+    t.clock.advance(t.clock.nextIn()!);
+    const atoms = t.qa('.sr-ribbon-row[data-position="middle"] .sr-atom');
+    expect(atoms).toHaveLength(1);
+    expect(atoms[0].querySelector('.sr-flow-mid')!.textContent).toBe('m');
   });
 });
 
 describe('bottom-stage flow', () => {
-  it('keeps the flow structure in the stage and the card in the details panel', () => {
-    const t = mountHarness('<h1>Heading</h1><p>alpha beta gamma.</p><pre>const x = 1;</pre>', { bottomStage: true, settings: { readingMode: 'flow', chunkWords: 1 } });
+  it('keeps the ribbon in the stage and the card in the details panel', () => {
+    const t = mountHarness('<h1>Heading</h1><p>alpha beta gamma.</p><pre>const x = 1;</pre>', { bottomStage: true, settings: flowOpts });
     expect(t.reader.hasAttribute('data-bottom-stage')).toBe(true);
     t.handle.player.toggle();
     const details = t.q('.sr-stage-details')!;
@@ -167,13 +282,14 @@ describe('bottom-stage flow', () => {
     expect(details.querySelector('.sr-card-chapter')).not.toBeNull();
     t.handle.player.continue();
     expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
-    expect(t.qa('.sr-display .sr-flow-row')).toHaveLength(3);
-    expect(t.q('.sr-display .sr-flow-axis')).not.toBeNull();
+    expect(t.qa('.sr-display .sr-ribbon-row')).toHaveLength(3);
+    expect(t.q('.sr-display .sr-flow-target')).not.toBeNull();
     expect(details.hidden).toBe(true);
     expect(details.childNodes).toHaveLength(0);
     t.clock.advance(10_000);
     expect(details.hidden).toBe(false);
     expect(details.querySelector('.sr-card-stop')).not.toBeNull();
+    expect(t.q('.sr-ribbon')).toBeNull();
   });
 });
 
@@ -340,5 +456,60 @@ describe('formatDuration', () => {
     expect(formatDuration(400)).toBe('1 s');
     expect(formatDuration(42_000)).toBe('42 s');
     expect(formatDuration(150_000)).toBe('3 min');
+  });
+});
+
+describe('inline exhibit stops in flow mode', () => {
+  const LONG = 'first_long_identifier_name_here';
+  const HTML = `<p>Call <code>${LONG}</code> then go on.</p>`;
+  const flow = { readingMode: 'flow' as const };
+  const runToStop = (t: ReturnType<typeof mountHarness>) => {
+    for (let i = 0; i < 50 && t.handle.player.state === 'playing'; i++) t.clock.advance(t.clock.nextIn() ?? 0);
+  };
+
+  it('keeps the ribbon with the chip on the target and the prompt in the details panel', () => {
+    const t = mountHarness(HTML, { bottomStage: true, settings: flow });
+    t.handle.player.toggle();
+    runToStop(t);
+    expect(t.handle.player.state).toBe('stopped');
+    expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
+    expect(t.q('.sr-ribbon')).not.toBeNull();
+    expect(text(t.q('.sr-flow-mid')!.closest('.sr-w'))).toBe('⟨code 1⟩');
+    const details = t.q('.sr-stage-details')!;
+    expect(details.hidden).toBe(false);
+    expect(details.querySelector('.sr-card-stop')).not.toBeNull();
+    expect(text(details)).toContain('Space to continue');
+    t.handle.player.continue();
+    expect(details.hidden).toBe(true);
+    expect(details.childNodes).toHaveLength(0);
+    expect(text(t.q('.sr-flow-mid')!.closest('.sr-w'))).toBe('then');
+  });
+
+  it('titles the stop card with the chip number', () => {
+    const t = mountHarness(`<p>Call <code>${LONG}</code> and <code>${LONG}_2</code> now.</p>`, { bottomStage: true, settings: flow });
+    t.handle.player.toggle();
+    runToStop(t);
+    t.handle.player.continue();
+    runToStop(t);
+    expect(text(t.q('.sr-stage-details .sr-card-title'))).toBe('Code 2');
+  });
+
+  it('puts the prompt in the status line on a reader without a details panel', () => {
+    const t = mountHarness(HTML, { settings: flow });
+    t.handle.player.toggle();
+    runToStop(t);
+    expect(t.q('.sr-ribbon')).not.toBeNull();
+    expect(t.q('.sr-card-stop')).toBeNull();
+    expect(text(t.q('.sr-status'))).toContain('Space to continue');
+    t.handle.player.continue();
+    expect(text(t.q('.sr-status'))).not.toContain('Space to continue');
+  });
+
+  it('shows a dwell prompt beside the ribbon too', () => {
+    const t = mountHarness(HTML, { bottomStage: true, settings: { ...flow, code: { mode: 'dwell', dwellSeconds: 4 } } });
+    t.handle.player.toggle();
+    for (let i = 0; i < 2; i++) t.clock.advance(t.clock.nextIn() ?? 0);
+    expect(t.q('.sr-stage-details .sr-card-dwell')).not.toBeNull();
+    expect(t.q('.sr-ribbon')).not.toBeNull();
   });
 });

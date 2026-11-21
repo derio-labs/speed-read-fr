@@ -4,6 +4,7 @@ import { normalizeSettings, type Settings, type SettingsStore } from '../setting
 import { buildTimeline, type Timeline } from '../timeline';
 import { createSpeechDriver, type SpeechDriver, type SpeechSynth, type UtteranceLike } from '../tts';
 import type { FrameSource, HostSetting, ReaderContext, Zone } from './context';
+import { chunkFit, FIT_MAX, PROBE_TEXT } from './chunk-fit';
 import { builder, icon, ICONS } from './dom';
 import type { Host } from './host';
 import { createExhibits } from './exhibits';
@@ -119,17 +120,14 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   const ownerDocument = root.ownerDocument;
   const win = ownerDocument.defaultView as Window;
   const h = builder(ownerDocument);
-  const limits = options.bottomStage ? { words: 3, chars: 20 } : undefined;
-  function readSettings(value: Settings) {
-    const s = normalizeSettings(value);
-    if (limits) {
-      s.chunkWords = Math.min(s.chunkWords, limits.words);
-      s.chunkChars = Math.min(s.chunkChars, limits.chars);
-    }
-    return s;
-  }
-  let settings = readSettings(options.settings);
-  let timeline: Timeline = buildTimeline(doc, settings);
+  // `settings` is what the user set (and what is saved); the reader runs on `effective(settings)`, whose
+  // characters limit a bottom-stage host clamps to what fits its stage (`fit`, null until measured).
+  let fit: number | null = null;
+  /** The last fit measured in chunk mode, for the settings panel's maximum (flow's wide stage says nothing about it). */
+  let seenFit: number | null = null;
+  const effective = (s: Settings): Settings => (fit !== null && s.chunkChars > fit ? { ...s, chunkChars: fit } : s);
+  let settings = normalizeSettings(options.settings);
+  let timeline: Timeline = buildTimeline(doc, effective(settings));
   const scheduler = options.scheduler ?? defaultScheduler(win);
   const ownSpeech = !options.speech;
   const speechWin = win as unknown as { speechSynthesis?: SpeechSynth; SpeechSynthesisUtterance?: new (text: string) => UtteranceLike };
@@ -141,7 +139,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       estimateBoundaries: options.bottomStage,
     });
   speech.setVoice(settings.tts.voiceURI);
-  const player = createPlayer(timeline, settings, scheduler, speech);
+  const player = createPlayer(timeline, effective(settings), scheduler, speech);
 
   const floating = options.layout === 'floating';
   const reader = h('div', { class: 'sr-reader', tabindex: 0, 'aria-label': 'Speed reader', 'data-state': player.state, 'data-layout': floating ? 'floating' : 'panel' });
@@ -155,6 +153,8 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   const toolbar = h('div', { class: 'sr-toolbar' }, status, settingsButton, closeButton);
   const overall = h('div', { class: 'sr-overall', 'aria-hidden': 'true' }, h('span', { class: 'sr-overall-fill' }));
   const stage = h('section', { class: 'sr-stage', role: 'region', 'aria-label': 'Reader stage', tabindex: -1 });
+  const probe = options.bottomStage ? h('span', { class: 'sr-fit-probe', 'aria-hidden': 'true' }, PROBE_TEXT) : null;
+  if (probe) stage.append(probe);
   const reading = h('div', { class: 'sr-reading', role: 'region', 'aria-label': 'Normal reading', hidden: true });
   const main = h('div', { class: 'sr-main' }, toolbar, overall, stage, reading);
   // Empty from the start, so a narrow reader does not show the card fading out as it mounts.
@@ -173,6 +173,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     main.prepend(outlineBar);
     layout.append(outline, main, exhibits);
   } else layout.append(outlineBar, outline, main, exhibits);
+  reader.dataset.readingMode = settings.readingMode;
   reader.append(layout);
   root.appendChild(reader);
   const removeStyles = applyStyles(root, reader);
@@ -198,7 +199,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   };
   const outlineZone = createOutline(ctx, { outline, bar: outlineBar, layout });
   const exhibitZone = createExhibits(ctx, { pane: exhibits, root: layout });
-  const panel = createSettingsPanel(ctx, (next) => applySettings(next), limits);
+  const panel = createSettingsPanel(ctx, (next) => applySettings(next), () => seenFit ?? FIT_MAX);
   const stageZone = createStage(ctx, { stage, status, details, overallFill: overall.firstElementChild as HTMLElement });
   const zones: Zone[] = [
     stageZone,
@@ -221,10 +222,10 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
 
   const unsubscribe = [
     player.on('position', (e) => host.onPosition(e.source)),
+    // The player only changes the speed; its settings carry the effective limits, which are not saved.
     player.on('settings', (next) => {
-      settings = next;
-      speech.setVoice(next.tts.voiceURI);
-      if (saving) saveSettings(next);
+      settings = { ...settings, wpm: next.wpm };
+      if (saving) saveSettings(settings);
     }),
     player.on('state', (state) => {
       reader.dataset.state = state;
@@ -234,7 +235,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
 
   /** Apply new settings at once: speed alone goes to the player, anything else rebuilds the timeline. */
   function applySettings(next: Settings, save = true) {
-    next = readSettings(next);
+    next = normalizeSettings(next);
     if (sameExceptSpeed(next, settings)) {
       saving = save;
       try {
@@ -244,12 +245,43 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       }
       return;
     }
+    const modeChanged = next.readingMode !== settings.readingMode;
     settings = next;
     speech.setVoice(next.tts.voiceURI);
-    timeline = buildTimeline(doc, next);
-    player.replaceTimeline(timeline, next);
-    for (const zone of zones) zone.refresh?.();
+    // The stage's width follows the mode: set it first and take the new mode's fit before building, so there is one rebuild.
+    reader.dataset.readingMode = next.readingMode;
+    if (modeChanged && probe) fit = currentFit();
+    rebuild();
     if (save) saveSettings(next);
+  }
+
+  /** Build the timeline for the effective settings and swap it in, keeping the position. */
+  function rebuild() {
+    const run = effective(settings);
+    timeline = buildTimeline(doc, run);
+    player.replaceTimeline(timeline, run);
+    for (const zone of zones) zone.refresh?.();
+  }
+
+  /**
+   * The bottom stage's fit: the chunk stage's width over one character of the chunk font (a prose sample's
+   * width / length); chunk mode only, since flow steps one word at a time on a much wider stage. Null without layout.
+   */
+  function currentFit(): number | null {
+    if (settings.readingMode !== 'chunk') return null;
+    const room = stage.querySelector('.sr-display') ?? stage;
+    const measured = chunkFit(room.getBoundingClientRect().width, probe!.getBoundingClientRect().width);
+    if (measured !== null) seenFit = measured;
+    return measured;
+  }
+
+  /** Measure the stage again; a changed effective characters limit rebuilds the timeline. */
+  function updateFit() {
+    const next = currentFit();
+    if (next === fit) return;
+    const before = effective(settings).chunkChars;
+    fit = next;
+    if (!destroyed && effective(settings).chunkChars !== before) rebuild();
   }
 
   /** Save through the store; a refused save (storage quota, a gone extension context) shows a note. */
@@ -286,6 +318,15 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     })
     .catch(() => {});
 
+  // Measured after the first layout and on every resize of the stage (a window resize, the reading mode's width).
+  let fitObserver: ResizeObserver | null = null;
+  if (probe) {
+    updateFit();
+    const Observer = (win as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ?? globalThis.ResizeObserver;
+    fitObserver = Observer ? new Observer(() => updateFit()) : null;
+    fitObserver?.observe(stage);
+  }
+
   closeButton.addEventListener('click', () => player.close());
   settingsButton.addEventListener('click', () => panel.open());
   reader.focus({ preventScroll: true });
@@ -317,6 +358,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      fitObserver?.disconnect();
       for (const off of unsubscribe) off();
       detachKeys();
       player.close();
