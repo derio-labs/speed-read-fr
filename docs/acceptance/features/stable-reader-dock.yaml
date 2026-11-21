@@ -5,7 +5,7 @@
 # `amendments:`.
 schema_version: 2
 feature: stable-reader-dock
-repo: derio-net/speed-read-fr
+repo: derio-labs/speed-read-fr
 rows:
   - id: browser-fixed-chunk-box
     capability: browser-extension

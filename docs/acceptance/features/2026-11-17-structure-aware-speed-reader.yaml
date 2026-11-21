@@ -5,7 +5,7 @@
 # `amendments:`.
 schema_version: 2
 feature: 2026-11-17-structure-aware-speed-reader
-repo: derio-net/speed-read-fr
+repo: derio-labs/speed-read-fr
 rows:
   - id: structure-extraction
     capability: reader-core
