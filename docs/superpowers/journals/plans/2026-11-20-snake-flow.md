@@ -235,3 +235,8 @@ timeline.ts:69-78. One exhibitKey({blockIndex, inlineIndex?}).
 ### l-simplicity-r4 · finding [open] (reviewer: in scope) · Chip number formatted into token text then regex-parsed back
 
 timeline.ts:225. Carry chip on the token.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r5 created=2026-11-21T12:56:47+00:00 state=open review_scope=in -->
+### l-simplicity-r5 · finding [open] (reviewer: in scope) · Stop/dwell inline?: true redundant with inlineIndex
+
+timeline.ts:39-40. Drop or group into one inline object.
