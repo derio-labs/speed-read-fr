@@ -20,3 +20,8 @@ core.spec.ts:935 requires fit >= 33 so its fixed 35-char sentence fits; core.spe
 ### 4b5614bd53bf · finding [fixed] · Chunk-fit e2e tests made font-independent
 
 e60a61c: the 6-word test builds 'we saw the old oak <word>' of exactly the effective limit; the exact-fit test pads a space-ending cut with a letter; floors 33/30 → 20. Verified under the native font, Verdana and Courier New (fits 36 / lower / 27), and still red under the 0.75x probe mutation.
+
+<!-- fr:journal kind=finding scope=debug id=d-r1 created=2026-11-21T15:13:13+00:00 state=open review_scope=out -->
+### d-r1 · finding [open] (reviewer: out of scope) · Exact-fit test text would split by word count where fit > ~42
+
+core.spec.ts:1138: short words, chunkWords capped at 10, so a platform with fit > 42 would end the chunk by word count. No current platform hits it (macOS 36, Ubuntu 31). A long-word text was tried and reverted: the chunk centres on its ORP letter, so uneven long words drop the scale below 0.9 — the test's text needs a balanced pivot as well as length.
