@@ -280,3 +280,8 @@ core.spec.ts:284-287. Check seams at px precision across the cut word.
 ### l-tests-r3 · finding [open] (reviewer: in scope) · Fit e2e recomputes fit from the same probe and never checks --sr-scale
 
 core.spec.ts:936/964. Assert at-fit chunk unscaled; cover floating too.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4 created=2026-11-21T13:01:31+00:00 state=open review_scope=in -->
+### l-tests-r4 · finding [open] (reviewer: in scope) · Inline-exhibit identity across rebuilds untested
+
+player.ts:107. Flow-to-flow rebuild keeps b0i1 revealed; same key in two sections stays distinct.
