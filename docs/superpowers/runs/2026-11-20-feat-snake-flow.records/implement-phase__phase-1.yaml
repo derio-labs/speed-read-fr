@@ -1,0 +1,54 @@
+schema_version: 12
+run: 2026-11-20-feat-snake-flow
+step: implement-phase
+item: phase/1
+outcome: done
+ticks: [P1.T1.S1, P1.T1.S2, P1.T2.S1, P1.T2.S2, P1.T2.S3, P1.T3.S1, P1.T3.S2, P1.T3.S3, P1.T4.S1, P1.T4.S2, P1.T4.S3, P1.T4.S4, P1.T5.S1, P1.T5.S2]
+refactor:
+  P1.T1: "a one-line query switch on the demo and a smoke assertion; nothing to restructure"
+  P1.T5: "tests and README text only; the dead flow-row code was already removed in P1.T4.S4"
+journal:
+  - kind: decision
+    id: p1-push-skipped
+    phase: 1
+    title: "P1.T1.S2 'push so CI runs' skipped; the orchestrator pushes"
+    body: "The repo has no CI config and the brief says the orchestrator pushes. The smoke test ran locally in Playwright."
+  - kind: decision
+    id: p1-suite-log-location
+    phase: 1
+    title: "Suite log kept in .visual/, not test-results/"
+    body: "Playwright empties test-results/ at the start of a run, which would unlink a log being written there. .visual/ is git-ignored and untouched by Playwright, so the suite log and the screenshots live there."
+  - kind: decision
+    id: p1-atom-lit-one-box
+    phase: 1
+    title: "A lit atom word keeps one .sr-atom box with the middle letter inside"
+    body: "Splitting an atom across tokenNodes slices gave each slice its own padding and shifted the middle letter 5px off the target (found by the e2e 1px check on the word Space). The lit word now wraps the whole text in one .sr-atom span."
+  - kind: discovery
+    id: p1-panel-outline-overlap
+    phase: 1
+    title: "Panel layout: the open contents sidebar overlays the left ~300px of the wide flow stage"
+    body: "In bottom-stage panel layout the outline is position:absolute at the left (styles.ts .sr-outline inset:0 auto 0 0). The chunk stage was a centred 420px so never met it; the full-width flow stage now runs under it at wide viewports, hiding the left of the ribbon (and most of a short bottom row). R7 says the full panel width, so the stage was left at 100%; see the finding."
+  - kind: finding
+    id: p1-panel-outline-overlap-f
+    phase: 1
+    state: open
+    review_scope: in
+    title: "Wide panel: contents sidebar covers the left of the flow ribbon"
+    body: "At 1440px in panel layout with the contents sidebar showing, the ribbon's left edge, including the whole short bottom row near the end of a run, is hidden under it (see panel-flow-paused.png). Chosen not to change the sidebar or inset the stage inside phase 1; a follow-up could inset the flow stage by the sidebar width while it is open. The narrow viewport (900px) shot shows the same overlap."
+  - kind: discovery
+    id: p1-node-modules
+    phase: 1
+    title: "The worktree had no node_modules; npm ci --prefer-offline fixed it"
+    body: "node_modules is git-ignored; installed in the worktree so typecheck, vitest and Playwright run."
+resolves: []
+evidence: {tests: /Users/idermitzakis/.cache/fr/worktrees/speed-read-fr/feat__snake-flow/.visual/phase1-suite.log}
+visual:
+  - row: reader-snake-flow
+    script: tests/e2e/core.spec.ts (the snake flow describe blocks write the shots)
+    shots:
+      - {path: /Users/idermitzakis/.cache/fr/worktrees/speed-read-fr/feat__snake-flow/.visual/snake-shots/floating-flow-paused.png, shows: [floating layout at 1440px, three rows of consecutive running text, braced target around the current word, red middle letter not bold]}
+      - {path: /Users/idermitzakis/.cache/fr/worktrees/speed-read-fr/feat__snake-flow/.visual/snake-shots/panel-flow-paused.png, shows: [panel layout at 1440px, three rows, braced target, red middle letter, contents sidebar overlapping the left of the ribbon]}
+      - {path: /Users/idermitzakis/.cache/fr/worktrees/speed-read-fr/feat__snake-flow/.visual/snake-shots/floating-flow-wide.png, shows: [floating overlay stage about 1200px wide, start of a run with the top row empty]}
+      - {path: /Users/idermitzakis/.cache/fr/worktrees/speed-read-fr/feat__snake-flow/.visual/snake-shots/panel-flow-narrow.png, shows: [panel layout at 900px, three rows, target on the middle letter]}
+      - {path: /Users/idermitzakis/.cache/fr/worktrees/speed-read-fr/feat__snake-flow/.visual/snake-shots/floating-code-stop.png, shows: [code stop replaces the ribbon, exhibits card]}
+      - {path: /Users/idermitzakis/.cache/fr/worktrees/speed-read-fr/feat__snake-flow/.visual/snake-shots/floating-chapter-card.png, shows: [chapter card replaces the ribbon]}
