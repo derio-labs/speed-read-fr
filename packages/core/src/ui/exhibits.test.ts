@@ -174,6 +174,30 @@ describe('inline exhibits', () => {
     expect(t.q('.sr-expanded')).toBeNull();
   });
 
+  it('keeps a passed inline exhibit listed and revealed when a setting other than speed rebuilds the timeline in flow', () => {
+    const t = mountHarness(INLINE, { settings: flow });
+    t.handle.player.toggle();
+    runToStop(t);
+    t.handle.player.continue();
+    const id = t.doc.sections[0].id;
+    expect(t.handle.player.revealedExhibits(id).map((e) => e.blockIndex)).toContain(0);
+    t.handle.applySettings({ ...DEFAULT_SETTINGS, ...flow, code: { mode: 'dwell', dwellSeconds: 5 } });
+    expect(t.handle.player.revealedExhibits(id).some((e) => e.inline && e.inlineIndex === 1)).toBe(true);
+    expect(paneItems(t).map((i) => i.dataset.key)).toContain('b0i1');
+  });
+
+  it('tells equal inline keys of two sections apart', () => {
+    const t = mountHarness(`<h3>A</h3><p>Call <code>${LONG1}</code> now.</p><h3>B</h3><p>Call <code>${LONG2}</code> now.</p>`, {
+      settings: { ...flow, stopLevels: [] },
+    });
+    t.handle.player.toggle();
+    runToStop(t);
+    const [a, b] = t.doc.sections.map((s) => s.id);
+    expect(t.handle.player.revealedExhibits(a)).toHaveLength(1);
+    expect(t.handle.player.revealedExhibits(b)).toHaveLength(0);
+    expect(paneItems(t).map((i) => i.querySelector('code')!.textContent)).toEqual([LONG1]);
+  });
+
   it('drops the inline cards when the timeline is rebuilt without them (flow to chunk)', () => {
     const t = mountHarness(INLINE, { settings: flow });
     t.handle.player.toggle();

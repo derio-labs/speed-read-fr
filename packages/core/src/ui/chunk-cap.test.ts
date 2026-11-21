@@ -76,28 +76,31 @@ describe('the bottom-stage chunk cap (R11)', () => {
   it('measures again on resize and rebuilds the timeline keeping the position', async () => {
     const resize = stubObservers();
     stubWidths({ 'sr-display': 400, 'sr-fit-probe': 410 });
-    const t = mountHarness(TEXT, { bottomStage: true, saved: WIDE });
+    const t = mountHarness('<p>aa bb cc dd ee ff gg hh ii jj. Kk ll mm nn oo pp qq rr ss tt uu vv ww xx.</p>', { bottomStage: true, saved: WIDE });
     await t.settle();
+    const events: { source: unknown; sentenceIndex: number }[] = [];
+    t.handle.player.on('step', ({ step }) => {
+      if (step.kind === 'chunk') events.push({ source: step.source, sentenceIndex: step.sentenceIndex });
+    });
     t.handle.player.toggle();
     t.handle.player.toggle();
     t.handle.player.sentence(1);
-    const before = t.handle.player.index;
-    const source = t.doc.sections[0].blocks[0].source;
+    const here = events[events.length - 1];
+    expect(here.sentenceIndex).toBe(1);
     expect(chars(t)).toBe(40);
     stubWidths({ 'sr-display': 700, 'sr-fit-probe': 410 });
     resize();
     expect(chars(t)).toBe(70);
+    expect(events[events.length - 1]).toEqual(here);
     stubWidths({ 'sr-display': 100, 'sr-fit-probe': 410 });
     resize();
     expect(chars(t)).toBe(10);
-    expect(t.handle.player.index).toBeGreaterThanOrEqual(0);
-    expect(t.handle.player.index).toBeLessThanOrEqual(before + 20);
-    expect(t.q('.sr-chunk')).not.toBeNull();
-    expect(source).toBeDefined();
+    expect(events[events.length - 1]).toEqual(here);
     // Back to no layout: no cap applies and the stored value is in force again.
     stubWidths({});
     resize();
     expect(chars(t)).toBe(80);
+    expect(events[events.length - 1]).toEqual(here);
   });
 
   it('measures the fit in chunk mode only: flow to chunk rebuilds the timeline once', async () => {
