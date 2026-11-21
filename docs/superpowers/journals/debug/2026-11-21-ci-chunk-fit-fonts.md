@@ -35,3 +35,8 @@ A separate reviewer confirmed the root cause (fit 31 vs 36; the 33 floor and the
 ### d-r1-resolved · finding [out-of-scope] · resolves d-r1: Exact-fit test text would split by word count where fit > ~42
 
 Hypothetical: no platform in use has fit above 42 (macOS 36, Ubuntu 31); the CI fix does not depend on it.
+
+<!-- fr:journal kind=finding scope=debug id=d-r1-resolved-2 created=2026-11-21T15:14:01+00:00 state=open resolves=d-r1 tracked_by=https://github.com/derio-labs/speed-read-fr/issues/14 -->
+### d-r1-resolved-2 · finding [deferred → https://github.com/derio-labs/speed-read-fr/issues/14] · resolves d-r1: Exact-fit test text would split by word count where fit > ~42
+
+Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/14.
