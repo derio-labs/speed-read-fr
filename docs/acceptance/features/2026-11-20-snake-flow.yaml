@@ -15,9 +15,17 @@ rows:
     origin:
     - spec:2026-11-20-snake-flow#R8
     - spec:2026-11-20-snake-flow#R9
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/timeline.test.ts
+      - speed-read-fr:packages/core/src/ui/exhibits.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Flow timeline, inline exhibits, stop prompt beside the ribbon and speech
+      covered by unit tests; Playwright on the bottom-stage demo (core.spec.ts) checks
+      the chip on the target, its stop prompt and exhibit card. CI runs npm test and
+      the e2e suite.
     verify: none
   - id: reader-dock-chunk-limits
     capability: reader-ui
