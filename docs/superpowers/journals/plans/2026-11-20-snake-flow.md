@@ -215,3 +215,8 @@ The sidebar covering the support area predates this change (block stops in chunk
 ### p2-panel-support-under-outline-resolved · finding [out-of-scope] · resolves p2-panel-support-under-outline: Panel layout: the open contents sidebar also covers the left of the stop prompt and exhibit cards (phase 2)
 
 Same as p2-r5: pre-existing panel-layout overlap of the support area; the p2-r6 fix also clears it.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r1 created=2026-11-21T12:56:43+00:00 state=open review_scope=in -->
+### l-simplicity-r1 · finding [open] (reviewer: in scope) · RibbonOffsets top/middle/bottom and clamp are dead; stage uses only .x
+
+ribbon-geometry.ts:13-31. Replace with spans[at].mid.
