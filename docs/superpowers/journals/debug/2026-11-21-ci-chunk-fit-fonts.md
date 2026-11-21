@@ -25,3 +25,8 @@ e60a61c: the 6-word test builds 'we saw the old oak <word>' of exactly the effec
 ### d-r1 · finding [open] (reviewer: out of scope) · Exact-fit test text would split by word count where fit > ~42
 
 core.spec.ts:1138: short words, chunkWords capped at 10, so a platform with fit > 42 would end the chunk by word count. No current platform hits it (macOS 36, Ubuntu 31). A long-word text was tried and reverted: the chunk centres on its ORP letter, so uneven long words drop the scale below 0.9 — the test's text needs a balanced pivot as well as length.
+
+<!-- fr:journal kind=review scope=debug id=67682a95d31a created=2026-11-21T15:13:14+00:00 -->
+### 67682a95d31a · review · Independent review of e60a61c: root cause confirmed, 1 out-of-scope finding
+
+A separate reviewer confirmed the root cause (fit 31 vs 36; the 33 floor and the space-ending slice), that both tests still assert their original intent (stricter: toHaveText proves no split), and no new flakiness. Raised d-r1 (out): hypothetical split above fit 42. Full suite after e60a61c: typecheck clean, vitest 711 passed / 7 skipped, Playwright 108 passed.
