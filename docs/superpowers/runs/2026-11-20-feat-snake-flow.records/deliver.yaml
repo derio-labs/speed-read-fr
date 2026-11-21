@@ -6,5 +6,5 @@ journal: []
 emitted:
   pr: https://github.com/derio-labs/speed-read-fr/pull/11
 evidence:
-  tests: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/3d95410b-27ca-4a1c-bd74-ec9d9f74601e/scratchpad/full-suite.log
+  tests: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/3d95410b-27ca-4a1c-bd74-ec9d9f74601e/scratchpad/full-suite-2.log
   walk: none
