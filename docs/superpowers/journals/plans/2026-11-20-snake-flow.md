@@ -265,3 +265,8 @@ Pre-existing literals in settings.ts:97 and settings-panel; chunk-fit adds a cop
 ### l-simplicity-r10 · finding [open] (reviewer: in scope) · stage.ts measure ternary repeated thrice; middle-letter end offset duplicated
 
 stage.ts:335-337, :176/:218. Pick measure once; middleLetter returns [start,end].
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1 created=2026-11-21T13:01:29+00:00 state=open review_scope=in -->
+### l-tests-r1 · finding [open] (reviewer: in scope) · Glide never verified in real layout: removing the ribbon transition passes all flow e2e
+
+core.spec.ts:256. Assert computed transitionDuration ~0.067s at 300 wpm, mid-glide transform not at end, 0s on jump and reduced motion.
