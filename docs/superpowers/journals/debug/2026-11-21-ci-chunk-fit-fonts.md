@@ -15,3 +15,8 @@ Fit responds to the platform font as designed (spec R11: capped by what fits). C
 ### 68644bec380b · root-cause · Two e2e tests hard-code macOS font metrics
 
 core.spec.ts:935 requires fit >= 33 so its fixed 35-char sentence fits; core.spec.ts:1136 builds the 'exactly fit' chunk with 'the quick brown fox…'.slice(0, fit), which ends on a space (trimmed → fit-1) when fit = 31. Both pass only where fit happens to be 36.
+
+<!-- fr:journal kind=finding scope=debug id=4b5614bd53bf created=2026-11-21T15:10:02+00:00 state=fixed -->
+### 4b5614bd53bf · finding [fixed] · Chunk-fit e2e tests made font-independent
+
+e60a61c: the 6-word test builds 'we saw the old oak <word>' of exactly the effective limit; the exact-fit test pads a space-ending cut with a letter; floors 33/30 → 20. Verified under the native font, Verdana and Courier New (fits 36 / lower / 27), and still red under the 0.75x probe mutation.
