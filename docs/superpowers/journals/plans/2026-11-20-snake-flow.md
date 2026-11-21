@@ -270,3 +270,8 @@ stage.ts:335-337, :176/:218. Pick measure once; middleLetter returns [start,end]
 ### l-tests-r1 · finding [open] (reviewer: in scope) · Glide never verified in real layout: removing the ribbon transition passes all flow e2e
 
 core.spec.ts:256. Assert computed transitionDuration ~0.067s at 300 wpm, mid-glide transform not at end, 0s on jump and reduced motion.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2 created=2026-11-21T13:01:30+00:00 state=open review_scope=in -->
+### l-tests-r2 · finding [open] (reviewer: in scope) · Row-seam e2e checks word indices only; a ~22px gap passes
+
+core.spec.ts:284-287. Check seams at px precision across the cut word.
