@@ -160,3 +160,8 @@ timeline.ts stopPrompt(token.atom, {}), exhibits.ts exhibitDetails. Store chip n
 ### p2-r5 · finding [open] (reviewer: out of scope) · Panel layout: contents sidebar covers the stage-support area (prompts, exhibits); also for block stops in chunk mode (phase 2)
 
 Pre-existing for block stops. Cheap fix: apply --sr-flow-inset to .sr-stage-support.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r6 created=2026-11-21T12:50:31+00:00 phase=2 state=open review_scope=in -->
+### p2-r6 · finding [open] (reviewer: in scope) · Panel e2e asserts toBeVisible on a stop card covered by the outline; needs a hit-test (phase 2)
+
+tests/e2e/core.spec.ts inline-chip panel test. Assert elementFromPoint at card centre hits the card; requires making the support area clear the sidebar in flow mode.
