@@ -508,6 +508,25 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   /** The reader's reading mode as an attribute, for the stylesheet (the flow window is wider). */
   function syncMode() {
     ctx.reader.dataset.readingMode = player.settings.readingMode;
+    syncInset();
+  }
+  /**
+   * In the docked panel the contents sidebar overlays the stage's left edge: a flow stage starts at its right edge
+   * (`--sr-flow-inset`), so the target is centred in the visible area. No sidebar showing, no inset.
+   */
+  function syncInset() {
+    const root = ctx.reader;
+    let inset = 0;
+    const outline = root.querySelector<HTMLElement>('.sr-outline');
+    if (outline && root.hasAttribute('data-bottom-stage') && root.dataset.layout === 'panel' && root.dataset.readingMode === 'flow') {
+      const box = outline.getBoundingClientRect();
+      if (box.width > 0 && getComputedStyle(outline).display !== 'none') inset = Math.max(0, box.right - root.getBoundingClientRect().left);
+    }
+    const value = inset > 0 ? `${Math.round(inset)}px` : '';
+    if (root.style.getPropertyValue('--sr-flow-inset') === value) return false;
+    if (value) root.style.setProperty('--sr-flow-inset', value);
+    else root.style.removeProperty('--sr-flow-inset');
+    return true;
   }
   syncMode();
   showReady();
@@ -516,10 +535,20 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   const resize = Observer
     ? new Observer(() => {
         if (!details) align();
+        syncInset();
         relayoutRibbon();
       })
     : null;
   resize?.observe(stage);
+  resize?.observe(ctx.reader);
+  // Opening or closing the contents drawer changes the inset without resizing anything we watch.
+  const MutationWatcher = (ctx.document.defaultView as (Window & { MutationObserver?: typeof MutationObserver }) | null)?.MutationObserver;
+  const drawer = MutationWatcher
+    ? new MutationWatcher(() => {
+        if (syncInset()) relayoutRibbon();
+      })
+    : null;
+  drawer?.observe(ctx.reader, { attributes: true, subtree: true, attributeFilter: ['data-drawer', 'data-outline'] });
 
   return {
     wheel: dial.wheel,
@@ -538,6 +567,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       for (const o of off) o();
       dial.destroy();
       resize?.disconnect();
+      drawer?.disconnect();
     },
   };
 }

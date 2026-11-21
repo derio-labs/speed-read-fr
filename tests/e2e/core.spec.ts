@@ -329,6 +329,27 @@ for (const layout of ['floating', 'panel'] as const) {
       expect(await page.locator('.sr-stage').evaluate((e) => e.getBoundingClientRect().width)).toBeLessThanOrEqual(421);
     });
 
+    if (layout === 'panel')
+      test('with the contents sidebar open the flow stage starts at its right edge and the target is centred in what is left', async ({ page }) => {
+        await openFlow(page, layout);
+        await startFlow(page);
+        await expect.poll(async () => (await ribbonSample(page)).index, { timeout: 20_000 }).toBeGreaterThan(5);
+        await pauseFlow(page);
+        const g = await page.evaluate(() => {
+          const outline = document.querySelector('.sr-outline')!.getBoundingClientRect();
+          const row = document.querySelector('.sr-ribbon-row[data-position="middle"]')!.getBoundingClientRect();
+          const mid = document.querySelector('.sr-flow-mid')!.getBoundingClientRect();
+          return { outlineRight: outline.right, outlineWidth: outline.width, rowLeft: row.left, rowRight: row.right, midCentre: mid.x + mid.width / 2, win: innerWidth };
+        });
+        expect(g.outlineWidth).toBeGreaterThan(100);
+        expect(g.rowLeft).toBeGreaterThanOrEqual(g.outlineRight - 1);
+        // The row begins just past the sidebar (the stage's own padding) and the letter is at the row's centre.
+        expect(g.rowLeft - g.outlineRight).toBeLessThan(16);
+        expect(Math.abs(g.midCentre - (g.rowLeft + g.rowRight) / 2)).toBeLessThan(1);
+        expect(Math.abs(g.midCentre - (g.outlineRight + g.win) / 2)).toBeLessThan(10);
+        await page.screenshot({ path: `${SHOTS}/panel-flow-outline-open.png` });
+      });
+
     test('the wheel moves the ribbon back and forward word by word, and playback resumes from the reached word', async ({ page }) => {
       await openFlow(page, layout);
       await startFlow(page);

@@ -481,6 +481,10 @@ export const READER_CSS = `
 .sr-reader[data-bottom-stage] .sr-stage .sr-display[data-kind="flow"] { --sr-row-h: 44px; --sr-ribbon-font: 22px; height: calc(var(--sr-row-h) * 3); min-height: calc(var(--sr-row-h) * 3); }
 /* Flow mode reads a wide ribbon: the overlay's window and the docked stage widen (chunk mode keeps its width). */
 .sr-reader[data-bottom-stage][data-reading-mode="flow"] .sr-stage { width: 100%; }
+/* Docked panel: the contents sidebar overlays the left edge, so the flow stage starts at its right edge. */
+.sr-reader[data-bottom-stage][data-layout="panel"][data-reading-mode="flow"] .sr-stage {
+  width: calc(100% - var(--sr-flow-inset, 0px)); margin-left: var(--sr-flow-inset, 0px);
+}
 .sr-reader[data-bottom-stage] .sr-axis { left: 50%; }
 .sr-reader[data-bottom-stage] .sr-axis::before { top: 10px; height: 10px; }
 .sr-reader[data-bottom-stage] .sr-axis::after { bottom: 10px; height: 10px; }
