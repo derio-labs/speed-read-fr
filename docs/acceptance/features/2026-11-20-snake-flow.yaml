@@ -34,9 +34,15 @@ rows:
       long chunks are shown whole.
     origin:
     - spec:2026-11-20-snake-flow#R11
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/ui/chunk-cap.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Effective-cap clamp, stored value kept, panel max and align/wrap covered
+      by unit tests; Playwright on the bottom-stage demo checks a 6-word chunk whole
+      and an over-wide chunk wrapped. CI runs npm test and the e2e suite.
     verify: none
   - id: reader-snake-flow
     capability: reader-ui
