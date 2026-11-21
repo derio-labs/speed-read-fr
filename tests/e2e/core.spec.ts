@@ -886,6 +886,7 @@ for (const layout of ['floating', 'panel'] as const) {
     });
     expect(lit.word).toBe('⟨code 1⟩');
     expect(lit.off).toBeLessThan(1);
+    expect(await hitRibbon(page)).toEqual({ rows: [true, true, true], mid: true });
     await expect(details).toContainText('Space to continue');
     await expect(details.locator('.sr-card-title')).toHaveText('Code 1');
     // The prompt is really on screen beside the ribbon: whatever is at its centre belongs to it, not the open sidebar.
@@ -1008,4 +1009,152 @@ test.describe('chunk limits in the bottom-stage layouts', () => {
     expect(wrapped.inside).toBe(true);
     await page.screenshot({ path: `${PHASE2_SHOTS}/panel-wrapped-chunk.png` });
   });
+});
+
+/** elementFromPoint at the centre of each ribbon row and of the lit letter: what the user would hit there. */
+async function hitRibbon(page: Page) {
+  return page.evaluate(() => {
+    const centre = (el: Element) => {
+      const b = el.getBoundingClientRect();
+      return [b.left + b.width / 2, b.top + b.height / 2] as const;
+    };
+    const rows = (['top', 'middle', 'bottom'] as const).map((p) => {
+      const row = document.querySelector(`.sr-ribbon-row[data-position="${p}"]`)!;
+      const [x, y] = centre(row);
+      return document.elementFromPoint(x, y)?.closest('.sr-ribbon-row')?.getAttribute('data-position') === p;
+    });
+    const [mx, my] = centre(document.querySelector('.sr-flow-mid')!);
+    return { rows, mid: !!document.elementFromPoint(mx, my)?.closest('.sr-flow-mid') };
+  });
+}
+
+for (const layout of ['floating', 'panel'] as const) {
+  test.describe(`snake flow checks, ${layout} layout`, () => {
+    test('every row and the lit letter are what the user hits at their centres, with the sidebar open', async ({ page }) => {
+      await openFlow(page, layout, { wpm: 600 });
+      await startFlow(page);
+      await expect.poll(async () => (await ribbonSample(page)).index, { timeout: 20_000 }).toBeGreaterThan(30);
+      await pauseFlow(page);
+      expect(await hitRibbon(page)).toEqual({ rows: [true, true, true], mid: true });
+    });
+
+    test('the glide runs for 67 ms at 300 wpm and is off after a jump and under reduced motion', async ({ page }) => {
+      await openFlow(page, layout, { wpm: 300 });
+      await startFlow(page);
+      const duration = () => page.locator('.sr-ribbon-row[data-position="middle"] .sr-ribbon-line').evaluate((el) => parseFloat(getComputedStyle(el).transitionDuration));
+      await expect.poll(duration, { timeout: 5000 }).toBeCloseTo(0.0667, 2);
+      // About 20 ms after a step the line is mid-transition: a transition is running and has not finished.
+      const mid = await page.evaluate(
+        () =>
+          new Promise<{ running: boolean; progress: number }>((resolve) => {
+            const ribbon = document.querySelector('.sr-ribbon')!;
+            const line = () => document.querySelector('.sr-ribbon-row[data-position="middle"] .sr-ribbon-line')!;
+            const first = ribbon.getAttribute('style');
+            const watch = new MutationObserver(() => {
+              if (ribbon.getAttribute('style') === first) return;
+              watch.disconnect();
+              setTimeout(() => {
+                const a = line().getAnimations().find((x) => (x as CSSTransition).transitionProperty === 'transform');
+                resolve({ running: !!a, progress: Number(a?.effect?.getComputedTiming().progress ?? 1) });
+              }, 20);
+            });
+            watch.observe(ribbon, { attributes: true, attributeFilter: ['style'] });
+          }),
+      );
+      expect(mid.running, 'a transform transition is running 20 ms after a step').toBe(true);
+      expect(mid.progress).toBeGreaterThan(0);
+      expect(mid.progress).toBeLessThan(1);
+      // A jump to another section rebuilds the ribbon: it appears without a glide.
+      await page.keyboard.press('Space');
+      await expect(state(page)).toHaveText('Paused');
+      await page.evaluate(() => (window as unknown as { __reader: { player: { section(n: number): void } } }).__reader.player.section(1));
+      await expect(page.locator('.sr-card-chapter')).toBeVisible();
+      await page.keyboard.press('Space');
+      await expect(page.locator('.sr-ribbon')).toBeVisible();
+      expect(await page.locator('.sr-ribbon').evaluate((el) => el.style.getPropertyValue('--sr-glide'))).toBe('0ms');
+    });
+
+    test('reduced motion turns the glide off', async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await openFlow(page, layout, { wpm: 300 });
+      await startFlow(page);
+      await page.waitForTimeout(700);
+      expect(await page.locator('.sr-ribbon-row[data-position="middle"] .sr-ribbon-line').evaluate((el) => parseFloat(getComputedStyle(el).transitionDuration))).toBe(0);
+    });
+
+    test('a word cut by a row seam shows its full width across the two rows, to the pixel', async ({ page }) => {
+      await openFlow(page, layout, { wpm: 600 });
+      await startFlow(page);
+      await expect.poll(async () => (await ribbonSample(page)).index, { timeout: 20_000 }).toBeGreaterThan(58);
+      await pauseFlow(page);
+      for (let i = 0; i < 4; i++) {
+        const gaps = await page.evaluate(() => {
+          const rows = (['top', 'middle', 'bottom'] as const).map((p) => document.querySelector<HTMLElement>(`.sr-ribbon-row[data-position="${p}"]`)!);
+          const boxes = rows.map((r) => r.getBoundingClientRect());
+          const visible = (w: Element, k: number) => {
+            const r = w.getBoundingClientRect();
+            return Math.max(0, Math.min(r.right, boxes[k].right) - Math.max(r.left, boxes[k].left));
+          };
+          const out: { seam: string; sum: number; width: number }[] = [];
+          rows[1].querySelectorAll('.sr-w').forEach((_, n) => {
+            const words = rows.map((r) => r.querySelectorAll('.sr-w')[n]);
+            const width = words[0].getBoundingClientRect().width;
+            const v = words.map((w, k) => visible(w, k));
+            if (v[0] > 0.5 && v[1] > 0.5) out.push({ seam: 'top-middle', sum: v[0] + v[1], width });
+            if (v[1] > 0.5 && v[2] > 0.5) out.push({ seam: 'middle-bottom', sum: v[1] + v[2], width });
+          });
+          return out;
+        });
+        for (const g of gaps) expect(Math.abs(g.sum - g.width), `${g.seam} seam`).toBeLessThanOrEqual(1);
+        await page.locator('.sr-stage').hover();
+        await page.mouse.wheel(0, -120);
+        await settleGlide(page);
+        await page.waitForTimeout(400);
+      }
+    });
+  });
+}
+
+test.describe('the chunk fit on the bottom stage', () => {
+  for (const layout of ['floating', 'panel'] as const) {
+    test(`a prose chunk of exactly fit characters is shown whole and at near full size (${layout})`, async ({ page }) => {
+      await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ readingMode: 'chunk', chunkWords: 10, chunkChars: 80, wpm: 100 })] as const);
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto(`${DEMO}?bottomStage&layout=${layout}`);
+      await expect(page.locator('.sr-reader')).toBeFocused();
+      const fit = await page.evaluate(() => (window as unknown as { __reader: { player: { settings: { chunkChars: number } } } }).__reader.player.settings.chunkChars);
+      expect(fit).toBeGreaterThanOrEqual(30);
+      expect(fit).toBeLessThan(80);
+      // Re-read a document whose one chunk is exactly `fit` characters of ordinary lowercase prose.
+      await page.evaluate((n) => {
+        const w = window as unknown as { __reader: { player: { close(): void } } };
+        w.__reader.player.close();
+        document.getElementById('content')!.innerHTML = `<p>${'the quick brown fox jumps over a lazy dog'.slice(0, n)}</p>`;
+        (document.getElementById('open') as HTMLButtonElement).click();
+      }, fit);
+      await expect(page.locator('.sr-reader')).toBeFocused();
+      await page.keyboard.press('Space');
+      await page.keyboard.press('Space');
+      const shown = await page.evaluate(() => {
+        const chunk = document.querySelector<HTMLElement>('.sr-display .sr-chunk')!;
+        const display = document.querySelector<HTMLElement>('.sr-display')!;
+        const probe = document.querySelector<HTMLElement>('.sr-fit-probe')!;
+        const parts = [...chunk.querySelectorAll<HTMLElement>('.sr-before, .sr-after')];
+        return {
+          length: chunk.textContent!.trim().length,
+          scale: Number(chunk.style.getPropertyValue('--sr-scale') || 1),
+          font: parseFloat(getComputedStyle(chunk).fontSize),
+          probeFont: parseFloat(getComputedStyle(probe).fontSize),
+          wrapped: display.dataset.wrap,
+          clipped: parts.some((p) => p.scrollWidth > p.clientWidth + 1),
+        };
+      });
+      expect(shown.length).toBe(fit);
+      expect(shown.wrapped).toBeUndefined();
+      expect(shown.clipped).toBe(false);
+      // Fit counts the stage's full width; the chunk keeps 12px margins, so it may give up a few percent, no more.
+      expect(shown.scale).toBeGreaterThanOrEqual(0.9);
+      expect(shown.font).toBeGreaterThanOrEqual(shown.probeFont * 0.9);
+    });
+  }
 });

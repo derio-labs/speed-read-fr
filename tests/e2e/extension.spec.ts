@@ -839,3 +839,71 @@ test.describe('overlay review fixes (p5a)', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
   });
 });
+
+for (const display of ['dock', 'overlay']) {
+  test.describe(`${display} reader, flow and the chunk fit`, () => {
+    /** Run `fn` against the reader's shadow root. */
+    const inReader = <T>(page: Page, fn: (root: ShadowRoot) => T) =>
+      page.evaluate(`(${fn.toString()})(document.querySelector('[data-speed-read-host]').shadowRoot)`) as Promise<T>;
+
+    test('flow shows three rows with the lit letter on the middle row centre', async () => {
+      const page = await openPage(READER_DOCK);
+      await saveSettings({ display, readingMode: 'flow', wpm: 300 });
+      await openReader(page, 'auto');
+      await page.keyboard.press('Space');
+      await page.keyboard.press('Space');
+      await expect(host(page).locator('.sr-ribbon-row')).toHaveCount(3);
+      await page.keyboard.press('Space');
+      await expect(host(page).locator('.sr-status-state')).toHaveText('Paused');
+      await page.waitForTimeout(250);
+      const lit = await inReader(page, (root) => {
+        const row = root.querySelector('.sr-ribbon-row[data-position="middle"]')!.getBoundingClientRect();
+        const mid = root.querySelector('.sr-flow-mid')!.getBoundingClientRect();
+        const rows = ['top', 'middle', 'bottom'].map((p) => {
+          const box = root.querySelector(`.sr-ribbon-row[data-position="${p}"]`)!.getBoundingClientRect();
+          return !!root.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)?.closest(`.sr-ribbon-row[data-position="${p}"]`);
+        });
+        const hitMid = !!root.elementFromPoint(mid.left + mid.width / 2, mid.top + mid.height / 2)?.closest('.sr-flow-mid');
+        return { off: Math.abs(mid.left + mid.width / 2 - (row.left + row.width / 2)), rows, hitMid };
+      });
+      expect(lit.off).toBeLessThan(1);
+      expect(lit.rows).toEqual([true, true, true]);
+      expect(lit.hitMid).toBe(true);
+    });
+
+    test('with 80 characters saved the effective limit is what fits, and a chunk at that length is not scaled', async () => {
+      const page = await openPage(READER_DOCK);
+      await saveSettings({ display, readingMode: 'chunk', chunkWords: 10, chunkChars: 80 });
+      await openReader(page, 'auto');
+      await page.keyboard.press('Space');
+      await page.keyboard.press('ArrowRight');
+      await page.keyboard.press('ArrowRight');
+      await page.keyboard.press('ArrowRight');
+      await expect(currentChunk(page)).toContainText('A longer sentence');
+      const shown = await inReader(page, (root) => {
+        const probe = root.querySelector<HTMLElement>('.sr-fit-probe')!;
+        const display = root.querySelector('.sr-display')!.getBoundingClientRect().width;
+        const chunk = root.querySelector<HTMLElement>('.sr-display .sr-chunk')!;
+        return {
+          fit: Math.floor(display / (probe.getBoundingClientRect().width / (probe.textContent ?? '').length)),
+          text: chunk.textContent!.trim(),
+          scale: chunk.style.getPropertyValue('--sr-scale'),
+          font: getComputedStyle(chunk).fontSize,
+          probeFont: getComputedStyle(probe).fontSize,
+          wrapped: root.querySelector<HTMLElement>('.sr-display')!.dataset.wrap,
+        };
+      });
+      expect(shown.fit).toBeLessThan(80);
+      expect(shown.fit).toBeGreaterThanOrEqual(30);
+      expect(shown.text.length).toBeLessThanOrEqual(shown.fit);
+      expect(shown.text.length).toBeGreaterThan(shown.fit - 8);
+      // At the fit length a chunk only gives up the stage's 12px edge margins: near full size, never wrapped.
+      expect(Number(shown.scale || 1)).toBeGreaterThanOrEqual(0.9);
+      expect(Number.parseFloat(shown.font)).toBeGreaterThanOrEqual(Number.parseFloat(shown.probeFont) * 0.9);
+      expect(shown.wrapped).toBeUndefined();
+      await page.keyboard.press(',');
+      const max = Number(await host(page).locator('.sr-settings [name="chunkChars"]').getAttribute('max'));
+      expect(max).toBe(shown.fit);
+    });
+  });
+}
