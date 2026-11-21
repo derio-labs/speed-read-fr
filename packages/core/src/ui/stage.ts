@@ -8,8 +8,8 @@ import type { Step } from '../timeline';
 import type { ReaderContext, Zone } from './context';
 import { createDialStrip, type DialStrip } from './dial-strip';
 import { replaceChildren, type Child } from './dom';
-import { EXHIBIT_LABELS, formatDuration, plural } from './format';
-import { glideMs, ribbonOffsets, runBounds, runWindow, type Range as RunRange, type WordSpan, type Window as RunWindow } from './ribbon-geometry';
+import { chipLabel, EXHIBIT_LABELS, formatDuration, plural } from './format';
+import { glideMs, runBounds, runWindow, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
 
 type ChunkStep = Extract<Step, { kind: 'chunk' | 'item-chunk' }>;
 
@@ -172,8 +172,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   /** Centre of the word's middle letter, measured on the line (a proportional guess without layout). */
   function middleCentre(el: HTMLElement, start: number, width: number): number {
     const text = el.textContent ?? '';
-    const offset = middleLetter(text);
-    const length = Array.from(text.slice(offset))[0]?.length ?? 1;
+    const [offset, end] = middleLetter(text);
     const walker = ctx.document.createTreeWalker(el, 4 /* SHOW_TEXT */);
     let seen = 0;
     for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
@@ -183,7 +182,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       }
       const range = ctx.document.createRange();
       range.setStart(node, offset - seen);
-      range.setEnd(node, Math.min(node.data.length, offset - seen + length));
+      range.setEnd(node, Math.min(node.data.length, end - seen));
       if (typeof range.getBoundingClientRect === 'function') {
         const box = range.getBoundingClientRect();
         if (box.width > 0) return box.left + box.width / 2;
@@ -214,8 +213,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     const word = step === null ? undefined : r.words.get(step);
     if (!word) return;
     const text = joinTokens(word.tokens);
-    const at = middleLetter(text);
-    const end = at + (Array.from(text.slice(at))[0]?.length ?? 0);
+    const [at, end] = middleLetter(text);
     const mid = (...children: Child[]) => h('span', { class: 'sr-flow-mid' }, ...children);
     // An atom keeps one box around the whole word, so lighting a letter never moves the others.
     if (word.tokens.length === 1 && word.tokens[0].kind === 'atom')
@@ -232,14 +230,14 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     r.hidden = hidden;
     const row = r.row;
     const at = r.order.indexOf(index);
-    const offsets = ribbonOffsets(r.spans, at, row);
-    if (!offsets || at < 0) return;
     const span = r.spans[at];
-    const glide = r.x === null ? 0 : glideMs({ wpm: player.settings.wpm, distance: Math.abs(offsets.x - r.x), rowWidth: row, reducedMotion: reducedMotion() });
-    r.x = offsets.x;
+    if (!span) return;
+    const x = span.mid;
+    const glide = r.x === null ? 0 : glideMs({ wpm: player.settings.wpm, distance: Math.abs(x - r.x), rowWidth: row, reducedMotion: reducedMotion() });
+    r.x = x;
     r.el.style.setProperty('--sr-w', String(round(row)));
     r.el.style.setProperty('--sr-glide', `${glide}ms`);
-    r.el.style.setProperty('--sr-x', String(round(offsets.x)));
+    r.el.style.setProperty('--sr-x', String(round(x)));
     r.target.style.setProperty('--sr-target-x', String(round(row / 2 - (span.mid - span.start) - TARGET_PAD)));
     r.target.style.setProperty('--sr-target-w', String(round(span.width + 2 * TARGET_PAD)));
     r.target.hidden = hidden;
@@ -332,9 +330,10 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       const measured = typeof range.getBoundingClientRect === 'function' ? range.getBoundingClientRect().width : 0;
       return measured > 0 ? measured : width(el);
     };
-    const left = details ? textWidth(before) : width(before);
-    const pivotHalf = (details ? textWidth(pivot) : width(pivot)) / 2;
-    const total = details ? left + 2 * pivotHalf + textWidth(after) : width(chunk);
+    const measure = details ? textWidth : width;
+    const left = measure(before);
+    const pivotHalf = measure(pivot) / 2;
+    const total = details ? left + 2 * pivotHalf + measure(after) : width(chunk);
     const room = width(display);
     let shift = left + pivotHalf;
     if (room > 0 && total > 0) {
@@ -377,12 +376,12 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
 
   /** The prompt card of a block or inline dwell; an inline exhibit has no block, so no alt text. */
   function dwellCard(step: DwellStep) {
-    const block = step.inline ? undefined : ctx.doc.sections.find((s) => s.id === step.sectionId)?.blocks[step.blockIndex];
+    const block = step.inlineIndex !== undefined ? undefined : ctx.doc.sections.find((s) => s.id === step.sectionId)?.blocks[step.blockIndex];
     const alt = block && block.kind !== 'prose' && block.kind !== 'list' ? block.meta.alt : undefined;
     return card(
       'dwell',
       eyebrow(EXHIBIT_LABELS[step.exhibit]),
-      title(alt ?? `${EXHIBIT_LABELS[step.exhibit]}${step.chip !== undefined ? ` ${step.chip}` : ''} in the exhibit pane`),
+      title(alt ?? `${step.chip !== undefined ? chipLabel(step.exhibit === 'math' ? 'math' : 'code', step.chip) : EXHIBIT_LABELS[step.exhibit]} in the exhibit pane`),
       hint(`Showing for ${step.seconds} s · `, kbd('E'), ' to expand'),
     );
   }
@@ -409,7 +408,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     if (step.kind === 'item-gap') return;
     inlinePrompt = null;
     if (step.kind === 'chunk' || step.kind === 'item-chunk') return showChunk(step, index);
-    if ((step.kind === 'stop' || step.kind === 'dwell') && step.inline && player.settings.readingMode === 'flow') return showInlineStop(step, index);
+    if ((step.kind === 'stop' || step.kind === 'dwell') && step.inlineIndex !== undefined && player.settings.readingMode === 'flow') return showInlineStop(step, index);
     replaceChildren(sentence);
     switch (step.kind) {
       case 'chapter': {
@@ -530,17 +529,9 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       renderStatus();
     }),
     player.on('state', renderStatus),
-    player.on('settings', () => {
-      syncMode();
-      renderStatus();
-    }),
+    player.on('settings', renderStatus),
     ctx.speech.onVoices(renderStatus),
   ];
-  /** The reader's reading mode as an attribute, for the stylesheet (the flow window is wider). */
-  function syncMode() {
-    ctx.reader.dataset.readingMode = player.settings.readingMode;
-    syncInset();
-  }
   /**
    * In the docked panel the contents sidebar overlays the stage's left edge: a flow stage starts at its right edge
    * (`--sr-flow-inset`), so the target is centred in the visible area; the support area (stop prompts, exhibits) clears it in every mode. No sidebar showing, no inset.
@@ -559,7 +550,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     else root.style.removeProperty('--sr-flow-inset');
     return true;
   }
-  syncMode();
+  syncInset();
   showReady();
   renderStatus();
   const Observer = (ctx.document.defaultView as (Window & { ResizeObserver?: typeof ResizeObserver }) | null)?.ResizeObserver ?? globalThis.ResizeObserver;
@@ -589,7 +580,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       renderStatus();
     },
     refresh() {
-      syncMode();
+      syncInset();
       ribbon = null;
       if (!shown) showReady();
       renderStatus();

@@ -4,7 +4,6 @@ import {
   RUN_EDGE,
   RUN_WINDOW,
   glideMs,
-  ribbonOffsets,
   runBounds,
   runWindow,
   type WordSpan,
@@ -19,32 +18,6 @@ function spans(widths: number[]): WordSpan[] {
     return span;
   });
 }
-
-describe('ribbonOffsets', () => {
-  it('centres the middle row on the current word and puts the other rows a row width either side', () => {
-    const s = spans([40, 60, 80]);
-    const W = 300;
-    const o = ribbonOffsets(s, 1, W)!;
-    expect(o.x).toBe(s[1].mid);
-    expect(o.top).toBe(o.x - (3 * W) / 2);
-    expect(o.middle).toBe(o.x - W / 2);
-    expect(o.bottom).toBe(o.x + W / 2);
-  });
-
-  it('is null for an empty run and clamps the index to the first and last word', () => {
-    expect(ribbonOffsets([], 0, 300)).toBeNull();
-    const s = spans([40, 60, 80]);
-    expect(ribbonOffsets(s, -4, 300)!.x).toBe(s[0].mid);
-    expect(ribbonOffsets(s, 9, 300)!.x).toBe(s[2].mid);
-  });
-
-  it('keeps the offsets well defined for a word wider than the row', () => {
-    const s = spans([500]);
-    const o = ribbonOffsets(s, 0, 300)!;
-    expect(o.x).toBe(250);
-    expect(o.middle).toBe(100);
-  });
-});
 
 describe('runBounds', () => {
   const words = (n: number) => Array.from({ length: n }, () => ({ kind: 'chunk' }));
@@ -62,7 +35,7 @@ describe('runBounds', () => {
   });
 
   it('runs through an inline stop or dwell', () => {
-    const steps = [...words(2), { kind: 'stop', inline: true }, ...words(2), { kind: 'dwell', inline: true }, ...words(1), { kind: 'dwell' }];
+    const steps = [...words(2), { kind: 'stop', inlineIndex: 1 }, ...words(2), { kind: 'dwell', inlineIndex: 2 }, ...words(1), { kind: 'dwell' }];
     expect(runBounds(steps, 0)).toEqual({ first: 0, last: 6 });
   });
 

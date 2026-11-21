@@ -1,9 +1,9 @@
 import type { ExhibitBlock } from '../model';
 import type { StepEvent } from '../player';
-import { exhibitKey, exhibitKind, stepExhibitKey, type StepPosition, type TimelineExhibit } from '../timeline';
+import { exhibitKey, exhibitKind, type StepPosition, type TimelineExhibit } from '../timeline';
 import type { ReaderContext, Zone } from './context';
 import { icon, ICONS } from './dom';
-import { EXHIBIT_LABELS, plural } from './format';
+import { chipLabel, EXHIBIT_LABELS, plural } from './format';
 
 /** What the caption says about an exhibit, e.g. "24 lines · ts". */
 function details(block: ExhibitBlock): string {
@@ -17,7 +17,7 @@ function details(block: ExhibitBlock): string {
 }
 
 /** An exhibit's kind label; an inline one carries its chip number ("Code 2"). */
-const exhibitLabel = (exhibit: TimelineExhibit): string => `${EXHIBIT_LABELS[exhibitKind(exhibit)]}${exhibit.inline ? ` ${exhibit.chip}` : ''}`;
+const exhibitLabel = (exhibit: TimelineExhibit): string => (exhibit.inline ? chipLabel(exhibit.kind, exhibit.chip) : EXHIBIT_LABELS[exhibitKind(exhibit)]);
 
 /** What the caption says about an exhibit of either kind. */
 function exhibitDetails(exhibit: TimelineExhibit): string {
@@ -133,7 +133,7 @@ export function createExhibits(ctx: ReaderContext, { pane, root }: ExhibitElemen
 
   function onStep({ step }: StepEvent) {
     if (step.kind === 'end') return sync(ctx.timeline.sections[ctx.timeline.sections.length - 1]?.id, null);
-    sync(step.sectionId, step.kind === 'stop' || step.kind === 'dwell' ? stepExhibitKey(step) : null);
+    sync(step.sectionId, step.kind === 'stop' || step.kind === 'dwell' ? exhibitKey(step) : null);
   }
 
   function closeExpanded() {
@@ -146,7 +146,7 @@ export function createExhibits(ctx: ReaderContext, { pane, root }: ExhibitElemen
   }
 
   function openExpanded(at: StepPosition & { inlineIndex?: number }) {
-    const key = stepExhibitKey(at);
+    const key = exhibitKey(at);
     const exhibit = ctx.timeline.sections.find((s) => s.id === at.sectionId)?.exhibits.find((e) => exhibitKey(e) === key);
     if (!exhibit) return;
     closeExpanded();

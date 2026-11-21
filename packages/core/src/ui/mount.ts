@@ -173,6 +173,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     main.prepend(outlineBar);
     layout.append(outline, main, exhibits);
   } else layout.append(outlineBar, outline, main, exhibits);
+  reader.dataset.readingMode = settings.readingMode;
   reader.append(layout);
   root.appendChild(reader);
   const removeStyles = applyStyles(root, reader);
@@ -247,11 +248,9 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     const modeChanged = next.readingMode !== settings.readingMode;
     settings = next;
     speech.setVoice(next.tts.voiceURI);
-    if (modeChanged && probe) {
-      // The stage's width follows the mode: take the new mode's fit before building, so there is one rebuild.
-      reader.dataset.readingMode = next.readingMode;
-      fit = currentFit();
-    }
+    // The stage's width follows the mode: set it first and take the new mode's fit before building, so there is one rebuild.
+    reader.dataset.readingMode = next.readingMode;
+    if (modeChanged && probe) fit = currentFit();
     rebuild();
     if (save) saveSettings(next);
   }
@@ -264,27 +263,25 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     for (const zone of zones) zone.refresh?.();
   }
 
-  /** The bottom stage's fit, measured with a 10-character probe at the chunk font; null without layout. */
-  function measureFit(): number | null {
-    const room = stage.querySelector('.sr-display') ?? stage;
-    return chunkFit(room.getBoundingClientRect().width, probe!.getBoundingClientRect().width);
-  }
-
-  /** Fit applies to chunk mode only: flow steps one word at a time on a much wider stage. */
+  /**
+   * The bottom stage's fit: the chunk stage's width over one character of the chunk font (a prose sample's
+   * width / length); chunk mode only, since flow steps one word at a time on a much wider stage. Null without layout.
+   */
   function currentFit(): number | null {
     if (settings.readingMode !== 'chunk') return null;
-    const measured = measureFit();
+    const room = stage.querySelector('.sr-display') ?? stage;
+    const measured = chunkFit(room.getBoundingClientRect().width, probe!.getBoundingClientRect().width);
     if (measured !== null) seenFit = measured;
     return measured;
   }
 
-  /** Measure the stage again; a changed effective characters limit rebuilds the timeline (flow steps one word at a time). */
+  /** Measure the stage again; a changed effective characters limit rebuilds the timeline. */
   function updateFit() {
     const next = currentFit();
     if (next === fit) return;
     const before = effective(settings).chunkChars;
     fit = next;
-    if (!destroyed && settings.readingMode === 'chunk' && effective(settings).chunkChars !== before) rebuild();
+    if (!destroyed && effective(settings).chunkChars !== before) rebuild();
   }
 
   /** Save through the store; a refused save (storage quota, a gone extension context) shows a note. */

@@ -10,36 +10,17 @@ export interface WordSpan {
   mid: number;
 }
 
-/**
- * Where each row's viewport starts on the line. The middle row is centred on the current word's middle
- * letter (`x`); the top row is the row width before it and the bottom row the row width after it. A row
- * shows the line translated by `-offset`.
- */
-export interface RibbonOffsets {
-  x: number;
-  top: number;
-  middle: number;
-  bottom: number;
-}
-
-export function ribbonOffsets(spans: readonly WordSpan[], index: number, rowWidth: number): RibbonOffsets | null {
-  if (spans.length === 0) return null;
-  const at = Math.min(Math.max(index, 0), spans.length - 1);
-  const x = spans[at].mid;
-  return { x, top: x - (3 * rowWidth) / 2, middle: x - rowWidth / 2, bottom: x + rowWidth / 2 };
-}
-
 /** The most words laid out at once. */
 export const RUN_WINDOW = 400;
 /** The window is laid out again when the position comes within this many words of one of its edges. */
 export const RUN_EDGE = 100;
 
-export interface Range {
+export interface RunRange {
   first: number;
   last: number;
 }
 
-export interface Window {
+export interface RunWindow {
   from: number;
   to: number;
 }
@@ -48,15 +29,15 @@ export interface Window {
 const RUN_KINDS = new Set(['chunk', 'item-chunk', 'item-gap']);
 const INLINE_STOP_KINDS = new Set(['stop', 'dwell']);
 
-const continuesRun = (step: { kind: string; inline?: boolean }) =>
-  RUN_KINDS.has(step.kind) || (INLINE_STOP_KINDS.has(step.kind) && step.inline === true);
+const continuesRun = (step: { kind: string; inlineIndex?: number }) =>
+  RUN_KINDS.has(step.kind) || (INLINE_STOP_KINDS.has(step.kind) && step.inlineIndex !== undefined);
 
 /**
  * The run of steps around `index`: consecutive steps up to a card (chapter, title, block stop or dwell,
  * whole list, end), which are not part of the ribbon. An inline stop or dwell does not end it.
  * Null when `index` is itself on a card.
  */
-export function runBounds(steps: readonly { kind: string; inline?: boolean }[], index: number): Range | null {
+export function runBounds(steps: readonly { kind: string; inlineIndex?: number }[], index: number): RunRange | null {
   if (index < 0 || index >= steps.length || !continuesRun(steps[index])) return null;
   let first = index;
   while (first > 0 && continuesRun(steps[first - 1])) first--;
@@ -69,7 +50,7 @@ export function runBounds(steps: readonly { kind: string; inline?: boolean }[], 
  * The window of the run to lay out: at most RUN_WINDOW words centred on `index`, kept while `index`
  * stays RUN_EDGE words or more from an edge that is not the run's own, otherwise laid out again.
  */
-export function runWindow(run: Range, index: number, current: Window | null): Window {
+export function runWindow(run: RunRange, index: number, current: RunWindow | null): RunWindow {
   if (current && index >= current.from && index <= current.to) {
     const nearStart = current.from > run.first && index - current.from < RUN_EDGE;
     const nearEnd = current.to < run.last && current.to - index < RUN_EDGE;

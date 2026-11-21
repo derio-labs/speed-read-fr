@@ -8,3 +8,6 @@ export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n ==
 
 /** What each exhibit kind is called in the UI. */
 export const EXHIBIT_LABELS = { code: 'Code', table: 'Table', math: 'Formula', image: 'Image', diagram: 'Diagram' } as const;
+
+/** The name of the n-th chip of a kind in a section: "Code 2", "Formula 1". */
+export const chipLabel = (kind: 'code' | 'math', chip: number): string => `${EXHIBIT_LABELS[kind]} ${chip}`;

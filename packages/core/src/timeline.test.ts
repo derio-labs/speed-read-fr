@@ -294,9 +294,9 @@ describe('buildTimeline: long atoms in flow mode', () => {
     const steps = buildTimeline(d, flow()).steps;
     expect(steps.map(chunkText)).toEqual(['see', SHORT, '⟨code 1⟩', 'stop', 'end.']);
     const chip = steps[2];
-    expect(chip.kind === 'chunk' && chip.chunk.tokens[0]).toEqual({ kind: 'atom', atom: 'code', text: '⟨code 1⟩', full: LONG });
+    expect(chip.kind === 'chunk' && chip.chunk.tokens[0]).toEqual({ kind: 'atom', atom: 'code', text: '⟨code 1⟩', full: LONG, chip: 1 });
     const stop = steps[3];
-    expect(stop).toMatchObject({ kind: 'stop', exhibit: 'code', inline: true, inlineIndex: 1 });
+    expect(stop).toMatchObject({ kind: 'stop', exhibit: 'code', inlineIndex: 1, chip: 1 });
     expect(stop.kind === 'stop' && stop.prompt).toContain('Space to continue');
   });
 
@@ -332,11 +332,11 @@ describe('buildTimeline: long atoms in flow mode', () => {
     const d = doc(section('s', undefined, proseOf(atom(LONG), atom('m'.repeat(22), 'math'))));
     const dwell = buildTimeline(d, flow({ code: { mode: 'dwell', dwellSeconds: 7 }, math: { mode: 'skip', dwellSeconds: 5 } }));
     expect(dwell.steps.map((s) => s.kind)).toEqual(['chunk', 'dwell', 'chunk']);
-    expect(dwell.steps[1]).toMatchObject({ kind: 'dwell', inline: true, seconds: 7, exhibit: 'code' });
+    expect(dwell.steps[1]).toMatchObject({ kind: 'dwell', inlineIndex: 1, seconds: 7, exhibit: 'code' });
     expect(dwell.sections[0].exhibits).toHaveLength(2);
     const math = buildTimeline(d, flow({ code: { mode: 'skip', dwellSeconds: 5 } }));
     expect(math.steps.map((s) => s.kind)).toEqual(['chunk', 'chunk', 'stop']);
-    expect(math.steps[2]).toMatchObject({ exhibit: 'math', inline: true });
+    expect(math.steps[2]).toMatchObject({ exhibit: 'math', inlineIndex: 2 });
     expect(math.steps[2].kind === 'stop' && math.steps[2].prompt).toMatch(/^Formula/);
   });
 

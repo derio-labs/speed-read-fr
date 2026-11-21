@@ -37,8 +37,10 @@ export interface Sentence {
   tokens: Token[];
 }
 
-/** `full` is set on a chip standing in for a long atom in flow mode: the original text (`text` is `⟨code n⟩`). */
-export type Token = { kind: 'word'; text: string } | { kind: 'atom'; atom: 'code' | 'math'; text: string; full?: string };
+/** `full` and `chip` are set on a chip standing in for a long atom in flow mode: the original text and its number (`text` is `⟨code n⟩`). */
+export type Token =
+  | { kind: 'word'; text: string }
+  | { kind: 'atom'; atom: 'code' | 'math'; text: string; full?: string; chip?: number };
 
 /** `element` is null outside a DOM (unit tests); `line` comes from `data-line` when present. */
 export interface SourceRef {
