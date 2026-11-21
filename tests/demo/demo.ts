@@ -44,7 +44,9 @@ function open() {
 }
 
 async function main() {
-  const response = await fetch(new URL('../fixtures/article.html', location.href));
+  // ?doc=inline reads the long-inline-code fixture instead of the article.
+  const fixture = new URLSearchParams(location.search).get('doc') === 'inline' ? 'inline-code.html' : 'article.html';
+  const response = await fetch(new URL(`../fixtures/${fixture}`, location.href));
   const parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
   const content = parsed.getElementById('content');
   if (!content) throw new Error('fixture has no #content');

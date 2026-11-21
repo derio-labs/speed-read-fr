@@ -853,3 +853,145 @@ test('at 400 px a 60-character voice name still shows whether the chosen voice i
   expect(b.x + b.width).toBeLessThanOrEqual(400);
   expect(b.width).toBeGreaterThan(30);
 });
+
+const PHASE2_SHOTS = '.visual/phase2-shots';
+
+/** The long-inline-code demo on the bottom stage, in a 1440 px viewport. */
+async function openInline(page: Page, layout: 'floating' | 'panel', saved: Record<string, unknown>) {
+  await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ wpm: 600, ...saved })] as const);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${DEMO}?bottomStage&layout=${layout}&doc=inline`);
+  await expect(page.locator('.sr-reader')).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(page.locator('.sr-card-chapter')).toBeVisible();
+  await page.keyboard.press('Space');
+}
+
+for (const layout of ['floating', 'panel'] as const) {
+  test(`a long inline code atom is a chip on the target with its stop prompt beside the ribbon and its exhibit card (${layout})`, async ({ page }) => {
+    await openInline(page, layout, { readingMode: 'flow' });
+    const details = page.locator('.sr-stage-details');
+    await expect(details.locator('.sr-card-stop')).toBeVisible();
+    await expect(page.locator('.sr-status-state')).toHaveText('Waiting');
+    // The ribbon stays on screen, with the chip on the target (its middle letter lit).
+    await expect(page.locator('.sr-display')).toHaveAttribute('data-kind', 'flow');
+    await expect(page.locator('.sr-ribbon')).toBeVisible();
+    await settleGlide(page);
+    const lit = await page.evaluate(() => {
+      const mid = document.querySelector<HTMLElement>('.sr-flow-mid')!;
+      const word = mid.closest('.sr-w')!;
+      const row = document.querySelector('.sr-ribbon-row[data-position="middle"]')!.getBoundingClientRect();
+      const m = mid.getBoundingClientRect();
+      return { word: word.textContent, off: Math.abs(m.left + m.width / 2 - (row.left + row.width / 2)) };
+    });
+    expect(lit.word).toBe('⟨code 1⟩');
+    expect(lit.off).toBeLessThan(1);
+    await expect(details).toContainText('Space to continue');
+    // Its exhibit card lists the full text.
+    const card = page.locator('.sr-exhibits .sr-exhibit[data-key="b0i1"]');
+    await expect(card).toBeVisible();
+    await expect(card.locator('pre > code')).toHaveText('npm_config_userconfig_override_path');
+    await page.screenshot({ path: `${PHASE2_SHOTS}/${layout}-inline-code-stop.png` });
+    // Space resumes the ribbon, the prompt goes away and the exhibit stays listed.
+    await page.keyboard.press('Space');
+    await expect(details).toBeHidden();
+    await expect(page.locator('.sr-ribbon')).toBeVisible();
+    await expect(card).toBeVisible();
+  });
+}
+
+test('E on an inline stop expands the full text of the code', async ({ page }) => {
+  await openInline(page, 'panel', { readingMode: 'flow' });
+  await expect(page.locator('.sr-card-stop')).toBeVisible();
+  await page.keyboard.press('e');
+  await expect(page.locator('.sr-expanded pre > code')).toHaveText('npm_config_userconfig_override_path');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.sr-expanded')).toHaveCount(0);
+});
+
+test.describe('chunk limits in the bottom-stage layouts', () => {
+  test('a 6-word chunk shows whole in panel layout; characters beyond what fits are clamped, not clipped', async ({ page }) => {
+    await openInline(page, 'panel', { readingMode: 'chunk', chunkWords: 6, chunkChars: 40, wpm: 100 });
+    // Stored limits survive; the effective characters limit is what fits the 420px stage.
+    const fit = await page.evaluate(() => {
+      const probe = document.querySelector<HTMLElement>('.sr-fit-probe')!.getBoundingClientRect().width;
+      const display = document.querySelector<HTMLElement>('.sr-display')!.getBoundingClientRect().width;
+      const reader = (window as unknown as { __reader: { player: { settings: { chunkWords: number; chunkChars: number } } } }).__reader;
+      return { fit: Math.floor(display / (probe / 10)), words: reader.player.settings.chunkWords, chars: reader.player.settings.chunkChars };
+    });
+    expect(fit.words).toBe(6);
+    expect(fit.chars).toBe(Math.min(40, Math.max(5, fit.fit)));
+    // Step the dial to the chunk "To be or not to be," (6 words, 19 characters).
+    await page.keyboard.press('Space');
+    await expect(page.locator('.sr-status-state')).toHaveText('Paused');
+    const found = await page.evaluate(() => {
+      const player = (window as unknown as { __reader: { player: { scrub(n: number): number } } }).__reader.player;
+      for (let i = 0; i < 300; i++) {
+        if (/^To be or not to be/.test(document.querySelector('.sr-display .sr-chunk')?.textContent?.trim() ?? '')) return true;
+        player.scrub(1);
+      }
+      return false;
+    });
+    expect(found).toBe(true);
+    const shown = await page.evaluate(() => {
+      const chunk = document.querySelector<HTMLElement>('.sr-display .sr-chunk')!;
+      const display = document.querySelector<HTMLElement>('.sr-display')!.getBoundingClientRect();
+      const parts = [...chunk.querySelectorAll<HTMLElement>('.sr-before, .sr-after')];
+      return {
+        text: chunk.textContent,
+        clipped: parts.some((p) => p.scrollWidth > p.clientWidth + 1),
+        ellipsis: parts.some((p) => getComputedStyle(p).textOverflow === 'ellipsis' && p.scrollWidth > p.clientWidth),
+        inside: chunk.getBoundingClientRect().left >= display.left - 1 && chunk.getBoundingClientRect().right <= display.right + 1,
+      };
+    });
+    expect(shown.text!.trim().split(/\s+/)).toHaveLength(6);
+    expect(shown.clipped).toBe(false);
+    expect(shown.ellipsis).toBe(false);
+    expect(shown.inside).toBe(true);
+    await page.screenshot({ path: `${PHASE2_SHOTS}/panel-six-word-chunk.png` });
+    // The settings panel offers up to 10 words and what fits as the characters maximum, and keeps the stored 40.
+    await page.keyboard.press(',');
+    await expect(page.locator('.sr-settings [name="chunkWords"]')).toHaveAttribute('max', '10');
+    await expect(page.locator('.sr-settings [name="chunkChars"]')).toHaveAttribute('max', String(Math.min(80, Math.max(5, fit.fit))));
+    await expect(page.locator('.sr-settings [name="chunkChars"]')).toHaveValue('40');
+  });
+
+  test('an over-wide chunk wraps inside the stage with no ellipsis and nothing cut off', async ({ page }) => {
+    await openInline(page, 'panel', { readingMode: 'chunk', chunkWords: 1, chunkChars: 80, wpm: 100 });
+    await page.keyboard.press('Space');
+    await expect(page.locator('.sr-status-state')).toHaveText('Paused');
+    // Step through the dial's movement to the wide token.
+    const found = await page.evaluate(() => {
+      const player = (window as unknown as { __reader: { player: { scrub(n: number): number } } }).__reader.player;
+      for (let i = 0; i < 300; i++) {
+        if (/^aaaa_bbbb/.test(document.querySelector('.sr-display .sr-chunk')?.textContent ?? '')) return true;
+        player.scrub(1);
+      }
+      return false;
+    });
+    expect(found).toBe(true);
+    await expect(page.locator('.sr-display')).toHaveAttribute('data-wrap', 'true');
+    const wrapped = await page.evaluate(() => {
+      const chunk = document.querySelector<HTMLElement>('.sr-display .sr-chunk')!;
+      const display = document.querySelector<HTMLElement>('.sr-display')!.getBoundingClientRect();
+      const box = chunk.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(chunk);
+      const lines = new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+      const parts = [...chunk.querySelectorAll<HTMLElement>('.sr-before, .sr-after')];
+      return {
+        text: chunk.textContent,
+        lines,
+        align: getComputedStyle(chunk).textAlign,
+        ellipsis: parts.some((p) => getComputedStyle(p).textOverflow === 'ellipsis'),
+        inside: box.left >= display.left - 1 && box.right <= display.right + 1 && box.top >= display.top - 1 && box.bottom <= display.bottom + 1,
+      };
+    });
+    expect(wrapped.text).toContain('tttt');
+    expect(wrapped.lines).toBeGreaterThanOrEqual(2);
+    expect(wrapped.align).toBe('center');
+    expect(wrapped.ellipsis).toBe(false);
+    expect(wrapped.inside).toBe(true);
+    await page.screenshot({ path: `${PHASE2_SHOTS}/panel-wrapped-chunk.png` });
+  });
+});
