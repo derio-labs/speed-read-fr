@@ -12,7 +12,17 @@ steps:
     emitted:
       spec: docs/superpowers/specs/2026-11-20-snake-flow-design.md
   spec-review:
-    state: pending
+    state: running
+    at: '2026-11-21T05:48:24+00:00'
+    units:
+      step/spec-review:
+        attempts:
+        - dispatched: '2026-11-21T05:48:24+00:00'
+          agent_type: super-fr:fr-spec-reviewer
+          harness: claude-code
+          tier: hard
+          bound: claude-opus-5-5
+          session: 3d95410b-27ca-4a1c-bd74-ec9d9f74601e
   plan:
     state: pending
   plan-review:
