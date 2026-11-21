@@ -245,3 +245,8 @@ timeline.ts:39-40. Drop or group into one inline object.
 ### l-simplicity-r6 · finding [open] (reviewer: in scope) · chunkOptions ternary repeats chunkChars and precedes flow
 
 timeline.ts:166-171.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r7 created=2026-11-21T12:56:49+00:00 state=open review_scope=in -->
+### l-simplicity-r7 · finding [open] (reviewer: in scope) · mount.ts fit plumbing hard to follow; redundant check, stale comment, data-reading-mode owned twice
+
+mount.ts:125-288, :252 vs stage.ts:541.
