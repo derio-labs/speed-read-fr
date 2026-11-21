@@ -155,3 +155,8 @@ exhibits.ts sync. Drop shown entries not in revealedExhibits(sectionId).
 ### p2-r4 · finding [open] (reviewer: in scope) · Chip number not surfaced in stop prompt or exhibit caption (phase 2)
 
 timeline.ts stopPrompt(token.atom, {}), exhibits.ts exhibitDetails. Store chip number on InlineExhibit; 'Code 2' in prompt title and caption.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r5 created=2026-11-21T12:50:30+00:00 phase=2 state=open review_scope=out -->
+### p2-r5 · finding [open] (reviewer: out of scope) · Panel layout: contents sidebar covers the stage-support area (prompts, exhibits); also for block stops in chunk mode (phase 2)
+
+Pre-existing for block stops. Cheap fix: apply --sr-flow-inset to .sr-stage-support.
