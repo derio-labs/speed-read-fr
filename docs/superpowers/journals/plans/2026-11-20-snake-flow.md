@@ -225,3 +225,8 @@ ribbon-geometry.ts:13-31. Replace with spans[at].mid.
 ### l-simplicity-r2 · finding [open] (reviewer: in scope) · Types Window/Range shadow DOM globals, forcing aliases in stage.ts:12
 
 Rename RunWindow/RunRange.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r3 created=2026-11-21T12:56:45+00:00 state=open review_scope=in -->
+### l-simplicity-r3 · finding [open] (reviewer: in scope) · keyOf/exhibitKey/stepExhibitKey: three functions for one key
+
+timeline.ts:69-78. One exhibitKey({blockIndex, inlineIndex?}).
