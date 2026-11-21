@@ -166,3 +166,9 @@ gate: tester
 
 Chunk mode's width; new settings (no resizable width); block-exhibit, card and speech policies beyond
 what R9, R10 and R12 state; the non-bottom-stage floating layout's widths.
+
+## Implementation Plans
+
+| Plan | Repo | File | Depends on |
+|------|------|------|------------|
+| 2026-11-20-snake-flow | `derio-labs/speed-read-fr` | `2026-11-20-snake-flow` | — |

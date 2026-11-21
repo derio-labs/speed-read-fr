@@ -1,0 +1,147 @@
+schema_version: 2
+phase:
+  number: 1
+  title: Snake ribbon flow mode on the bottom-stage reader
+  tag: agentic
+  depends_on: []
+  tracking_issue: null
+  acceptance:
+  - reader-snake-flow
+  skeleton: true
+  tier: standard
+  files:
+  - packages/core/src/timeline.ts
+  - packages/core/src/timeline.test.ts
+  - packages/core/src/pacing.ts
+  - packages/core/src/pacing.test.ts
+  - packages/core/src/text/**
+  - packages/core/src/ui/stage.ts
+  - packages/core/src/ui/ribbon*.ts
+  - packages/core/src/ui/styles.ts
+  - packages/core/src/ui/mount.ts
+  - packages/core/src/ui/*.test.ts
+  - tests/demo/**
+  - tests/e2e/core.spec.ts
+  - tests/e2e/webview.spec.ts
+  - README.md
+  estimate_lines: 750
+tasks:
+- number: 1
+  title: Smoke — bottom-stage demo runs under Playwright
+  steps:
+  - id: P1.T1.S1
+    text: |-
+      Add a trivial Playwright test in tests/e2e/core.spec.ts that opens the demo with `?bottomStage` and expects the reader root to carry `data-bottom-stage`; run it and see it fail.
+  - id: P1.T1.S2
+    text: |-
+      Add the `?bottomStage` query switch to tests/demo/demo.ts (passing `bottomStage: true` to mountReader, floating by default, `&layout=panel` for panel layout); run `npx playwright test tests/e2e/core.spec.ts -g bottomStage` and `npx vitest run` green, then push so CI runs the trivial test.
+- number: 2
+  title: Flow timeline — one word per step and the middle-letter rule
+  steps:
+  - id: P1.T2.S1
+    text: |-
+      Add failing tests: buildTimeline in flow mode yields one token per chunk/item-chunk step while chunk mode is unchanged; a pure `middleLetter(word)` returns the letters/digits index floor((n-1)/2) ("single" → 2, "word" → 1, "(config)," → the 'n'), or the middle character for a word with no letters/digits.
+  - id: P1.T2.S2
+    text: |-
+      Implement the readingMode branch in buildTimeline (chunkWords 1 in flow) and `middleLetter` in packages/core/src/text/; run the focused tests green.
+  - id: P1.T2.S3
+    text: |-
+      Refactor: share the letters/digits scan with orp.ts's pivotOffset if it removes duplication; re-run the text and timeline tests.
+- number: 3
+  title: Ribbon geometry as a pure module
+  steps:
+  - id: P1.T3.S1
+    text: |-
+      Add failing unit tests for a pure ribbon-geometry module (packages/core/src/ui/ribbon-geometry.ts): given measured word spans (start, width, middle-letter centre), a row width W and the current word index, it returns the shared offset x and the three row translations (top x−3W/2, middle x−W/2, bottom x+W/2); the run window is 400 words around the current position and re-centres within 100 words of its edge; run bounds stop at card steps but not at inline stops; glide duration is min(100, 60000/wpm/3) ms and is 0 for a move over W or under reduced motion.
+  - id: P1.T3.S2
+    text: |-
+      Implement the geometry module to make the tests pass; no DOM in it.
+  - id: P1.T3.S3
+    text: |-
+      Refactor names and edge cases (empty run, first and last word, a single word wider than W); re-run.
+- number: 4
+  title: Ribbon renderer, braced target and wide flow window
+  steps:
+  - id: P1.T4.S1
+    text: |-
+      Add failing stage tests (jsdom with stubbed getBoundingClientRect): flow mode renders three `.sr-ribbon-row` viewports over one line of word spans with consecutive text; the current word's middle letter carries the accent class without bold; a `.sr-flow-target` with top and bottom braces takes the current word's width + 8px; the old `.sr-flow-axis` is gone; a chapter card / block stop replaces the ribbon and it resumes after; scrubbing moves the offset with the glide; with no boundary events (plain mount) the ribbon holds at the sentence's first word with the target hidden; with estimated boundaries it follows the spoken word.
+  - id: P1.T4.S2
+    text: |-
+      Implement the ribbon renderer in stage.ts (replacing flowRow/showFlow) using the geometry module, the CSS transition on the shared offset, and relayout on resize, settings change and run boundaries.
+  - id: P1.T4.S3
+    text: |-
+      Update styles.ts: ribbon rows at one font size, the brace target outside the text line box, removal of the axis ticks, and with `data-reading-mode="flow"` the bottom-stage `.sr-stage` and floating `.sr-main` widen to min(1200px, calc(100% - 64px)) (panel layout 100%) with the flow display tall enough for three rows; set the attribute from mount/stage on mode change; run the core unit suite green.
+  - id: P1.T4.S4
+    text: |-
+      Refactor: remove the dead flow-row helpers and CSS; re-run unit tests and typecheck.
+- number: 5
+  title: Browser checks on the layouts users see, and docs
+  steps:
+  - id: P1.T5.S1
+    text: |-
+      Replace the old flow-mode Playwright checks with ones on the bottom-stage demo (floating and panel): three rows of consecutive text, the middle letter's centre within 1px of the target centre, brace width equal to the word's width + 8px, wheel back and forward moving word by word then resuming, a chapter card and a code stop interrupting and resuming the ribbon, and the stage wider than 1000px in a 1440px viewport; update tests/e2e/webview.spec.ts flow assertions; capture screenshots into a git-ignored dir and open them.
+  - id: P1.T5.S2
+    text: |-
+      Update the README's flow-mode description (ribbon, braced target, wheel); run `npm run typecheck`, `npx vitest run` and `npx playwright test` green after the last code commit.
+state:
+  steps:
+    P1.T1.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T1.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S4:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T5.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T5.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+  completion:
+    at: null
+    note: null
+    observed_prs: []
