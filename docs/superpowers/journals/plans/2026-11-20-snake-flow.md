@@ -250,3 +250,8 @@ timeline.ts:166-171.
 ### l-simplicity-r7 · finding [open] (reviewer: in scope) · mount.ts fit plumbing hard to follow; redundant check, stale comment, data-reading-mode owned twice
 
 mount.ts:125-288, :252 vs stage.ts:541.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r8 created=2026-11-21T12:56:49+00:00 state=open review_scope=in -->
+### l-simplicity-r8 · finding [open] (reviewer: in scope) · Chip label built in four places
+
+timeline stopPrompt, exhibits.ts:20, stage.ts:385, tts.ts:241. One chipLabel helper by EXHIBIT_LABELS.
