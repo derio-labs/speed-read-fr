@@ -1,5 +1,4 @@
 import { expect, test, type Page } from '@playwright/test';
-import { mkdir } from 'node:fs/promises';
 
 const DEMO = '/tests/demo/index.html';
 const STORE_KEY = 'speed-read-demo:settings';
@@ -63,7 +62,7 @@ test('Space starts, the chapter card stops, Space continues and chunks advance',
 });
 
 test('the code stop shows its prompt and only then reveals the code in the pane', async ({ page }) => {
-  await openDemo(page, { wpm: 1000 });
+  await openDemo(page, { wpm: 600 });
   await page.keyboard.press('Space');
   // Sections: prose, lists, short lists (H3), code.
   for (let i = 0; i < 4; i++) await page.keyboard.press('n');
@@ -199,223 +198,197 @@ test('words per chunk 1 and 8 change the chunk, and a reload keeps the saved set
   await expect(page.locator('.sr-settings [name="chunkWords"]')).toHaveValue('8');
 });
 
-test('three-row flow selection, focus, progression, controls, cards and persistence', async ({ page }) => {
-  const shots = '.visual/three-row-flow';
-  await mkdir(shots, { recursive: true });
-  await openDemo(page);
-  await page.keyboard.press(',');
-  const mode = page.locator('.sr-settings [name="readingMode"]');
-  await expect(mode).toHaveValue('chunk');
-  await page.keyboard.press('Escape');
+const SHOTS = '.visual/snake-shots';
 
-  await page.keyboard.press('Space');
-  await page.keyboard.press('Space');
-  await expect(display(page)).toHaveAttribute('data-kind', 'chunk');
-  await expect(state(page)).toHaveText('Playing');
-  await page.screenshot({ path: `${shots}/chunk-playing.png` });
-
-  await page.keyboard.press(',');
-  await page.locator('.sr-settings [name="readingMode"]').selectOption('flow');
-  await expect(display(page)).toHaveAttribute('data-kind', 'flow');
-  await expect(mode).toHaveValue('flow');
-  await page.screenshot({ path: `${shots}/settings-select-flow.png` });
-  await page.keyboard.press('Escape');
-  await expectVisibleFlowRows(page);
-  const geometry = await flowGeometry(page);
-  expect(geometry.dx).toBeLessThan(2);
-  expect(geometry.dy).toBeLessThan(2);
-  expect(geometry.tickSpan).toBeGreaterThan(geometry.rowHeight - 2);
-  expect(await page.locator('.sr-flow-before').evaluate((el) => getComputedStyle(el).whiteSpace)).toBe('pre');
-  expect(await page.locator('.sr-flow-after').evaluate((el) => getComputedStyle(el).whiteSpace)).toBe('pre');
-  await page.screenshot({ path: `${shots}/flow-playing.png` });
-
-  const starting = await page.locator('.sr-flow-row[data-position="middle"]').textContent();
-  await expect.poll(() => page.locator('.sr-flow-row[data-position="middle"]').textContent()).not.toBe(starting);
-  await page.screenshot({ path: `${shots}/flow-progressed.png` });
-  await page.keyboard.press('Space');
-  await expect(state(page)).toHaveText('Paused');
-  await page.screenshot({ path: `${shots}/flow-paused.png` });
-  await page.keyboard.press('Space');
-  await expect(state(page)).toHaveText('Playing');
-  await page.screenshot({ path: `${shots}/flow-resumed.png` });
-
-  const beforeJump = await page.locator('.sr-flow-row[data-position="middle"]').textContent();
-  await page.keyboard.press('ArrowRight');
-  await expect.poll(() => page.locator('.sr-flow-row[data-position="middle"]').textContent()).not.toBe(beforeJump);
-  await page.screenshot({ path: `${shots}/flow-sentence-jump.png` });
-
-  await page.reload();
+/** A flow-mode reader on the bottom-stage demo (the layout every host ships), in a 1440 px viewport. */
+async function openFlow(page: Page, layout: 'floating' | 'panel', saved: Record<string, unknown> = {}) {
+  await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ readingMode: 'flow', wpm: 120, ...saved })] as const);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${DEMO}?bottomStage&layout=${layout}`);
   await expect(page.locator('.sr-reader')).toBeFocused();
+}
+
+/** Start reading past the first chapter card. */
+async function startFlow(page: Page) {
   await page.keyboard.press('Space');
   await expect(page.locator('.sr-card-chapter')).toBeVisible();
-  await page.screenshot({ path: `${shots}/flow-chapter-card.png` });
-  for (let i = 0; i < 4; i++) await page.keyboard.press('n');
-  await expect(page.locator('.sr-card-chapter')).toContainText('Code, tables and math');
   await page.keyboard.press('Space');
-  await expect(page.locator('.sr-card-stop')).toBeVisible({ timeout: 20_000 });
-  await page.screenshot({ path: `${shots}/flow-structured-stop.png` });
+  await expect(page.locator('.sr-ribbon')).toBeVisible();
+}
 
+/** What the ribbon shows now: per-row visible word index ranges, the lit word, and the target geometry. */
+async function ribbonSample(page: Page) {
+  return page.evaluate(() => {
+    const rows = [...document.querySelectorAll<HTMLElement>('.sr-ribbon-row')];
+    const visible = rows.map((row) => {
+      const box = row.getBoundingClientRect();
+      const words = [...row.querySelectorAll<HTMLElement>('.sr-w')];
+      const seen = words.flatMap((w, i) => {
+        const r = w.getBoundingClientRect();
+        return r.right > box.left + 0.5 && r.left < box.right - 0.5 ? [i] : [];
+      });
+      return { lo: seen[0] ?? -1, hi: seen[seen.length - 1] ?? -1, box: { x: box.x, y: box.y, width: box.width, height: box.height }, count: seen.length };
+    });
+    const mid = document.querySelector<HTMLElement>('.sr-flow-mid');
+    const word = mid?.closest<HTMLElement>('.sr-w') ?? null;
+    const middleWords = [...document.querySelectorAll('.sr-ribbon-row[data-position="middle"] .sr-w')];
+    const m = mid?.getBoundingClientRect();
+    const w = word?.getBoundingClientRect();
+    const target = document.querySelector('.sr-flow-target')!.getBoundingClientRect();
+    const braces = [...document.querySelectorAll('.sr-flow-brace')].map((b) => b.getBoundingClientRect());
+    const midRow = visible[1].box;
+    return {
+      visible,
+      index: word ? middleWords.indexOf(word) : -1,
+      text: word?.textContent ?? '',
+      midCentre: m ? m.x + m.width / 2 : NaN,
+      rowCentre: midRow.x + midRow.width / 2,
+      word: w ? { x: w.x, width: w.width, top: w.y, bottom: w.y + w.height } : null,
+      target: { x: target.x, width: target.width, top: target.y, bottom: target.y + target.height },
+      braces: braces.map((b) => ({ top: b.y, bottom: b.y + b.height, x: b.x, width: b.width })),
+      mid: { weight: mid ? getComputedStyle(mid).fontWeight : '', parentWeight: word ? getComputedStyle(word).fontWeight : '', color: mid ? getComputedStyle(mid).color : '' },
+      stage: document.querySelector('.sr-stage')!.getBoundingClientRect().width,
+    };
+  });
+}
+
+/** Wait for the ribbon's glide to finish before measuring it. */
+const settleGlide = (page: Page) => page.waitForTimeout(220);
+
+async function pauseFlow(page: Page) {
+  await page.keyboard.press('Space');
+  await expect(state(page)).toHaveText('Paused');
+  await settleGlide(page);
+}
+
+for (const layout of ['floating', 'panel'] as const) {
+  test.describe(`snake flow, bottom stage, ${layout} layout`, () => {
+    test('three rows of consecutive text, the middle letter on the target, braces as wide as the word + 8px', async ({ page }) => {
+      // Far enough into the text that the top row is full; then back, a word at a time.
+      await openFlow(page, layout, { wpm: 600 });
+      await startFlow(page);
+      await expect.poll(async () => (await ribbonSample(page)).index, { timeout: 20_000 }).toBeGreaterThan(58);
+      await pauseFlow(page);
+      // Park on word 54 whatever the poll caught: the top and bottom rows are both inside the run's ~80 words there.
+      const parked = (await ribbonSample(page)).index;
+      await page.evaluate((delta) => (window as unknown as { __reader: { player: { scrub(n: number): number } } }).__reader.player.scrub(delta), 54 - parked);
+      await settleGlide(page);
+      await page.screenshot({ path: `${SHOTS}/${layout}-flow-paused.png` });
+      for (let i = 0; i < 6; i++) {
+        const sample = await ribbonSample(page);
+        const [top, middle, bottom] = sample.visible;
+        // The run holds about 80 words, so the bottom row is short near its end: every row still shows text.
+        for (const row of sample.visible) expect(row.count, 'words visible per row').toBeGreaterThanOrEqual(3);
+        expect(middle.count).toBeGreaterThan(10);
+        // Consecutive text: a word cut by a row edge shows in both rows, otherwise the next row starts at the next word.
+        expect(middle.lo - top.hi, 'top row runs into the middle row').toBeGreaterThanOrEqual(0);
+        expect(middle.lo - top.hi).toBeLessThanOrEqual(1);
+        expect(bottom.lo - middle.hi, 'middle row runs into the bottom row').toBeGreaterThanOrEqual(0);
+        expect(bottom.lo - middle.hi).toBeLessThanOrEqual(1);
+        expect(sample.index).toBeGreaterThanOrEqual(middle.lo);
+        expect(sample.index).toBeLessThanOrEqual(middle.hi);
+        // The rows stack: top above middle above bottom.
+        expect(top.box.y).toBeLessThan(middle.box.y);
+        expect(middle.box.y).toBeLessThan(bottom.box.y);
+        // The middle letter's centre is the target's fixed point, the middle of the row.
+        expect(Math.abs(sample.midCentre - sample.rowCentre), `middle letter of "${sample.text}"`).toBeLessThan(1);
+        // The braces span the word, plus 4px each side, and stay outside its line box.
+        expect(Math.abs(sample.target.width - (sample.word!.width + 8))).toBeLessThan(1);
+        expect(Math.abs(sample.target.x - (sample.word!.x - 4))).toBeLessThan(1);
+        expect(sample.braces).toHaveLength(2);
+        expect(sample.braces[0].bottom).toBeLessThanOrEqual(sample.word!.top + 1);
+        expect(sample.braces[1].top).toBeGreaterThanOrEqual(sample.word!.bottom - 1);
+        // Red and not bold.
+        expect(sample.mid.weight).toBe(sample.mid.parentWeight);
+        expect(sample.mid.color).not.toBe(await page.locator('.sr-ribbon-row[data-position="middle"]').evaluate((e) => getComputedStyle(e).color));
+        await page.locator('.sr-stage').hover();
+        await page.mouse.wheel(0, -120);
+        await settleGlide(page);
+        await page.waitForTimeout(400);
+      }
+      // A narrower window: the ribbon follows the stage's width and keeps three rows.
+      await page.setViewportSize({ width: 900, height: 900 });
+      await settleGlide(page);
+      const narrow = await ribbonSample(page);
+      expect(narrow.visible.every((row) => row.count > 0)).toBe(true);
+      expect(Math.abs(narrow.midCentre - narrow.rowCentre)).toBeLessThan(1);
+      await page.screenshot({ path: `${SHOTS}/${layout}-flow-narrow.png` });
+    });
+
+    test('the flow window is wider than 1000px in a 1440px viewport, and chunk mode keeps its width', async ({ page }) => {
+      await openFlow(page, layout);
+      await startFlow(page);
+      const flow = await ribbonSample(page);
+      expect(flow.stage).toBeGreaterThan(1000);
+      expect(flow.stage).toBeLessThanOrEqual(layout === 'floating' ? 1200 : 1440);
+      await page.screenshot({ path: `${SHOTS}/${layout}-flow-wide.png` });
+      await page.keyboard.press(',');
+      await page.locator('.sr-settings [name="readingMode"]').selectOption('chunk');
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.sr-ribbon')).toHaveCount(0);
+      expect(await page.locator('.sr-stage').evaluate((e) => e.getBoundingClientRect().width)).toBeLessThanOrEqual(421);
+    });
+
+    test('the wheel moves the ribbon back and forward word by word, and playback resumes from the reached word', async ({ page }) => {
+      await openFlow(page, layout);
+      await startFlow(page);
+      await expect.poll(async () => (await ribbonSample(page)).index, { timeout: 20_000 }).toBeGreaterThan(5);
+      await pauseFlow(page);
+      const at = (await ribbonSample(page)).index;
+      await page.locator('.sr-stage').hover();
+      for (const [delta, expected] of [[-120, at - 1], [-120, at - 2], [120, at - 1], [120, at]] as const) {
+        await page.mouse.wheel(0, delta);
+        await expect.poll(async () => (await ribbonSample(page)).index).toBe(expected);
+        await page.waitForTimeout(500);
+      }
+      await settleGlide(page);
+      const sample = await ribbonSample(page);
+      expect(Math.abs(sample.midCentre - sample.rowCentre)).toBeLessThan(1);
+      await page.keyboard.press('Space');
+      await expect(state(page)).toHaveText('Playing');
+      await expect.poll(async () => (await ribbonSample(page)).index, { timeout: 10_000 }).toBeGreaterThan(at);
+    });
+
+    test('a chapter card and a code stop interrupt the ribbon and it resumes after them', async ({ page }) => {
+      test.setTimeout(90_000);
+      await openFlow(page, layout, { wpm: 600 });
+      await startFlow(page);
+      await page.keyboard.press('n');
+      await expect(page.locator('.sr-card-chapter')).toBeVisible();
+      await expect(page.locator('.sr-ribbon')).toHaveCount(0);
+      await page.screenshot({ path: `${SHOTS}/${layout}-chapter-card.png` });
+      await page.keyboard.press('Space');
+      await expect(page.locator('.sr-ribbon')).toBeVisible();
+      await expect(page.locator('.sr-card-chapter')).toHaveCount(0);
+      await page.keyboard.press('n');
+      await page.keyboard.press('n');
+      await expect(page.locator('.sr-card-chapter')).toContainText('Code, tables and math');
+      await page.keyboard.press('Space');
+      await expect(page.locator('.sr-ribbon')).toBeVisible();
+      await expect(page.locator('.sr-card-stop')).toBeVisible({ timeout: 30_000 });
+      await expect(page.locator('.sr-ribbon')).toHaveCount(0);
+      await page.screenshot({ path: `${SHOTS}/${layout}-code-stop.png` });
+      await page.keyboard.press('Space');
+      await expect(page.locator('.sr-ribbon')).toBeVisible();
+      await expect(page.locator('.sr-card-stop')).toHaveCount(0);
+    });
+  });
+}
+
+test('the three-row flow setting persists and flow keeps its settings through a reload', async ({ page }) => {
+  await openDemo(page);
+  await page.keyboard.press(',');
+  await expect(page.locator('.sr-settings [name="readingMode"]')).toHaveValue('chunk');
+  await page.locator('.sr-settings [name="readingMode"]').selectOption('flow');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(display(page)).toHaveAttribute('data-kind', 'flow');
+  await expect(page.locator('.sr-ribbon-row')).toHaveCount(3);
   await page.reload();
   await expect(page.locator('.sr-reader')).toBeFocused();
   await page.keyboard.press(',');
   await expect(page.locator('.sr-settings [name="readingMode"]')).toHaveValue('flow');
-  await page.screenshot({ path: `${shots}/settings-saved-flow.png` });
-  await page.locator('.sr-settings [name="readingMode"]').selectOption('chunk');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Space');
-  await page.keyboard.press('Space');
-  await expect(display(page)).toHaveAttribute('data-kind', 'chunk');
-  await page.screenshot({ path: `${shots}/chunk-switched-back.png` });
-
-  await page.reload();
-  await expect(page.locator('.sr-reader')).toBeFocused();
-  await page.keyboard.press('Space');
-  await page.keyboard.press('Space');
-  await expect(display(page)).toHaveAttribute('data-kind', 'chunk');
-  await page.screenshot({ path: `${shots}/reopened-chunk.png` });
-});
-
-/** Three flow rows, each inside the stage, not overlapping and not overflowing their own box. */
-async function expectVisibleFlowRows(page: Page) {
-  const r = await page.evaluate(() => {
-    const stage = document.querySelector('.sr-stage')!.getBoundingClientRect();
-    const rows = [...document.querySelectorAll<HTMLElement>('.sr-flow-row')];
-    return {
-      count: rows.length,
-      boxes: rows.map((row) => {
-        const b = row.getBoundingClientRect();
-        return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, overflow: row.scrollHeight - row.clientHeight };
-      }),
-      stage: { top: stage.top, bottom: stage.bottom, left: stage.left, right: stage.right },
-    };
-  });
-  expect(r.count).toBe(3);
-  r.boxes.forEach((b, i) => {
-    expect(b.top, `row ${i} top`).toBeGreaterThanOrEqual(r.stage.top - 1);
-    expect(b.bottom, `row ${i} bottom`).toBeLessThanOrEqual(r.stage.bottom + 1);
-    expect(b.left).toBeGreaterThanOrEqual(r.stage.left - 1);
-    expect(b.right).toBeLessThanOrEqual(r.stage.right + 1);
-    expect(b.overflow, `row ${i} overflow`).toBeLessThanOrEqual(1);
-    expect(b.bottom - b.top).toBeGreaterThan(10);
-    if (i > 0) expect(b.top, `row ${i} overlaps`).toBeGreaterThanOrEqual(r.boxes[i - 1].bottom - 1);
-  });
-}
-
-/** The tick marker's centre against the display's centre (x) and the middle row's centre (y). */
-async function flowGeometry(page: Page) {
-  return page.evaluate(() => {
-    const display = document.querySelector('.sr-display')!.getBoundingClientRect();
-    const axis = document.querySelector('.sr-flow-axis')!.getBoundingClientRect();
-    const middle = document.querySelector('.sr-flow-row[data-position="middle"]')!.getBoundingClientRect();
-    return {
-      dx: Math.abs(axis.x + axis.width / 2 - (display.x + display.width / 2)),
-      dy: Math.abs(axis.y + axis.height / 2 - (middle.y + middle.height / 2)),
-      tickSpan: axis.height,
-      rowHeight: middle.height,
-    };
-  });
-}
-
-test('flow mode keeps three visible rows through sentence jumps to the end of a chapter', async ({ page }) => {
-  await openDemo(page, { readingMode: 'flow' });
-  await page.keyboard.press('Space');
-  await page.keyboard.press('Space');
-  for (let i = 0; i < 14; i++) {
-    await page.keyboard.press('ArrowRight');
-    const kind = await display(page).getAttribute('data-kind');
-    expect(['flow', 'title', 'chapter', 'stop', 'end', 'ready', 'dwell']).toContain(kind);
-    if (kind === 'flow') await expectVisibleFlowRows(page);
-  }
-  await expect(page.locator('.sr-reader')).toBeVisible();
-});
-
-/** The pivot's centre against the axis, and the rendered width of a space at the before/pivot or pivot/after boundary. */
-async function pivotSample(page: Page) {
-  return page.evaluate(() => {
-    const axis = document.querySelector('.sr-flow-axis')!.getBoundingClientRect();
-    const pivot = document.querySelector('.sr-flow-pivot')!.getBoundingClientRect();
-    const before = document.querySelector('.sr-flow-before')!;
-    const after = document.querySelector('.sr-flow-after')!;
-    const edge = (root: Element, last: boolean): Text | null => {
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-      let found: Text | null = null;
-      for (let n = walker.nextNode() as Text | null; n; n = walker.nextNode() as Text | null) {
-        if (!n.data) continue;
-        if (!last) return n;
-        found = n;
-      }
-      return found;
-    };
-    const gaps: number[] = [];
-    const lastBefore = edge(before, true);
-    if (lastBefore?.data.endsWith(' ')) {
-      const r = document.createRange();
-      r.setStart(lastBefore, lastBefore.data.length - 1);
-      r.setEnd(lastBefore, lastBefore.data.length);
-      gaps.push(r.getBoundingClientRect().width);
-    }
-    const firstAfter = edge(after, false);
-    if (firstAfter?.data.startsWith(' ')) {
-      const r = document.createRange();
-      r.setStart(firstAfter, 0);
-      r.setEnd(firstAfter, 1);
-      gaps.push(r.getBoundingClientRect().width);
-    }
-    return { dx: Math.abs(pivot.x + pivot.width / 2 - (axis.x + axis.width / 2)), beforeLength: (before.textContent ?? '').length, gaps };
-  });
-}
-
-for (const layout of ['panel', 'floating'] as const) {
-  test(`flow mode (${layout}): the pivot sits on the axis for short and long before-text, and boundary spaces render with a width`, async ({ page }) => {
-    test.setTimeout(150_000);
-    await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ readingMode: 'flow', wpm: 1000, chunkWords: 2 })] as const);
-    await page.setViewportSize({ width: 1400, height: 900 });
-    await page.goto(layout === 'floating' ? `${DEMO}?layout=floating` : DEMO);
-    await expect(page.locator('.sr-reader')).toBeFocused();
-    await page.keyboard.press('Space');
-    await page.keyboard.press('Space');
-    await expect(display(page)).toHaveAttribute('data-kind', 'flow');
-    const middle = page.locator('.sr-flow-row[data-position="middle"]');
-    const lengths = new Set<number>();
-    let spaces = 0;
-    let samples = 0;
-    let last = '';
-    for (let i = 0; i < 1500 && (samples < 12 || spaces === 0); i++) {
-      await page.waitForTimeout(100);
-      if ((await display(page).getAttribute('data-kind')) !== 'flow') {
-        await page.keyboard.press('Space'); // continue past a stop card
-        continue;
-      }
-      const now = await middle.textContent();
-      if (now === last) continue;
-      last = now ?? '';
-      const sample = await pivotSample(page);
-      samples++;
-      expect(sample.dx, `sample ${samples}`).toBeLessThan(2);
-      lengths.add(sample.beforeLength);
-      for (const gap of sample.gaps) {
-        spaces++;
-        expect(gap, `sample ${samples} boundary space width`).toBeGreaterThan(1);
-      }
-    }
-    expect(Math.max(...lengths) - Math.min(...lengths)).toBeGreaterThanOrEqual(3);
-    expect(spaces).toBeGreaterThan(0);
-  });
-}
-
-test('flow mode keeps three visible rows in the floating layout', async ({ page }) => {
-  await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ readingMode: 'flow' })] as const);
-  await page.setViewportSize({ width: 1400, height: 900 });
-  await page.goto(`${DEMO}?layout=floating`);
-  await expect(page.locator('.sr-reader')).toBeFocused();
-  await page.keyboard.press('Space');
-  await page.keyboard.press('Space');
-  await expect(display(page)).toHaveAttribute('data-kind', 'flow');
-  await expect.poll(() => page.locator('.sr-flow-row[data-position="top"]').textContent()).not.toBe('');
-  await expectVisibleFlowRows(page);
-  const g = await flowGeometry(page);
-  expect(g.dx).toBeLessThan(2);
-  expect(g.dy).toBeLessThan(2);
 });
 
 /** The element's box lies inside the stage's box (1 px tolerance). */

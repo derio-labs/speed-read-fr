@@ -213,7 +213,11 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     const text = joinTokens(word.tokens);
     const at = middleLetter(text);
     const end = at + (Array.from(text.slice(at))[0]?.length ?? 0);
-    replaceChildren(word.el, ...tokenNodes(word.tokens, 0, at), h('span', { class: 'sr-flow-mid' }, ...tokenNodes(word.tokens, at, end)), ...tokenNodes(word.tokens, end));
+    const mid = (...children: Child[]) => h('span', { class: 'sr-flow-mid' }, ...children);
+    // An atom keeps one box around the whole word, so lighting a letter never moves the others.
+    if (word.tokens.length === 1 && word.tokens[0].kind === 'atom')
+      return replaceChildren(word.el, h('span', { class: 'sr-atom' }, text.slice(0, at), mid(text.slice(at, end)), text.slice(end)));
+    replaceChildren(word.el, ...tokenNodes(word.tokens, 0, at), mid(...tokenNodes(word.tokens, at, end)), ...tokenNodes(word.tokens, end));
   }
 
   const reducedMotion = () => !!ctx.document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;

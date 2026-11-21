@@ -259,6 +259,11 @@ describe('flow mode ribbon', () => {
     const t = mountHarness('<p>Run <code>npm ci</code> now.</p>', { settings: flowOpts });
     t.handle.player.toggle();
     expect(t.qa('.sr-ribbon-row[data-position="middle"] .sr-atom').map((a) => a.textContent)).toEqual(['npm ci']);
+    // Reaching the atom keeps it one box with the lit letter inside, so nothing shifts.
+    t.clock.advance(t.clock.nextIn()!);
+    const atoms = t.qa('.sr-ribbon-row[data-position="middle"] .sr-atom');
+    expect(atoms).toHaveLength(1);
+    expect(atoms[0].querySelector('.sr-flow-mid')!.textContent).toBe('m');
   });
 });
 

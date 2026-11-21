@@ -48,9 +48,9 @@ describe('README', () => {
     for (const word of ['dial', 'wheel', 'faded', 'narrow']) expect(usage.toLowerCase(), word).toContain(word);
   });
 
-  it('explains three-row flow, its fixed focus, persistence and shared controls', () => {
+  it('explains three-row flow, its ribbon, braced target, wheel, persistence and shared controls', () => {
     const usage = section('## Usage');
-    for (const phrase of ['Three-row flow', 'three rows', 'fixed crosshair', 'saved', 'same speed', 'dial controls']) {
+    for (const phrase of ['Three-row flow', 'three rows', 'ribbon', 'braced target', 'middle letter', 'wheel', 'saved', 'same speed', 'dial controls']) {
       expect(usage.toLowerCase(), phrase).toContain(phrase.toLowerCase());
     }
   });

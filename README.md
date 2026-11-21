@@ -74,11 +74,17 @@ header bar, a help button) move out from under the panel while it is open.
 Esc closes the reader and leaves the page at the block you were reading, outlined briefly.
 
 Choose **Chunk-by-chunk** or **Three-row flow** with **Reading mode** in Settings. Chunk-by-chunk
-remains the default. Flow keeps three rows visible and moves text upward through a fixed crosshair
-at the center of the middle row; list indentation does not move the focus point. Both modes use the
-same speed, timeline, chapter and exhibit behavior, pause/play, sentence and section navigation,
-and dial controls. The choice is saved with the browser extension's settings or the VS Code
-`speedRead.readingMode` setting; older saved settings without a mode continue in chunk mode.
+remains the default. Flow shows the text as one continuous ribbon wrapped onto three rows of a much
+wider window (up to 1200 px in the browser overlay, the full panel in the browser dock and VS Code):
+read top left to bottom right, the rows are plain running text, with what you just read on top, the
+current line in the middle and what comes next below. Each step moves the ribbon left by one word, so
+the current word glides into a fixed braced target at the center of the middle row, between a red
+brace above and below it, with its middle letter in red. The wheel or the dial moves the ribbon
+back and forward word by word with the same glide, and reading resumes from the word you reach; under
+reduced motion it moves without the glide. Both modes use the same speed, timeline, chapter and
+exhibit behavior, pause/play, sentence and section navigation, and dial controls. The choice is saved
+with the browser extension's settings or the VS Code `speedRead.readingMode` setting; older saved
+settings without a mode continue in chunk mode.
 
 ### In VS Code
 
