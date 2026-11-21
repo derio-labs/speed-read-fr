@@ -33,8 +33,13 @@ function open() {
   container.hidden = false;
   const host = createCloneHost(content, { wrapperClass: 'doc', onClose: close });
   // ?layout=floating mounts the floating cards (the browser overlay's layout) instead of the panel.
-  const layout = new URLSearchParams(location.search).get('layout') === 'floating' ? 'floating' : 'panel';
-  handle = mountReader(container, extract(content), { settings: DEFAULT_SETTINGS, store, host, layout });
+  // ?bottomStage mounts the bottom-stage reader every shipping host uses: floating by default,
+  // `&layout=panel` for the docked panel.
+  const params = new URLSearchParams(location.search);
+  const bottomStage = params.has('bottomStage');
+  const layoutParam = params.get('layout');
+  const layout = layoutParam === 'floating' || (bottomStage && layoutParam !== 'panel') ? 'floating' : 'panel';
+  handle = mountReader(container, extract(content), { settings: DEFAULT_SETTINGS, store, host, layout, bottomStage });
   (window as unknown as { __reader?: ReaderHandle }).__reader = handle;
 }
 

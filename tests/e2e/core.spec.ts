@@ -39,6 +39,15 @@ const display = (page: Page) => page.locator('.sr-display');
 const state = (page: Page) => page.locator('.sr-status-state');
 const chunk = (page: Page) => page.locator('.sr-chunk');
 
+test('the demo mounts the bottom-stage reader with ?bottomStage', async ({ page }) => {
+  await page.goto(`${DEMO}?bottomStage`);
+  await expect(page.locator('.sr-reader')).toBeFocused();
+  await expect(page.locator('.sr-reader')).toHaveAttribute('data-bottom-stage', /.*/);
+  await expect(page.locator('.sr-reader')).toHaveAttribute('data-layout', 'floating');
+  await page.goto(`${DEMO}?bottomStage&layout=panel`);
+  await expect(page.locator('.sr-reader')).toHaveAttribute('data-layout', 'panel');
+});
+
 test('Space starts, the chapter card stops, Space continues and chunks advance', async ({ page }) => {
   await openDemo(page);
   await expect(page.locator('.sr-card-ready')).toBeVisible();
