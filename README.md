@@ -82,7 +82,16 @@ the current word glides into a fixed braced target at the center of the middle r
 brace above and below it, with its middle letter in red. The wheel or the dial moves the ribbon
 back and forward word by word with the same glide, and reading resumes from the word you reach; under
 reduced motion it moves without the glide. Both modes use the same speed, timeline, chapter and
-exhibit behavior, pause/play, sentence and section navigation, and dial controls. The choice is saved
+exhibit behavior, pause/play, sentence and section navigation, and dial controls.
+
+In flow, inline code or math of up to 20 characters runs through the target like a word, in monospace
+and staying on it a little longer the longer it is (one word-time per 8 characters). A longer one
+shows in the ribbon as a short numbered chip such as `⟨code 1⟩` and in full in the exhibits panel,
+each as an exhibit of its own; the Code (or Math) setting decides what happens at the chip: Stop or
+Dwell hold the ribbon on screen with the chip on the target while the prompt shows beside it (E
+expands the full text), and Skip only lists it. Speech reads a chip as "code" or "formula".
+
+The choice is saved
 with the browser extension's settings or the VS Code `speedRead.readingMode` setting; older saved
 settings without a mode continue in chunk mode.
 
@@ -146,8 +155,8 @@ keeps them in the `speedRead.*` settings.
 | --- | --- | --- |
 | Speed | 300 WPM | 100-1000 |
 | Reading mode | Chunk-by-chunk | Chunk-by-chunk or Three-row flow |
-| Words per chunk | 3 | Browser: 1-3; VS Code: 1-10 |
-| Characters per chunk | 20 (maximum) | Browser: 5-20; VS Code: 5-80 |
+| Words per chunk | 3 | 1-10 |
+| Characters per chunk | 20 (maximum) | 5-80; in the browser and VS Code the limit in force is capped by how many characters fit the chunk stage (the setting keeps your value, so a wider window gives it back) |
 | Stop at headings | H1 and H2 | any of H1-H6 |
 | Code | Stop (Dwell: 5 s) | Stop, Skip, or Dwell 1-60 s |
 | Tables | Stop (Dwell: 5 s) | Stop, Skip, or Dwell 1-60 s |
@@ -156,6 +165,8 @@ keeps them in the `speedRead.*` settings.
 | Display | Overlay | Overlay or Side panel (browser only) |
 | Page fade | 32 % | 10-80 %, strength of the page behind the floating reader (browser only) |
 | Text-to-speech | Off | on or off, and the voice |
+
+A chunk wider than the stage shrinks to half size and then wraps onto two centred lines; it is never cut off.
 
 ## Offline and text-to-speech
 
