@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
+import { DEFAULT_SETTINGS } from '../settings';
 import { mountHarness } from '../testing/reader';
 
 afterEach(() => {
@@ -171,6 +172,28 @@ describe('inline exhibits', () => {
     expect(overlay.querySelector('pre > code')!.textContent).toBe(LONG1);
     t.q<HTMLButtonElement>('.sr-expanded .sr-icon-button')!.click();
     expect(t.q('.sr-expanded')).toBeNull();
+  });
+
+  it('drops the inline cards when the timeline is rebuilt without them (flow to chunk)', () => {
+    const t = mountHarness(INLINE, { settings: flow });
+    t.handle.player.toggle();
+    runToStop(t);
+    t.handle.player.continue();
+    runToStop(t);
+    expect(paneItems(t).map((i) => i.dataset.key)).toEqual(['b0i1', 'b0i2']);
+    t.handle.applySettings({ ...DEFAULT_SETTINGS, readingMode: 'chunk' });
+    expect(paneItems(t).filter((i) => i.dataset.key!.includes('i'))).toHaveLength(0);
+  });
+
+  it('names an inline exhibit by its chip number in the caption and the expanded view', () => {
+    const t = mountHarness(INLINE, { settings: flow });
+    t.handle.player.toggle();
+    runToStop(t);
+    t.handle.player.continue();
+    runToStop(t);
+    expect(paneItems(t).map((i) => i.querySelector('.sr-exhibit-kind')!.textContent)).toEqual(['Code 1', 'Code 2']);
+    t.handle.player.expand();
+    expect(t.q('.sr-expanded-title')!.textContent).toContain('Code 2');
   });
 
   it('shows math as its TeX source', () => {

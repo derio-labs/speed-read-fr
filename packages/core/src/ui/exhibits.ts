@@ -16,6 +16,9 @@ function details(block: ExhibitBlock): string {
   return parts.join(' · ');
 }
 
+/** An exhibit's kind label; an inline one carries its chip number ("Code 2"). */
+const exhibitLabel = (exhibit: TimelineExhibit): string => `${EXHIBIT_LABELS[exhibitKind(exhibit)]}${exhibit.inline ? ` ${exhibit.chip}` : ''}`;
+
 /** What the caption says about an exhibit of either kind. */
 function exhibitDetails(exhibit: TimelineExhibit): string {
   return exhibit.inline ? `inline · ${plural(exhibit.text.length, 'character')}` : details(exhibit.block);
@@ -57,7 +60,7 @@ export function createExhibits(ctx: ReaderContext, { pane, root }: ExhibitElemen
   let expanded: { overlay: HTMLElement; node: Node; hosted: boolean } | null = null;
 
   function caption(exhibit: TimelineExhibit) {
-    return h('figcaption', { class: 'sr-exhibit-caption' }, h('span', { class: 'sr-exhibit-kind' }, EXHIBIT_LABELS[exhibitKind(exhibit)]), h('span', {}, exhibitDetails(exhibit)));
+    return h('figcaption', { class: 'sr-exhibit-caption' }, h('span', { class: 'sr-exhibit-kind' }, exhibitLabel(exhibit)), h('span', {}, exhibitDetails(exhibit)));
   }
 
   /** The exhibit's content: an inline one is the atom's text, built here; a block is the host's to render. */
@@ -99,7 +102,16 @@ export function createExhibits(ctx: ReaderContext, { pane, root }: ExhibitElemen
       shownSection = sectionId ?? null;
     }
     if (sectionId !== undefined) {
-      for (const exhibit of player.revealedExhibits(sectionId)) if (!shown.has(exhibitKey(exhibit))) add(exhibit);
+      const revealed = player.revealedExhibits(sectionId);
+      // A rebuilt timeline may no longer hold an exhibit (flow's inline ones in chunk mode): drop its card.
+      const keys = new Set(revealed.map(exhibitKey));
+      for (const [key, entry] of shown) {
+        if (keys.has(key)) continue;
+        entry.item.remove();
+        discard(entry);
+        shown.delete(key);
+      }
+      for (const exhibit of revealed) if (!shown.has(exhibitKey(exhibit))) add(exhibit);
     }
     for (const [at, { item }] of shown) {
       if (at === active) {
@@ -142,7 +154,7 @@ export function createExhibits(ctx: ReaderContext, { pane, root }: ExhibitElemen
     const { node, hosted } = content(exhibit, 'expanded');
     const close = h('button', { type: 'button', class: 'sr-icon-button', 'aria-label': 'Close exhibit', title: 'Close (E or Esc)' }, icon(ctx.document, ICONS.close));
     close.addEventListener('click', closeExpanded);
-    const label = [EXHIBIT_LABELS[kind], exhibitDetails(exhibit)].filter(Boolean).join(' · ');
+    const label = [exhibitLabel(exhibit), exhibitDetails(exhibit)].filter(Boolean).join(' · ');
     const overlay = h(
       'div',
       { class: 'sr-expanded', role: 'dialog', 'aria-label': `${EXHIBIT_LABELS[kind]}, expanded` },

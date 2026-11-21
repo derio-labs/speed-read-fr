@@ -4,7 +4,7 @@ import { normalizeSettings, type Settings, type SettingsStore } from '../setting
 import { buildTimeline, type Timeline } from '../timeline';
 import { createSpeechDriver, type SpeechDriver, type SpeechSynth, type UtteranceLike } from '../tts';
 import type { FrameSource, HostSetting, ReaderContext, Zone } from './context';
-import { chunkFit, FIT_MAX, PROBE_CHARS } from './chunk-fit';
+import { chunkFit, FIT_MAX, PROBE_TEXT } from './chunk-fit';
 import { builder, icon, ICONS } from './dom';
 import type { Host } from './host';
 import { createExhibits } from './exhibits';
@@ -123,6 +123,8 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   // `settings` is what the user set (and what is saved); the reader runs on `effective(settings)`, whose
   // characters limit a bottom-stage host clamps to what fits its stage (`fit`, null until measured).
   let fit: number | null = null;
+  /** The last fit measured in chunk mode, for the settings panel's maximum (flow's wide stage says nothing about it). */
+  let seenFit: number | null = null;
   const effective = (s: Settings): Settings => (fit !== null && s.chunkChars > fit ? { ...s, chunkChars: fit } : s);
   let settings = normalizeSettings(options.settings);
   let timeline: Timeline = buildTimeline(doc, effective(settings));
@@ -151,7 +153,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   const toolbar = h('div', { class: 'sr-toolbar' }, status, settingsButton, closeButton);
   const overall = h('div', { class: 'sr-overall', 'aria-hidden': 'true' }, h('span', { class: 'sr-overall-fill' }));
   const stage = h('section', { class: 'sr-stage', role: 'region', 'aria-label': 'Reader stage', tabindex: -1 });
-  const probe = options.bottomStage ? h('span', { class: 'sr-fit-probe', 'aria-hidden': 'true' }, '0'.repeat(PROBE_CHARS)) : null;
+  const probe = options.bottomStage ? h('span', { class: 'sr-fit-probe', 'aria-hidden': 'true' }, PROBE_TEXT) : null;
   if (probe) stage.append(probe);
   const reading = h('div', { class: 'sr-reading', role: 'region', 'aria-label': 'Normal reading', hidden: true });
   const main = h('div', { class: 'sr-main' }, toolbar, overall, stage, reading);
@@ -196,7 +198,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   };
   const outlineZone = createOutline(ctx, { outline, bar: outlineBar, layout });
   const exhibitZone = createExhibits(ctx, { pane: exhibits, root: layout });
-  const panel = createSettingsPanel(ctx, (next) => applySettings(next), () => fit ?? FIT_MAX);
+  const panel = createSettingsPanel(ctx, (next) => applySettings(next), () => seenFit ?? FIT_MAX);
   const stageZone = createStage(ctx, { stage, status, details, overallFill: overall.firstElementChild as HTMLElement });
   const zones: Zone[] = [
     stageZone,
@@ -242,8 +244,14 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       }
       return;
     }
+    const modeChanged = next.readingMode !== settings.readingMode;
     settings = next;
     speech.setVoice(next.tts.voiceURI);
+    if (modeChanged && probe) {
+      // The stage's width follows the mode: take the new mode's fit before building, so there is one rebuild.
+      reader.dataset.readingMode = next.readingMode;
+      fit = currentFit();
+    }
     rebuild();
     if (save) saveSettings(next);
   }
@@ -262,9 +270,17 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     return chunkFit(room.getBoundingClientRect().width, probe!.getBoundingClientRect().width);
   }
 
+  /** Fit applies to chunk mode only: flow steps one word at a time on a much wider stage. */
+  function currentFit(): number | null {
+    if (settings.readingMode !== 'chunk') return null;
+    const measured = measureFit();
+    if (measured !== null) seenFit = measured;
+    return measured;
+  }
+
   /** Measure the stage again; a changed effective characters limit rebuilds the timeline (flow steps one word at a time). */
   function updateFit() {
-    const next = measureFit();
+    const next = currentFit();
     if (next === fit) return;
     const before = effective(settings).chunkChars;
     fit = next;

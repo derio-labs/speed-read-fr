@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SETTINGS } from '../settings';
 import { mountHarness } from '../testing/reader';
 import { chunkFit } from './chunk-fit';
 
@@ -40,12 +41,12 @@ const words = (t: ReturnType<typeof mountHarness>) => t.handle.player.settings.c
 
 describe('chunkFit', () => {
   it('is floor(stage width / char width) in [5, 80], none without a measure', () => {
-    expect(chunkFit(600, 100)).toBe(60);
-    expect(chunkFit(605, 100)).toBe(60);
-    expect(chunkFit(30, 100)).toBe(5);
-    expect(chunkFit(5000, 100)).toBe(80);
-    expect(chunkFit(0, 100)).toBeNull();
-    expect(chunkFit(600, 0)).toBeNull();
+    expect(chunkFit(600, 100, 10)).toBe(60);
+    expect(chunkFit(605, 100, 10)).toBe(60);
+    expect(chunkFit(30, 100, 10)).toBe(5);
+    expect(chunkFit(5000, 100, 10)).toBe(80);
+    expect(chunkFit(0, 100, 10)).toBeNull();
+    expect(chunkFit(600, 0, 10)).toBeNull();
   });
 });
 
@@ -60,7 +61,7 @@ describe('the bottom-stage chunk cap (R11)', () => {
   });
 
   it('clamps the effective characters to what fits the stage, keeping the stored value', async () => {
-    stubWidths({ 'sr-display': 400, 'sr-fit-probe': 100 });
+    stubWidths({ 'sr-display': 400, 'sr-fit-probe': 410 });
     const t = mountHarness(TEXT, { bottomStage: true, saved: WIDE });
     await t.settle();
     expect(chars(t)).toBe(40);
@@ -74,7 +75,7 @@ describe('the bottom-stage chunk cap (R11)', () => {
 
   it('measures again on resize and rebuilds the timeline keeping the position', async () => {
     const resize = stubObservers();
-    stubWidths({ 'sr-display': 400, 'sr-fit-probe': 100 });
+    stubWidths({ 'sr-display': 400, 'sr-fit-probe': 410 });
     const t = mountHarness(TEXT, { bottomStage: true, saved: WIDE });
     await t.settle();
     t.handle.player.toggle();
@@ -83,10 +84,10 @@ describe('the bottom-stage chunk cap (R11)', () => {
     const before = t.handle.player.index;
     const source = t.doc.sections[0].blocks[0].source;
     expect(chars(t)).toBe(40);
-    stubWidths({ 'sr-display': 700, 'sr-fit-probe': 100 });
+    stubWidths({ 'sr-display': 700, 'sr-fit-probe': 410 });
     resize();
     expect(chars(t)).toBe(70);
-    stubWidths({ 'sr-display': 100, 'sr-fit-probe': 100 });
+    stubWidths({ 'sr-display': 100, 'sr-fit-probe': 410 });
     resize();
     expect(chars(t)).toBe(10);
     expect(t.handle.player.index).toBeGreaterThanOrEqual(0);
@@ -99,8 +100,26 @@ describe('the bottom-stage chunk cap (R11)', () => {
     expect(chars(t)).toBe(80);
   });
 
+  it('measures the fit in chunk mode only: flow to chunk rebuilds the timeline once', async () => {
+    const resize = stubObservers();
+    stubWidths({ 'sr-display': 400, 'sr-fit-probe': 410 });
+    const t = mountHarness(TEXT, { bottomStage: true, saved: { ...WIDE, readingMode: 'flow' } });
+    await t.settle();
+    expect(chars(t)).toBe(80);
+    const rebuild = vi.spyOn(t.handle.player, 'replaceTimeline');
+    t.handle.applySettings({ ...DEFAULT_SETTINGS, ...WIDE, readingMode: 'chunk' });
+    resize();
+    expect(rebuild).toHaveBeenCalledTimes(1);
+    expect(chars(t)).toBe(40);
+    // Back in flow the wide stage's width caps nothing.
+    t.handle.applySettings({ ...DEFAULT_SETTINGS, ...WIDE, readingMode: 'flow' });
+    stubWidths({ 'sr-display': 1200, 'sr-fit-probe': 410 });
+    resize();
+    expect(chars(t)).toBe(80);
+  });
+
   it('leaves a reader without a bottom stage alone', async () => {
-    stubWidths({ 'sr-display': 100, 'sr-fit-probe': 100 });
+    stubWidths({ 'sr-display': 100, 'sr-fit-probe': 410 });
     const t = mountHarness(TEXT, { saved: WIDE });
     await t.settle();
     expect(chars(t)).toBe(80);
@@ -108,7 +127,7 @@ describe('the bottom-stage chunk cap (R11)', () => {
 
   it('shows fit as the characters maximum, refreshed when the panel opens, and 10 as the words maximum', async () => {
     const resize = stubObservers();
-    stubWidths({ 'sr-display': 400, 'sr-fit-probe': 100 });
+    stubWidths({ 'sr-display': 400, 'sr-fit-probe': 410 });
     const t = mountHarness(TEXT, { bottomStage: true, saved: WIDE });
     await t.settle();
     const open = () => {
@@ -120,7 +139,7 @@ describe('the bottom-stage chunk cap (R11)', () => {
     expect(panel.querySelector<HTMLInputElement>('[name="chunkWords"]')!.max).toBe('10');
     expect(panel.querySelector<HTMLInputElement>('[name="chunkChars"]')!.value).toBe('80');
     t.q<HTMLButtonElement>('.sr-settings-done')!.click();
-    stubWidths({ 'sr-display': 600, 'sr-fit-probe': 100 });
+    stubWidths({ 'sr-display': 600, 'sr-fit-probe': 410 });
     resize();
     open();
     expect(panel.querySelector<HTMLInputElement>('[name="chunkChars"]')!.max).toBe('60');

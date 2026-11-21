@@ -485,6 +485,15 @@ describe('inline exhibit stops in flow mode', () => {
     expect(text(t.q('.sr-flow-mid')!.closest('.sr-w'))).toBe('then');
   });
 
+  it('titles the stop card with the chip number', () => {
+    const t = mountHarness(`<p>Call <code>${LONG}</code> and <code>${LONG}_2</code> now.</p>`, { bottomStage: true, settings: flow });
+    t.handle.player.toggle();
+    runToStop(t);
+    t.handle.player.continue();
+    runToStop(t);
+    expect(text(t.q('.sr-stage-details .sr-card-title'))).toBe('Code 2');
+  });
+
   it('puts the prompt in the status line on a reader without a details panel', () => {
     const t = mountHarness(HTML, { settings: flow });
     t.handle.player.toggle();

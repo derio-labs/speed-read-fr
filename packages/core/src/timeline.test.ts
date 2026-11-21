@@ -314,6 +314,15 @@ describe('buildTimeline: long atoms in flow mode', () => {
     expect(t.steps[first.revealAt].kind).toBe('stop');
   });
 
+  it('carries the chip number on the exhibit, the stop prompt and the dwell step', () => {
+    const d = doc(section('s', undefined, proseOf(atom(LONG), atom(LONG + 'x'))));
+    const t = buildTimeline(d, flow());
+    expect(t.sections[0].exhibits.map((e) => e.inline && e.chip)).toEqual([1, 2]);
+    expect(t.steps.filter((s) => s.kind === 'stop').map((s) => s.kind === 'stop' && s.prompt.split(':')[0])).toEqual(['Code 1', 'Code 2']);
+    const dwell = buildTimeline(d, flow({ code: { mode: 'dwell', dwellSeconds: 3 }, math: { mode: 'skip', dwellSeconds: 5 } }));
+    expect(dwell.steps.filter((s) => s.kind === 'dwell').map((s) => s.kind === 'dwell' && s.chip)).toEqual([1, 2]);
+  });
+
   it('gives a block exhibit the key b<blockIndex>', () => {
     const t = buildTimeline(doc(section('s', undefined, prose('Hi there.'), exhibit('code'))), flow());
     expect(exhibitKey(t.sections[0].exhibits[0])).toBe('b1');

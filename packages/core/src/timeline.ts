@@ -36,8 +36,8 @@ export type Step = StepPosition &
     | ({ kind: 'item-chunk'; index: number; of: number; depth: number } & SentencePart)
     | { kind: 'item-gap' }
     | { kind: 'list-whole'; block: ListBlock; words: number }
-    | { kind: 'stop'; exhibit: ExhibitKind; prompt: string; inline?: true; inlineIndex?: number }
-    | { kind: 'dwell'; exhibit: ExhibitKind; seconds: number; inline?: true; inlineIndex?: number }
+    | { kind: 'stop'; exhibit: ExhibitKind; prompt: string; inline?: true; inlineIndex?: number; chip?: number }
+    | { kind: 'dwell'; exhibit: ExhibitKind; seconds: number; inline?: true; inlineIndex?: number; chip?: number }
   );
 
 export type StepKind = Step['kind'];
@@ -57,6 +57,8 @@ export interface InlineExhibit {
   blockIndex: number;
   /** 1-based, within the block. */
   inlineIndex: number;
+  /** The chip's number on the ribbon (`⟨code 2⟩`), per kind within the section. */
+  chip: number;
   kind: 'code' | 'math';
   text: string;
   revealAt: number;
@@ -64,14 +66,16 @@ export interface InlineExhibit {
 
 export type TimelineExhibit = BlockExhibit | InlineExhibit;
 
+const keyOf = (blockIndex: number, inlineIndex?: number): string => `b${blockIndex}${inlineIndex !== undefined ? `i${inlineIndex}` : ''}`;
+
 /** Identity of an exhibit within its section: `b<blockIndex>`, or `b<blockIndex>i<inlineIndex>` for an inline one. */
-export const exhibitKey = (e: TimelineExhibit): string => (e.inline ? `b${e.blockIndex}i${e.inlineIndex}` : `b${e.blockIndex}`);
+export const exhibitKey = (e: TimelineExhibit): string => keyOf(e.blockIndex, e.inline ? e.inlineIndex : undefined);
 
 export const exhibitKind = (e: TimelineExhibit): ExhibitKind => (e.inline ? e.kind : e.block.kind);
 
 /** The key of the exhibit a stop or dwell step is about. */
 export const stepExhibitKey = (step: Pick<StepPosition, 'blockIndex'> & { inlineIndex?: number }): string =>
-  `b${step.blockIndex}${step.inlineIndex !== undefined ? `i${step.inlineIndex}` : ''}`;
+  keyOf(step.blockIndex, step.inlineIndex);
 
 export interface TimelineSection {
   id: string;
@@ -98,7 +102,8 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 
 export const sentenceWords = (sentences: Sentence[]): number => sentences.reduce((n, s) => n + s.tokens.length, 0);
 
-function stopPrompt(kind: 'code' | 'table' | 'math', meta: ExhibitMeta): string {
+function stopPrompt(kind: 'code' | 'table' | 'math', meta: ExhibitMeta, chip?: number): string {
+  if (chip !== undefined) return `${kind === 'code' ? 'Code' : 'Formula'} ${chip}${PROMPT_TAIL}`;
   if (kind === 'code') return `Code${meta.lines !== undefined ? `, ${plural(meta.lines, 'line')}` : ''}${PROMPT_TAIL}`;
   if (kind === 'table') {
     const size =
@@ -217,11 +222,12 @@ export function buildTimeline(doc: Doc, settings: Settings): Timeline {
           const token = part.chunk.tokens[0];
           if (!flow || !isChip(token)) continue;
           const inlineIndex = ++inlineCount;
-          entry.exhibits.push({ inline: true, blockIndex, inlineIndex, kind: token.atom, text: token.full, revealAt: steps.length });
+          const chip = Number(/(\d+)⟩$/.exec(token.text)?.[1]);
+          entry.exhibits.push({ inline: true, blockIndex, inlineIndex, chip, kind: token.atom, text: token.full, revealAt: steps.length });
           const behaviour = settings[token.atom];
-          const inline = { inline: true as const, inlineIndex };
+          const inline = { inline: true as const, inlineIndex, chip };
           if (behaviour.mode === 'stop')
-            steps.push({ ...position, kind: 'stop', exhibit: token.atom, prompt: stopPrompt(token.atom, {}), ...inline });
+            steps.push({ ...position, kind: 'stop', exhibit: token.atom, prompt: stopPrompt(token.atom, {}, chip), ...inline });
           else if (behaviour.mode === 'dwell')
             steps.push({ ...position, kind: 'dwell', exhibit: token.atom, seconds: behaviour.dwellSeconds, ...inline });
         }

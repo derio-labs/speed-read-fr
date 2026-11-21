@@ -382,7 +382,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     return card(
       'dwell',
       eyebrow(EXHIBIT_LABELS[step.exhibit]),
-      title(alt ?? `${EXHIBIT_LABELS[step.exhibit]} in the exhibit pane`),
+      title(alt ?? `${EXHIBIT_LABELS[step.exhibit]}${step.chip !== undefined ? ` ${step.chip}` : ''} in the exhibit pane`),
       hint(`Showing for ${step.seconds} s · `, kbd('E'), ' to expand'),
     );
   }
