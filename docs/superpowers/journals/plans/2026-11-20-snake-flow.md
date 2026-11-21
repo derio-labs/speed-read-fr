@@ -290,3 +290,8 @@ player.ts:107. Flow-to-flow rebuild keeps b0i1 revealed; same key in two section
 ### l-tests-r5 · finding [open] (reviewer: in scope) · chunk-cap 'keeping the position' test cannot fail
 
 chunk-cap.test.ts:76-102. Assert same source and sentenceIndex after rebuild.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r6 created=2026-11-21T13:01:33+00:00 state=open review_scope=in -->
+### l-tests-r6 · finding [open] (reviewer: in scope) · Ribbon visibility is toBeVisible only; no hit-test
+
+Add elementFromPoint for each row and the lit .sr-flow-mid on both layouts, sidebar open.
