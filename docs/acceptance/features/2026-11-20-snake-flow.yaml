@@ -49,7 +49,9 @@ rows:
     - spec:2026-11-20-snake-flow#R12
     levels: {}
     status: not-implemented
-    notes: Snake ribbon replaces the shipped three-chunk display
+    notes: Snake ribbon replaces the shipped three-chunk display; operator walk owed
+      post-merge
+    verify: live
 amendments:
   - row: reader-three-row-flow
     op: reword
