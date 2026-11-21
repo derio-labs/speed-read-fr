@@ -255,3 +255,8 @@ mount.ts:125-288, :252 vs stage.ts:541.
 ### l-simplicity-r8 · finding [open] (reviewer: in scope) · Chip label built in four places
 
 timeline stopPrompt, exhibits.ts:20, stage.ts:385, tts.ts:241. One chipLabel helper by EXHIBIT_LABELS.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r9 created=2026-11-21T12:56:50+00:00 state=open review_scope=out -->
+### l-simplicity-r9 · finding [open] (reviewer: out of scope) · [5,80] chunkChars bounds duplicated across settings.ts, settings-panel and chunk-fit.ts
+
+Pre-existing literals in settings.ts:97 and settings-panel; chunk-fit adds a copy.
