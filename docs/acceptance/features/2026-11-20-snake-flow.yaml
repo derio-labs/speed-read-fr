@@ -48,9 +48,11 @@ rows:
     - spec:2026-11-20-snake-flow#R10
     - spec:2026-11-20-snake-flow#R12
     levels: {}
-    status: not-implemented
-    notes: Snake ribbon replaces the shipped three-chunk display; operator walk owed
-      post-merge
+    status: walk-owed
+    notes: Snake ribbon built; covered by unit tests (core/ui/ribbon-geometry.test.ts,
+      ui/stage.test.ts, ui/tts-panel.test.ts, timeline.test.ts) and Playwright on the
+      bottom-stage demo (tests/e2e/core.spec.ts, webview.spec.ts); operator walk in
+      Chrome and VS Code owed post-merge
     verify: live
 amendments:
   - row: reader-three-row-flow
