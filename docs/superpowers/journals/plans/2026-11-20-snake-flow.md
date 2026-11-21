@@ -50,3 +50,8 @@ stage.ts:256/235. Fix: seed the new ribbon at the previous index's mid with --sr
 ### p1-r2 · finding [open] (reviewer: in scope) · Speech hold with no boundaries still lights the red middle letter while braces are hidden (phase 1)
 
 stage.ts:243. Fix: lightMiddle(r, hidden ? null : index); tts-panel tests expect no .sr-flow-mid while held.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r3 created=2026-11-21T12:19:38+00:00 phase=1 state=open review_scope=in -->
+### p1-r3 · finding [open] (reviewer: in scope) · placeRibbon re-measures the middle row width every step; glideMs duplicates baseMs (phase 1)
+
+stage.ts:230; ribbon-geometry.ts:199. Fix: measure row width in measureRibbon and store it; reuse pacing.baseMs.
