@@ -112,8 +112,10 @@ steps:
           findings: l-security-r1,l-tests-r1,l-tests-r2,l-tests-r3,l-tests-r4
           lenses: security=11:l-security-r1;tests=25:l-tests-r1,l-tests-r2,l-tests-r3,l-tests-r4
   deliver:
-    state: running
-    at: '2026-11-22T09:17:41+00:00'
+    state: done
+    at: '2026-11-22T09:22:26+00:00'
+    emitted:
+      pr: https://github.com/derio-labs/speed-read-fr/pull/17
     units:
       step/deliver:
         attempts:
@@ -121,5 +123,13 @@ steps:
           harness: claude-code
           model: claude-opus-5-5
           session: 8a2f0730-88d1-420d-a108-6aa8f9973976
+          returned: '2026-11-22T09:22:18+00:00'
+          outcome: done
+        evidence:
+          tests: deliver-suite.log@c0c99195aabc
+          walk: none
+          proportionality: ec592f5371615a50cd498d93774f3a7b2c00e728:8805ef92d94952a20eba4ebc632894d274612376ee6db3c8a3336caad99dc9fb
+          docs: none
+          visual: reader-focus-span:9:45d61aefa876,reader-wpm-stepper:7:b6dab1c5ea63
 fr_version: 8.3.0rc6
 pr: https://github.com/derio-labs/speed-read-fr/pull/17
