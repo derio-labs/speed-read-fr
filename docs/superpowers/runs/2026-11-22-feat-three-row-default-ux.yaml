@@ -53,7 +53,7 @@ steps:
       self-review passed
   implement:
     state: running
-    at: '2026-11-22T08:29:18+00:00'
+    at: '2026-11-22T08:56:04+00:00'
     members:
     - implement-phase
     - review-phase
@@ -74,6 +74,13 @@ steps:
         evidence:
           tests: phase1-suite.log@6934b8bad4d1;tree=e4cbe626511e1aaecd573634c4cba219b08fa566a67b8afd668ec8a935a20f13
           visual: reader-focus-span:9:116327dc877e,reader-wpm-stepper:14:17b60e248aab
+      phase/1/review-phase:
+        state: running
+        attempts:
+        - dispatched: '2026-11-22T08:56:04+00:00'
+          harness: claude-code
+          model: claude-opus-5-5
+          session: 8a2f0730-88d1-420d-a108-6aa8f9973976
   journal-check:
     state: pending
   lens-review:
