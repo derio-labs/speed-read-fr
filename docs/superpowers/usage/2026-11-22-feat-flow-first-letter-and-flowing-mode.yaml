@@ -1,0 +1,61 @@
+schema_version: 2
+run: 2026-11-22-feat-flow-first-letter-and-flowing-mode
+captures:
+- host: h-fbee7c3a
+  harness: claude-code
+  mode: devcontainer
+  captured_at: '2026-11-22T16:23:11+00:00'
+  at:
+  - resolve:brainstorm
+  sessions:
+  - session: e5d9083a-87da-472c-aaf7-3850919c84c7
+    role: main
+    models:
+      claude-opus-5-5:
+        input: 38
+        cache_write: 109697
+        cache_read: 1855177
+        output: 18648
+        usd: null
+        usd_source: none
+    activity:
+      implementation:
+        usd: null
+        turns: 5
+      other:
+        usd: null
+        turns: 3
+      paperwork:
+        usd: null
+        turns: 10
+    steps:
+      (outside run):
+        usd: null
+        turns: 1
+        input: 2
+        cache_write: 56152
+        cache_read: 27546
+        output: 335
+      brainstorm:
+        usd: null
+        turns: 17
+        input: 36
+        cache_write: 53545
+        cache_read: 1827631
+        output: 18313
+    steps_by_role:
+      main:
+        (outside run):
+          usd: null
+          turns: 1
+          input: 2
+          cache_write: 56152
+          cache_read: 27546
+          output: 335
+        brainstorm:
+          usd: null
+          turns: 17
+          input: 36
+          cache_write: 53545
+          cache_read: 1827631
+          output: 18313
