@@ -100,7 +100,8 @@ const currentChunk = (page: Page) => page.locator('[data-speed-read-host] .sr-ch
 const outlineRows = (page: Page) => page.locator('[data-speed-read-host] .sr-outline-row');
 
 async function saveSettings(settings: Record<string, unknown>) {
-  await worker.evaluate((s) => chrome.storage.local.set({ settings: s }), settings);
+  // Settings a test saves are the user's own choices: the one-time flow-default migration has already run for them.
+  await worker.evaluate((s) => chrome.storage.local.set({ settings: s, migrations: ['flow-default'] }), settings);
 }
 
 test('the reader opens on the main content only', async () => {
