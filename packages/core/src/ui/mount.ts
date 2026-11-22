@@ -112,12 +112,9 @@ function defaultFrame(win: Window): FrameSource {
   return { request: (fn) => win.setTimeout(() => fn(win.performance?.now() ?? Date.now()), 16), cancel: (handle) => win.clearTimeout(handle as number) };
 }
 
-/** The settings the player applies to the run it has: neither changes the timeline. */
-const LIVE_KEYS = ['wpm', 'flowMotion'] as const;
-const sameExceptLive = (a: Settings, b: Settings) => {
-  const strip = (s: Settings) => JSON.stringify({ ...s, ...Object.fromEntries(LIVE_KEYS.map((key) => [key, 0])) });
-  return strip(a) === strip(b);
-};
+/** Equal apart from the settings the player applies to the run it has (speed, flow motion): neither changes the timeline. */
+const sameExceptLive = (a: Settings, b: Settings) =>
+  JSON.stringify({ ...a, wpm: 0, flowMotion: 'word' }) === JSON.stringify({ ...b, wpm: 0, flowMotion: 'word' });
 
 /** Build the reader inside `root` (spec section 6). */
 export function mountReader(root: Element | ShadowRoot, doc: Doc, options: MountOptions): ReaderHandle {
