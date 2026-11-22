@@ -428,7 +428,12 @@ describe('speech driver: Gecko on macOS is blocked (debug 2026-11-22-tts-firefox
 
 describe('spokenWordMs', () => {
   it('is the estimated time of one spoken word at the speech rate of the speed', () => {
-    for (const wpm of [60, 180, 300, 600, 1000]) expect(spokenWordMs(wpm)).toBe(60000 / (180 * speechRate(wpm)));
-    expect(spokenWordMs(300)).toBeCloseTo(200);
+    expect(spokenWordMs(300)).toBeCloseTo(200, 2);
+    expect(spokenWordMs(180)).toBeCloseTo(333.33, 2);
+  });
+  it('follows the clamped speech rate at both ends', () => {
+    // 60 wpm is below rate 0.5 and 1000 wpm above rate 3: the voice cannot go slower or faster.
+    expect(spokenWordMs(60)).toBeCloseTo(666.67, 2);
+    expect(spokenWordMs(1000)).toBeCloseTo(111.11, 2);
   });
 });
