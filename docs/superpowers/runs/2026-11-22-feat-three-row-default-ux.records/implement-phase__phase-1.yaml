@@ -1,0 +1,75 @@
+schema_version: 12
+run: 2026-11-22-feat-three-row-default-ux
+step: implement-phase
+item: phase/1
+outcome: done
+ticks: [P1.T1.S1, P1.T1.S2, P1.T1.S3, P1.T2.S1, P1.T2.S2, P1.T2.S3, P1.T3.S1, P1.T3.S2, P1.T3.S3, P1.T3.S4, P1.T3.S5, P1.T4.S1, P1.T4.S2, P1.T4.S3, P1.T5.S1, P1.T5.S2, P1.T6.S1, P1.T6.S2, P1.T6.S3]
+refactor:
+  P1.T1: "added the chunkSettings helper in packages/core/src/testing/reader.ts for the repeated chunk pin, rather than repeating the literal."
+  P1.T2: "no refactor step: the migration is one small function in each host (storage.ts, config.ts), nothing duplicated to clean."
+  P1.T3: "TARGET_PAD and the per-word target code were removed as part of the rewrite of placeRibbon (lightMiddle replaced by markCurrent); no dead code left."
+  P1.T4: "wheelDelta is exported by dial-strip.ts and stage.ts already imported createDialStrip from it, so there is no cycle and nothing to move."
+  P1.T5: "no refactor step: the change is a host-setting gate plus removals; nothing to clean."
+  P1.T6: "no refactor step: tests, docs and screenshots only."
+journal:
+  - kind: discovery
+    id: p1-d1
+    phase: 1
+    title: StageZone.refresh nulled the live ribbon after a settings rebuild, so resize and settings re-placement no-op'd until the next step
+    body: >-
+      mount.rebuild() calls player.replaceTimeline (whose step event lays out a new ribbon) and then every zone's refresh();
+      the stage's refresh set `ribbon = null`, leaving the DOM ribbon un-tracked. A paused reader then ignored resizes
+      (relayoutRibbon no-ops) and the new focusChars handler. refresh now drops the ribbon only when it belongs to an old
+      timeline (`ribbon.steps !== ctx.timeline.steps`). Found by the Focus-span clamp-to-row e2e (viewport narrowed after a
+      settings change).
+  - kind: discovery
+    id: p1-d2
+    phase: 1
+    title: The flow-default migration changes what a mounted reader writes to storage.local on load
+    body: >-
+      Loading now writes `migrations: ['flow-default']` (and the migrated settings) once. Two existing assertions needed
+      adjusting: reader-entry.test.ts "ignores synthetic input" now clears the set spy after the reader is ready, and the
+      extension e2e tests clear storage then seed a chunk-mode baseline with the migration already applied (a seeded chunk
+      with no `migrations` key is, correctly, migrated to flow). tests/package.test.ts now passes a globalState to the
+      packaged extension's activate.
+  - kind: discovery
+    id: p1-d3
+    phase: 1
+    title: Acceptance rows not yet moved
+    body: >-
+      The four rows of docs/acceptance/features/2026-11-22-flow-default-ux.yaml still read not-implemented with no level refs;
+      the two amendments (reader-snake-flow, reader-three-row-flow) are already in the fragment. Evidence that backs them:
+      core settings/stage/settings-panel unit tests, vscode config/manifest tests, browser storage tests and the new
+      tests/e2e/core.spec.ts + extension.spec.ts cases. Left for deliver (`local` rows are stamped there).
+resolves: []
+evidence: {tests: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/8a2f0730-88d1-420d-a108-6aa8f9973976/scratchpad/phase1-suite.log}
+visual:
+  - row: reader-focus-span
+    script: tests/e2e/core.spec.ts
+    shots:
+      - {path: .visual/2026-11-22-flow-default-ux/flow-20-short-word.png, shows: ["flow mode playing with the bracket at the default 20-character span, on a short and on a long word"]}
+      - {path: .visual/2026-11-22-flow-default-ux/flow-20-long-word.png, shows: ["flow mode playing with the bracket at the default 20-character span, on a short and on a long word"]}
+      - {path: .visual/2026-11-22-flow-default-ux/focus-span-6.png, shows: ["focus span at 6 and at 40 (clamped to the row)", "change Focus span in Settings and see the bracket resize at once"]}
+      - {path: .visual/2026-11-22-flow-default-ux/focus-span-40.png, shows: ["focus span at 6 and at 40 (clamped to the row)", "change Focus span in Settings and see the bracket resize at once"]}
+      - {path: .visual/2026-11-22-flow-default-ux/focus-span-40-clamped.png, shows: ["focus span at 6 and at 40 (clamped to the row)"]}
+      - {path: .visual/2026-11-22-flow-default-ux/flow-no-red-letter.png, shows: ["current word with no red letter"]}
+      - {path: .visual/2026-11-22-flow-default-ux/flow-step-1.png, shows: ["step several words: bracket width unchanged"]}
+      - {path: .visual/2026-11-22-flow-default-ux/flow-step-2.png, shows: ["step several words: bracket width unchanged"]}
+      - {path: .visual/2026-11-22-flow-default-ux/flow-step-3.png, shows: ["step several words: bracket width unchanged"]}
+  - row: reader-wpm-stepper
+    script: tests/e2e/core.spec.ts
+    shots:
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-chunk-buttons.png, shows: ["− and + beside the WPM readout in chunk mode"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-flow-buttons.png, shows: ["− and + beside the WPM readout in flow mode"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-chunk-plus.png, shows: ["click + and −"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-chunk-minus.png, shows: ["click + and −"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-flow-plus.png, shows: ["click + and −"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-flow-minus.png, shows: ["click + and −"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-chunk-wheel-up.png, shows: ["wheel up and down over the readout"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-chunk-wheel-down.png, shows: ["wheel up and down over the readout"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-flow-wheel-up.png, shows: ["wheel up and down over the readout"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-flow-wheel-down.png, shows: ["wheel up and down over the readout"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-chunk-limit-100.png, shows: ["limits: − at 100 stays 100, + at 1000 stays 1000"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-chunk-limit-1000.png, shows: ["limits: − at 100 stays 100, + at 1000 stays 1000"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-flow-limit-100.png, shows: ["limits: − at 100 stays 100, + at 1000 stays 1000"]}
+      - {path: .visual/2026-11-22-flow-default-ux/wpm-flow-limit-1000.png, shows: ["limits: − at 100 stays 100, + at 1000 stays 1000"]}
