@@ -3,7 +3,7 @@ run: 2026-11-22-feat-flow-first-letter-and-flowing-mode
 workflow: fr-goal@1
 branch: feat/flow-first-letter-and-flowing-mode
 started: '2026-11-22T16:17:31+00:00'
-cursor: journal-check
+cursor: lens-review
 steps:
   brainstorm:
     state: done
@@ -96,7 +96,10 @@ steps:
           visual: reader-flow-first-letter:15:dba9e6852a39,reader-flowing-motion:16:136c285994d6
           findings: p1-r1,p1-r2,p1-r3,p1-r4
   journal-check:
-    state: pending
+    state: done
+    at: '2026-11-22T17:12:57+00:00'
+    exit: 0
+    stdout: ''
   lens-review:
     state: pending
   deliver:
