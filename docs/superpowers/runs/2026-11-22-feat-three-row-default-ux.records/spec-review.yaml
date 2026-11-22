@@ -1,0 +1,108 @@
+schema_version: 12
+run: 2026-11-22-feat-three-row-default-ux
+step: spec-review
+outcome: done
+journal:
+  - kind: finding
+    id: s-r1
+    review_scope: in
+    title: 'Changing Focus span does not resize the brackets, because no settings change triggers a relayout'
+    body: See the independent spec review spec-review-1.
+  - kind: finding
+    id: s-r2
+    review_scope: in
+    title: 'Removing .sr-flow-mid leaves the current word with no DOM marker that tests rely on'
+    body: See the independent spec review spec-review-1.
+  - kind: finding
+    id: s-r3
+    review_scope: in
+    title: 'The Test surface ignores the existing tests that assume chunk is the default'
+    body: See the independent spec review spec-review-1.
+  - kind: finding
+    id: s-r4
+    review_scope: in
+    title: 'Making display a host setting is under-specified'
+    body: See the independent spec review spec-review-1.
+  - kind: finding
+    id: s-r5
+    review_scope: in
+    title: 'The renderStatus rebuild would drop focus from persistent buttons'
+    body: See the independent spec review spec-review-1.
+  - kind: finding
+    id: s-r6
+    review_scope: in
+    title: "The stepper's keyboard reasoning misstates keys.ts, and a focused button takes Space away from play/pause"
+    body: See the independent spec review spec-review-1.
+  - kind: finding
+    id: s-r7
+    review_scope: in
+    title: 'The new click and wheel handlers do not honour ctx.accepts'
+    body: See the independent spec review spec-review-1.
+  - kind: finding
+    id: s-r8
+    review_scope: in
+    title: 'One step per wheel event over-steps on trackpads and mishandles horizontal and ctrl wheel events'
+    body: See the independent spec review spec-review-1.
+  - kind: finding
+    id: s-r9
+    review_scope: in
+    title: 'Row reader-three-row-flow still says chunk stays the default'
+    body: See the independent spec review spec-review-1.
+  - kind: finding
+    id: s-r10
+    review_scope: in
+    title: 'The README still documents chunk as the default and the red letter'
+    body: See the independent spec review spec-review-1.
+  - kind: finding
+    id: s-r11
+    review_scope: in
+    title: 'Some cited line numbers are off by one'
+    body: See the independent spec review spec-review-1.
+  - kind: review
+    id: spec-review-1
+    title: 'independent spec review: 11 findings'
+    body: Decisions d1-d6 honoured; findings s-r1..s-r11 all in scope (settings relayout, current-word marker, chunk-default test fallout, display host setting, status rebuild, keyboard focus, trusted events, wheel stepping, reader-three-row-flow row, README, line numbers).
+  - {kind: lens, lens: tests, title: 'Removing .sr-flow-mid and flipping the default ripple through many unit and e2e tests'}
+  - {kind: lens, lens: security, title: 'New click and wheel inputs in the browser reader must respect trustedEventsOnly'}
+resolves:
+  - id: s-r1
+    state: fixed
+    body: "Spec adds a player.on('settings') handler that resizes the live bracket when focusChars changes; test listed."
+  - id: s-r2
+    state: fixed
+    body: 'Spec adds data-current on the current .sr-w and moves the existing unit/e2e assertions onto it.'
+  - id: s-r3
+    state: fixed
+    body: "Test surface now says chunk tests pin readingMode 'chunk' and the storage fallback assertion flips to flow."
+  - id: s-r4
+    state: fixed
+    body: 'Spec widens HostSetting, guards the populate line and read(), adds a harness display option (default true) and has the demo declare display.'
+  - id: s-r5
+    state: fixed
+    body: 'Spec keeps the stepper group as a fixed child of status and updates only its text; focus survival tested.'
+  - id: s-r6
+    state: fixed
+    body: 'Rationale corrected; buttons are tabindex -1 and a pointer click returns focus to the reader.'
+  - id: s-r7
+    state: fixed
+    body: 'Both listeners check ctx.accepts; an untrusted-event test is listed.'
+  - id: s-r8
+    state: fixed
+    body: 'Wheel uses wheelDelta, ignores zero vertical, leaves ctrl/meta, accumulates 100 px per step with a 300 ms reset.'
+  - id: s-r9
+    state: fixed
+    body: 'Spec lists a reword amendment of reader-three-row-flow; added in this record.'
+  - id: s-r10
+    state: fixed
+    body: 'Spec adds a Docs section that updates the README.'
+  - id: s-r11
+    state: fixed
+    body: 'Citations corrected to settings.ts:42 and stage.ts:228-246.'
+acceptance:
+  - row: reader-three-row-flow
+    op: reword
+    why: Flow becomes the default reading mode (spec 2026-11-22-flow-default-ux R1, R2).
+    acceptance: The user can select a persisted reading mode in Chrome, Firefox and VS Code; three-row flow is the default and existing users are moved to it once, chunk mode stays selectable, and switching back restores it unchanged.
+evidence:
+  review: spec-review-1
+  reviewer: aa64aa6569754e6a0

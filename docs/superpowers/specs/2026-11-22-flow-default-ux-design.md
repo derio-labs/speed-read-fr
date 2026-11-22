@@ -37,7 +37,7 @@ R7. In VS Code the Settings panel shows no Reader (overlay / side panel) field a
 
 ### Default and one-time migration (R1, R2)
 
-`DEFAULT_SETTINGS.readingMode` becomes `'flow'` (`packages/core/src/settings.ts:41`); normalization
+`DEFAULT_SETTINGS.readingMode` becomes `'flow'` (`packages/core/src/settings.ts:42`); normalization
 falls back to `flow` for a missing or unknown value. The VS Code contribution of
 `speedRead.readingMode` (`packages/vscode-extension/package.json`) defaults to `"flow"`.
 
@@ -61,48 +61,103 @@ contributed to VS Code as `speedRead.focusChars` (number, 6–40, default 20), a
 existing flatten / read / write path (`packages/vscode-extension/src/config.ts`). The Settings panel's
 Display fieldset gains "Focus span" (characters, 6–40, step 1) beside Reading mode.
 
-In the ribbon renderer (`packages/core/src/ui/stage.ts:229-246`, `placeRibbon`), the target's width no
+In the ribbon renderer (`packages/core/src/ui/stage.ts:228-246`, `placeRibbon`), the target's width no
 longer comes from the current word's span: it is `min(row, focusChars × charWidth)` with `charWidth`
 the measured width of a 10-character probe in the ribbon font / 10, measured in `measureRibbon` (once
-per layout, again on resize and settings change). The target is centred on the row's centre
+per layout and again on resize). The target is centred on the row's centre
 (`--sr-target-x = (row − width) / 2`), so it does not move or resize between words. The current word
-still snaps its middle letter onto the centre (D2, unchanged geometry in `ribbon-geometry.ts`).
+still snaps its middle letter onto the centre (D2, unchanged geometry in `ribbon-geometry.ts`). The
+pure width rule — `focusWidth({ focusChars, charWidth, row })` — lives in `ribbon-geometry.ts` so it is
+unit-testable without layout.
 
-`lightMiddle` and the `.sr-flow-mid` span (`stage.ts:207-221`, `styles.ts:209`) are removed: no
-letter is wrapped or coloured. Chunk mode's ORP pivot (`.sr-pivot`) is untouched.
+Today a settings change only rerenders the status line (`stage.ts:532`); `relayoutRibbon`
+(`stage.ts:276-281`) runs only from the ResizeObserver and drawer observer. The stage therefore adds a
+`player.on('settings', …)` handler that, when `focusChars` changed since the last placement, recomputes
+the target's width and offset (`--sr-target-w` / `--sr-target-x`) of the live ribbon, so R4's
+"resizes at once" holds.
+
+`lightMiddle`'s colouring and the `.sr-flow-mid` style (`stage.ts:207-222`, `styles.ts:209`) are
+removed: no letter is wrapped or coloured. The current word instead carries an unstyled
+`data-current` attribute on its `.sr-w` span, moved by the renderer on every placement (none while the
+braces are hidden). Existing unit and e2e tests that find the current word through `.sr-flow-mid`
+(`stage.test.ts`, `tts-panel.test.ts`, `tests/e2e/core.spec.ts`, `extension.spec.ts`,
+`webview.spec.ts`) move onto `.sr-w[data-current]`; where a test needs the middle letter's position it
+uses the geometry helper (`middleLetter`) instead of a DOM span. Chunk mode's ORP pivot (`.sr-pivot`)
+is untouched.
 
 ### WPM stepper (R6)
 
-`renderStatus` (`stage.ts:487-506`) renders the readout as a group: a `button.sr-wpm-step` (−,
-`aria-label="Slower"`), the `.sr-status-wpm` text, a `button.sr-wpm-step` (+, `aria-label="Faster"`).
-Clicks call `player.speed(∓25)` — the same path the ↑ / ↓ keys use (`keys.ts:30-33`), which clamps
-and saves. A `wheel` listener on the group (passive: false) calls `player.speed(+25)` on wheel up
-(`deltaY < 0`) and `−25` on wheel down, one step per event, and prevents the page from scrolling. The
-toolbar sits outside `.sr-stage`, so the ribbon's wheel scrub (`dial-strip.ts:93`) does not see these
-events. The status signature already includes the WPM, so the readout rerenders on change; the
-buttons are created once and kept across rerenders so focus and repeated clicks are not lost (the
-group is built once and only the text node changes). The buttons keep keyboard focus out of the
-shortcut path (they are form controls for `keys.ts`'s purposes: Space/Enter activate them, they do not
-toggle playback).
+The status line gets a stepper group, `span.sr-wpm`, built once when the stage is created: a
+`button.sr-wpm-step` (−, `aria-label="Slower"`), the `.sr-status-wpm` text, a `button.sr-wpm-step`
+(+, `aria-label="Faster"`). `renderStatus` (`stage.ts:487-506`) today rebuilds every child of `status`
+with `replaceChildren` on any signature change, which would detach a focused button; it changes to
+keep the group as the fixed first child of `status`, updating only the WPM text node, and to replace
+only the spans after it (state, progress, notes).
+
+Clicks call `player.speed(∓25)` — the same path the ↑ / ↓ keys use (`keys.ts:29-33`), which clamps
+to 100–1000, emits `settings` and saves. Both listeners first check `ctx.accepts(event)`
+(`context.ts:29-30`), as the dial, panel and keys do, so in the browser (`trustedEventsOnly`) page
+scripts cannot change the speed.
+
+Focus: the buttons are `tabindex="-1"` and a pointer click returns focus to the reader root, so Space
+keeps toggling playback after a click; they stay reachable for assistive technology by their labels.
+(The toolbar is outside `.sr-stage`, which is why keys pressed on a button today never reach the
+shortcuts, `keys.ts:76-83` — `FORM_CONTROL` does not list buttons.)
+
+Wheel: a `wheel` listener on the group (`passive: false`) normalizes with the dial's `wheelDelta`
+(`dial-strip.ts:14-18`), ignores events whose vertical component is zero and leaves ctrl/meta wheel
+(zoom) to the browser, as the dial does (`dial-strip.ts:61-66`). It accumulates the vertical delta
+and steps 25 WPM per 100 px accumulated (wheel up faster, down slower), so a mouse notch is one step
+and a trackpad flick a few, not hundreds; the remainder resets after 300 ms without wheel events. It
+prevents the page from scrolling only when it handled the event. The toolbar sits outside
+`.sr-stage`, so the ribbon's wheel scrub (`dial-strip.ts:93`) does not see these events.
 
 ### Display choice in VS Code (R7)
 
-`display` becomes a host setting like `pageFade`: the Settings panel shows the Reader field only when
-`ctx.hostSettings` includes `'display'` (`settings-panel.ts:86`), and `read()` keeps
-`current.display` when the field is absent (`settings-panel.ts:198`). The browser reader passes
-`hostSettings: ['pageFade', 'display']` (`reader-entry.ts:565`); the test helper
-(`packages/core/src/testing/reader.ts:91`) and demo pass `'display'` where they did. The VS Code
-webview (`vscode-extension/src/webview/main.ts:224`) passes none. `speedRead.display` is removed from
+`display` becomes a host setting like `pageFade`: `HostSetting` widens to `'pageFade' | 'display'`
+(`context.ts:46`); the Settings panel shows the Reader field only when `ctx.hostSettings` includes
+`'display'` (`settings-panel.ts:86`), and both the populate line (`settings-panel.ts:122`) and
+`read()` (`settings-panel.ts:198`) are guarded like `pageFade`'s, `read()` keeping `current.display`
+when the field is absent. The browser reader passes `hostSettings: ['pageFade', 'display']`
+(`reader-entry.ts:565`). The test harness (`packages/core/src/testing/reader.ts:91`) gains a
+`display?: boolean` option, default true, declaring `'display'` (with `'pageFade'` when asked), so
+existing panel tests keep the field and a test can mount without it; the demo (`tests/demo/demo.ts`)
+declares `['display']`, standing in for the browser. The VS Code webview
+(`vscode-extension/src/webview/main.ts:224`) passes none. `speedRead.display` is removed from
 `packages/vscode-extension/package.json`; `config.ts` skips `display` when reading and writing (it
 stays at its default inside the webview's `Settings`).
 
+### Docs
+
+`README.md` is updated with the behaviour: flow is the default and existing users are moved once
+(replacing `README.md:76-77, 95-96`), the fixed focus-span bracket with no red letter (`:81-82`), the
+− / + and wheel on the WPM readout (beside the wheel's dial use, `:147`), a Focus span row (6–40,
+default 20) and Reading mode default "Three-row flow" in the Settings table (`:154+`), and that VS
+Code has no Reader display choice.
+
+### Acceptance matrix
+
+Besides the four new rows, this feature rewords two merged rows by amendment: `reader-snake-flow`
+(fixed-width bracket, no red letter) and `reader-three-row-flow`, whose current text says chunk stays
+the default (R1 makes flow the default, chunk selectable and persisted).
+
 ### Test surface
+
+Flipping the default moves every harness- and demo-based test that does not name a mode into flow
+(`testing/reader.ts:84` mounts `{ ...DEFAULT_SETTINGS, ...opts.settings }`; `tests/demo/demo.ts:42`):
+chunk-mode tests (`.sr-pivot`, `chunk-cap.test.ts`, chunk cases in `stage.test.ts`, chunk e2e
+cases) pin `readingMode: 'chunk'` explicitly, and `storage.test.ts`'s "bogus or legacy stored reading
+mode normalizes to chunk" assertion flips to flow.
+
 
 Unit: `settings.test.ts` (flow default, `focusChars` clamp), `storage.test.ts` (migration once, retry
 after a failed write, no stored settings), `config.test.ts` / `manifest.test.ts` (VS Code: no
 `display` contribution, `focusChars` and `readingMode` defaults, migration of explicit `chunk`),
-`stage.test.ts` (target width equals `focusChars × charWidth`, constant across steps, clamped to the
-row; no `.sr-flow-mid`; stepper buttons and wheel change WPM by 25 and clamp),
+`ribbon-geometry.test.ts` (`focusWidth` rule and row clamp), `stage.test.ts` (target width constant
+across steps; changing `focusChars` resizes the live bracket; no coloured letter, `data-current` on
+the current word; stepper buttons and accumulated wheel change WPM by 25 and clamp; untrusted events
+ignored with `trustedEventsOnly`; focus returns to the reader after a click and survives a status
+rerender),
 `settings-panel.test.ts` (Focus span field; Reader field only with `display` declared).
 Playwright on the bottom-stage demo (`tests/e2e/core.spec.ts`): flow on first open, constant bracket
 width across several steps, no red letter, − / + and wheel on the readout, screenshots.
