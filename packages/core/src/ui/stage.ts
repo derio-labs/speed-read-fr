@@ -247,22 +247,29 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   function placeRibbon(r: Ribbon, index: number, hidden: boolean) {
     cancelSlide();
     rest = { word: index, at: 'mid' };
-    r.index = index;
-    r.hidden = hidden;
-    const row = r.row;
-    const at = r.order.indexOf(index);
-    const span = r.spans[at];
+    setCurrent(r, index, hidden);
+    const span = r.spans[r.order.indexOf(index)];
     if (!span) return;
     const x = span.mid;
-    const glide = r.x === null ? 0 : glideMs({ wpm: player.settings.wpm, distance: Math.abs(x - r.x), rowWidth: row, reducedMotion: reducedMotion() });
+    const glide = r.x === null ? 0 : glideMs({ wpm: player.settings.wpm, distance: Math.abs(x - r.x), rowWidth: r.row, reducedMotion: reducedMotion() });
+    applyX(r, x, glide);
+  }
+
+  /** The step on show, and whether the braces are hidden; with them hidden no word is known yet, so none is current. */
+  function setCurrent(r: Ribbon, index: number, hidden: boolean) {
+    r.index = index;
+    r.hidden = hidden;
+    markCurrent(r, hidden ? null : index);
+  }
+
+  /** Write the shared offset with its glide, size the target and mark the bracket. */
+  function applyX(r: Ribbon, x: number, glide = 0) {
     r.x = x;
-    r.el.style.setProperty('--sr-w', String(round(row)));
+    r.el.style.setProperty('--sr-w', String(round(r.row)));
     r.el.style.setProperty('--sr-glide', `${glide}ms`);
     r.el.style.setProperty('--sr-x', String(round(x)));
     sizeTarget(r);
-    r.target.hidden = hidden;
-    // With the braces hidden no word is known yet, so none is current.
-    markCurrent(r, hidden ? null : index);
+    r.target.hidden = r.hidden;
   }
 
   /** The target: the focus span wide (never wider than the row), centred on the row, the same for every word. */
@@ -318,24 +325,17 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     frameHandle = null;
   }
 
+  /** The pixel offset of slide `s` now, on the spans as measured. */
+  const slideNowX = (r: Ribbon, s: Slide) =>
+    slideX({ fromX: anchorX(r.spans, r.order, s.from), toX: anchorX(r.spans, r.order, s.to), startedAt: s.startedAt, durationMs: s.durationMs, now: ctx.scheduler.now() });
+
   /** Where the ribbon is now, as an anchor: the slide's progress frozen, or where it rests. */
   function hereAnchor(): Anchor | null {
     if (!slide) return rest;
     const r = ribbon;
     if (!r) return null;
     // Re-expressed between two adjacent words, so a chain of cut-short slides (early speech boundaries) never nests.
-    const x = slideX({ fromX: anchorX(r.spans, r.order, slide.from), toX: anchorX(r.spans, r.order, slide.to), startedAt: slide.startedAt, durationMs: slide.durationMs, now: ctx.scheduler.now() });
-    return pointAnchor(r.spans, r.order, x);
-  }
-
-  /** Write the offset with no glide, and mark the bracket. */
-  function applyX(r: Ribbon, x: number) {
-    r.x = x;
-    r.el.style.setProperty('--sr-w', String(round(r.row)));
-    r.el.style.setProperty('--sr-glide', '0ms');
-    r.el.style.setProperty('--sr-x', String(round(x)));
-    sizeTarget(r);
-    r.target.hidden = r.hidden;
+    return pointAnchor(r.spans, r.order, slideNowX(r, slide));
   }
 
   function tick() {
@@ -343,9 +343,8 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     const r = ribbon;
     const s = slide;
     if (!r || !s || !r.el.isConnected) return;
-    const now = ctx.scheduler.now();
-    applyX(r, slideX({ fromX: anchorX(r.spans, r.order, s.from), toX: anchorX(r.spans, r.order, s.to), startedAt: s.startedAt, durationMs: s.durationMs, now }));
-    if (now - s.startedAt >= s.durationMs) {
+    applyX(r, slideNowX(r, s));
+    if (ctx.scheduler.now() - s.startedAt >= s.durationMs) {
       rest = s.to;
       slide = null;
       return;
@@ -373,7 +372,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     applyX(r, anchorX(r.spans, r.order, rest!));
   }
 
-  const isInlineStop = (step: Step | undefined) => !!step && (step.kind === 'stop' || step.kind === 'dwell') && step.inlineIndex !== undefined;
+  const isInlineStop = (step: Step | EndStep | undefined): step is StopStep | DwellStep => !!step && (step.kind === 'stop' || step.kind === 'dwell') && step.inlineIndex !== undefined;
   /** The word after the one at `i`, past item gaps and inline stops; -1 at the end of the run. */
   function nextWord(i: number): number {
     const steps = ctx.timeline.steps;
@@ -390,22 +389,19 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   }
 
   /** A flow-mode word step, while playing in Flowing: place or continue the slide as the step calls for. */
-  function flowWord(index: number, ms: number, spoken: boolean) {
+  function flowWord(index: number, { ms, to }: { ms: number; to: Anchor }, spoken: boolean) {
     const live = liveRibbon();
     const prev = live ? live.index : -1;
     const here = live ? hereAnchor() : null;
-    const kind = live && prev === index ? 'resume' : live && nextWord(prev) === index ? 'continue' : 'jump';
-    const r = showFlow(index, false, false)!;
-    r.index = index;
-    r.hidden = false;
-    markCurrent(r, index);
-    const to = endAnchor(index);
-    stepInfo = { startedAt: ctx.scheduler.now(), ms, to };
+    const r = showFlow(index)!;
+    setCurrent(r, index, false);
+    // A jump starts from the reached word's middle; resuming the same word starts from where it froze.
     let from: Anchor = { word: index, at: 'mid' };
-    if (kind === 'resume') from = here ?? from;
-    else if (kind === 'continue') {
+    if (live && prev === index) from = here ?? from;
+    else if (live && nextWord(prev) === index) {
       const before = ctx.timeline.steps[index - 1];
-      from = spoken || isInlineStop(before) ? (here ?? from) : { word: index, at: before?.kind === 'item-gap' ? 'begin' : 'before' };
+      if (spoken || isInlineStop(before)) from = here ?? from;
+      else from = { word: index, at: before?.kind === 'item-gap' ? 'begin' : 'before' };
     }
     startSlide(r, from, to, ms);
   }
@@ -438,8 +434,8 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     }
   }
 
-  /** Show the ribbon around the chunk at `index`; `hidden` hides the braces (a position no one knows yet). */
-  function showFlow(index: number, hidden = false, place = true): Ribbon | undefined {
+  /** The ribbon around the chunk at `index`, built (or rebuilt for a new window) and on show; the caller positions it. */
+  function showFlow(index: number): Ribbon | undefined {
     const steps = ctx.timeline.steps;
     const run = runBounds(steps, index);
     if (!run) return;
@@ -449,25 +445,29 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       replaceChildren(details);
       details.hidden = true;
     }
-    const live = ribbon && ribbon.steps === steps && ribbon.el.isConnected && display.dataset.kind === 'flow' && ribbon.run.first === run.first && ribbon.run.last === run.last;
+    const lr = liveRibbon();
+    const live = lr && lr.run.first === run.first && lr.run.last === run.last ? lr : null;
     if (!live) {
       cancelSlide();
       rest = null;
     }
-    const win = runWindow(run, index, live ? ribbon!.window : null);
-    if (!live || ribbon!.window !== win) {
-      const prev = live ? ribbon : null;
-      ribbon = buildRibbon(run, win);
-      setDisplay('flow', ribbon.el);
-      measureRibbon(ribbon);
-      // A new window glides on like any step: start from where the old one stood, then move. (A slide starts afresh from its anchors.)
-      if (place && prev && ribbon.order.includes(prev.index)) {
-        placeRibbon(ribbon, prev.index, prev.hidden);
-        void ribbon.el.offsetWidth;
-      }
+    const win = runWindow(run, index, live ? live.window : null);
+    if (live && live.window === win) return live;
+    ribbon = buildRibbon(run, win);
+    setDisplay('flow', ribbon.el);
+    measureRibbon(ribbon);
+    // A new window glides on like any step: it starts from where the old one stood. (A slide starts afresh from its anchors.)
+    if (live && ribbon.order.includes(live.index)) {
+      placeRibbon(ribbon, live.index, live.hidden);
+      void ribbon.el.offsetWidth;
     }
-    if (place) placeRibbon(ribbon!, index, hidden);
-    return ribbon!;
+    return ribbon;
+  }
+
+  /** Show the ribbon around the chunk at `index` with that word on the target; `hidden` hides the braces (a position no one knows yet). */
+  function placeFlow(index: number, hidden = false) {
+    const r = showFlow(index);
+    if (r) placeRibbon(r, index, hidden);
   }
 
   /** Measure and place the ribbon again: after a resize, or a settings change that moves the text. */
@@ -480,10 +480,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       return placeRibbon(ribbon, ribbon.index, ribbon.hidden);
     }
     // The anchors are words, not pixels: the same place, on the spans just measured.
-    const x = slide
-      ? slideX({ fromX: anchorX(ribbon.spans, ribbon.order, slide.from), toX: anchorX(ribbon.spans, ribbon.order, slide.to), startedAt: slide.startedAt, durationMs: slide.durationMs, now: ctx.scheduler.now() })
-      : anchorX(ribbon.spans, ribbon.order, here);
-    applyX(ribbon, x);
+    applyX(ribbon, slide ? slideNowX(ribbon, slide) : anchorX(ribbon.spans, ribbon.order, here));
   }
 
   function showChunk(step: ChunkStep, index: number, durationMs: number | null) {
@@ -597,7 +594,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
    * prompt shows beside it (the details panel), or in the status line on a reader without one.
    */
   function showInlineStop(step: StopStep | DwellStep, index: number) {
-    showFlow(index - 1);
+    placeFlow(index - 1);
     if (details) {
       replaceChildren(details, step.kind === 'stop' ? stopCard(step) : dwellCard(step));
       details.hidden = false;
@@ -616,22 +613,19 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     // A spoken step has no duration of its own: the voice times it, and the slide takes one estimated spoken word.
     const spoken = playing && durationMs === null && player.settings.tts.enabled;
     const ms = spoken ? spokenWordMs(player.settings.wpm) : durationMs;
-    stepInfo = null;
-    if (!flowing() || !playing || ms === null) {
-      if (playing && ms !== null) stepInfo = { startedAt: ctx.scheduler.now(), ms, to: endAnchor(index) };
-      return showFlow(index);
-    }
-    flowWord(index, ms, spoken);
+    stepInfo = playing && ms !== null ? { startedAt: ctx.scheduler.now(), ms, to: endAnchor(index) } : null;
+    if (!flowing() || !stepInfo) return placeFlow(index);
+    flowWord(index, stepInfo, spoken);
   }
 
   function showStep(step: Step | EndStep, index: number, durationMs: number | null = null) {
     if (step.kind === 'item-gap') {
-      if (player.settings.readingMode === 'flow' && flowing() && player.state === 'playing' && durationMs !== null) flowGap(index, durationMs);
+      if (flowing() && player.state === 'playing' && durationMs !== null) flowGap(index, durationMs);
       return;
     }
     inlinePrompt = null;
     if (step.kind === 'chunk' || step.kind === 'item-chunk') return showChunk(step, index, durationMs);
-    if ((step.kind === 'stop' || step.kind === 'dwell') && step.inlineIndex !== undefined && player.settings.readingMode === 'flow') return showInlineStop(step, index);
+    if (isInlineStop(step) && player.settings.readingMode === 'flow') return showInlineStop(step, index);
     replaceChildren(sentence);
     switch (step.kind) {
       case 'chapter': {
@@ -774,7 +768,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     if (details && player.settings.readingMode !== 'flow') return; // Keep browser chunk semantics outside flow mode.
     inlinePrompt = null;
     // Flow: the ribbon holds at the sentence's first word, with the braces hidden, until a word is known.
-    if (player.settings.readingMode === 'flow' && isChunk(ctx.timeline.steps[from])) return showFlow(from, true);
+    if (player.settings.readingMode === 'flow' && isChunk(ctx.timeline.steps[from])) return placeFlow(from, true);
     const tokens = ctx.timeline.steps.slice(from, to + 1).flatMap((s) => (isChunk(s) ? s.chunk.tokens : []));
     aligned = null;
     setDisplay('whole', h('div', { class: 'sr-chunk sr-chunk-whole' }, ...tokenNodes(tokens)));
