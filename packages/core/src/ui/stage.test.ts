@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { orp } from '../text/orp';
-import { ARTICLE, mountHarness } from '../testing/reader';
+import { ARTICLE, mountHarness, chunkSettings } from '../testing/reader';
 import { formatDuration } from './format';
 
 afterEach(() => {
@@ -23,7 +23,7 @@ const text = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' '
 
 describe('chunk steps', () => {
   it('show before/pivot/after spans with the pivot marked', () => {
-    const t = mountHarness('<p>The first paragraph has several words. It has two sentences.</p>');
+    const t = mountHarness('<p>The first paragraph has several words. It has two sentences.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     const split = orp('The first paragraph');
     expect(t.q('.sr-chunk .sr-before')!.textContent).toBe(split.before);
@@ -33,7 +33,7 @@ describe('chunk steps', () => {
   });
 
   it('show the current sentence below with the current chunk emphasised', () => {
-    const t = mountHarness('<p>The first paragraph has several words. It has two sentences.</p>');
+    const t = mountHarness('<p>The first paragraph has several words. It has two sentences.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     const parts = t.qa('.sr-sentence > span');
     expect(parts.map((p) => p.textContent)).toEqual(['The first paragraph', 'has several words.']);
@@ -43,7 +43,7 @@ describe('chunk steps', () => {
   });
 
   it('render atoms in a monospace span', () => {
-    const t = mountHarness('<p>Install with <code>npm ci</code> first.</p>');
+    const t = mountHarness('<p>Install with <code>npm ci</code> first.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     expect(t.qa('.sr-chunk .sr-atom').map((a) => a.textContent).join('')).toBe('npm ci');
     expect(text(t.q('.sr-chunk'))).toBe('Install with npm ci');
@@ -51,7 +51,7 @@ describe('chunk steps', () => {
   });
 
   it('keep the pivot on the axis by shifting the chunk by the width before it', () => {
-    const t = mountHarness('<p>The first paragraph has several words.</p>');
+    const t = mountHarness('<p>The first paragraph has several words.</p>', { settings: chunkSettings });
     // jsdom has no layout: the shift falls back to 0 and is still set.
     t.handle.player.toggle();
     expect(t.q('.sr-chunk')!.style.getPropertyValue('--sr-shift')).toBe('0px');
@@ -74,6 +74,7 @@ function stubRibbonLayout() {
   const rect = (x: number, width: number, height = 0) => ({ width, height, top: 0, left: x, right: x + width, bottom: height, x, y: 0, toJSON() {} }) as DOMRect;
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
     if (this.classList.contains('sr-ribbon-row')) return rect(0, 400, 40);
+    if (this.classList.contains('sr-ribbon-probe')) return rect(0, (this.textContent ?? '').length * 10);
     if (this.classList.contains('sr-ribbon-line')) return rect(0, (this.textContent ?? '').length * 10);
     if (this.classList.contains('sr-w')) return rect(left(this), (this.textContent ?? '').length * 10);
     return rect(0, 0);
@@ -85,6 +86,8 @@ function stubRibbonLayout() {
 }
 
 const flowOpts = { readingMode: 'flow' as const };
+/** The word on the ribbon's target. */
+const current = (t: ReturnType<typeof mountHarness>) => text(t.q('.sr-ribbon-row[data-position="middle"] .sr-w[data-current]'));
 const rowText = (t: ReturnType<typeof mountHarness>, position: string) => text(t.q(`.sr-ribbon-row[data-position="${position}"]`));
 const ribbonVar = (t: ReturnType<typeof mountHarness>, name: string) => t.q('.sr-ribbon')!.style.getPropertyValue(name);
 
@@ -104,30 +107,64 @@ describe('flow mode ribbon', () => {
     expect(t.q('.sr-flow-row')).toBeNull();
   });
 
-  it('sets the middle letter of the current word in the accent class, once', () => {
+  it('colours no letter of the current word, marking the word itself with data-current', () => {
     const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
     t.handle.player.toggle();
-    expect(t.qa('.sr-flow-mid').map((e) => e.textContent)).toEqual(['p']);
-    expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('alpha');
-    expect(t.q('.sr-flow-mid')!.closest('.sr-ribbon-row')!.getAttribute('data-position')).toBe('middle');
+    expect(t.q('.sr-flow-mid')).toBeNull();
+    expect(current(t)).toBe('alpha');
+    expect(t.qa('.sr-w[data-current]')).toHaveLength(1);
+    expect(t.q('.sr-w[data-current]')!.closest('.sr-ribbon-row')!.getAttribute('data-position')).toBe('middle');
     t.clock.advance(t.clock.nextIn()!);
-    expect(t.qa('.sr-flow-mid').map((e) => e.textContent)).toEqual(['e']);
+    expect(t.q('.sr-flow-mid')).toBeNull();
+    expect(current(t)).toBe('beta');
+    expect(t.qa('.sr-w[data-current]')).toHaveLength(1);
     expect(rowText(t, 'middle')).toBe('alpha beta gamma.');
   });
 
-  it('sizes the braced target to the current word plus 8px and keeps top and bottom braces', () => {
+  it('gives the braced target one fixed width, the focus span in measured characters, for every word and step', () => {
     stubRibbonLayout();
-    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
+    const t = mountHarness('<p>a extraordinarily alpha beta gamma.</p>', { settings: flowOpts });
     t.handle.player.toggle();
     const target = t.q('.sr-flow-target')!;
     expect(target.querySelector('.sr-flow-brace[data-side="top"]')).not.toBeNull();
     expect(target.querySelector('.sr-flow-brace[data-side="bottom"]')).not.toBeNull();
     expect(target.hidden).toBe(false);
-    expect(target.style.getPropertyValue('--sr-target-w')).toBe('58'); // alpha: 5 chars
-    t.clock.advance(t.clock.nextIn()!);
-    expect(target.style.getPropertyValue('--sr-target-w')).toBe('48'); // beta
-    t.clock.advance(t.clock.nextIn()!);
-    expect(target.style.getPropertyValue('--sr-target-w')).toBe('68'); // gamma.
+    for (let i = 0; i < 4; i++) {
+      expect(target.style.getPropertyValue('--sr-target-w')).toBe('200'); // 20 characters x 10px
+      expect(target.style.getPropertyValue('--sr-target-x')).toBe('100'); // centred on the 400px row
+      t.clock.advance(t.clock.nextIn()!);
+    }
+  });
+
+  it('measures a character as the chunk fit does: the prose sample, not digits (p1-r2)', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
+    t.handle.player.toggle();
+    const probe = t.q('.sr-ribbon-probe')!;
+    expect(probe.textContent).toBe('the quick brown fox jumps over a lazy dog');
+  });
+
+  it('re-sizes the bracket when the focus span changes while paused (p1-r4)', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
+    t.handle.player.toggle();
+    t.handle.player.toggle();
+    expect(t.handle.player.state).toBe('paused');
+    t.handle.applySettings({ ...t.handle.player.settings, focusChars: 10 });
+    expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-w')).toBe('100');
+  });
+
+  it('resizes the live bracket when the focus span changes, without a resize event, and clamps it to the row', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
+    t.handle.player.toggle();
+    const target = () => t.q('.sr-flow-target')!;
+    t.handle.applySettings({ ...t.handle.player.settings, focusChars: 6 });
+    expect(target().style.getPropertyValue('--sr-target-w')).toBe('60');
+    expect(target().style.getPropertyValue('--sr-target-x')).toBe('170');
+    t.handle.applySettings({ ...t.handle.player.settings, focusChars: 40 });
+    expect(target().style.getPropertyValue('--sr-target-w')).toBe('400'); // 40 x 10px = the row
+    expect(target().style.getPropertyValue('--sr-target-x')).toBe('0');
   });
 
   it('puts the middle letter on the shared offset and the target left of it by the letters before', () => {
@@ -137,11 +174,11 @@ describe('flow mode ribbon', () => {
     // alpha 0..50, middle 'p' centre 25; the row is 400 wide so its centre is 200.
     expect(ribbonVar(t, '--sr-x')).toBe('25');
     expect(ribbonVar(t, '--sr-w')).toBe('400');
-    expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-x')).toBe(String(200 - 25 - 4));
+    expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-x')).toBe('100');
     t.clock.advance(t.clock.nextIn()!);
     // beta starts at 60; its middle 'e' is the second letter, centre 60 + 15
     expect(ribbonVar(t, '--sr-x')).toBe('75');
-    expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-x')).toBe(String(200 - 15 - 4));
+    expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-x')).toBe('100');
   });
 
   it('glides for a third of a word, snaps on the first layout, and snaps for a move over a row width', () => {
@@ -176,10 +213,10 @@ describe('flow mode ribbon', () => {
     const t = mountHarness('<p>alpha beta gamma delta.</p>', { settings: flowOpts });
     t.handle.player.toggle();
     t.handle.player.scrub(2);
-    expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('gamma');
+    expect(current(t)).toBe('gamma');
     expect(ribbonVar(t, '--sr-x')).toBe(String(110 + 20 + 5));
     t.handle.player.scrub(-1);
-    expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('beta');
+    expect(current(t)).toBe('beta');
     expect(ribbonVar(t, '--sr-x')).toBe('75');
   });
 
@@ -196,7 +233,7 @@ describe('flow mode ribbon', () => {
     t.handle.player.scrub(49);
     expect(ids()[0]).toBe('w0');
     t.handle.player.scrub(1);
-    expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('w300');
+    expect(current(t)).toBe('w300');
     expect(ids()[0]).toBe('w100');
     // The re-centring step glides like any other.
     expect(Number.parseFloat(t.q('.sr-ribbon')!.style.getPropertyValue('--sr-glide'))).toBeGreaterThan(0);
@@ -264,11 +301,12 @@ describe('flow mode ribbon', () => {
     const t = mountHarness('<p>Run <code>npm ci</code> now.</p>', { settings: flowOpts });
     t.handle.player.toggle();
     expect(t.qa('.sr-ribbon-row[data-position="middle"] .sr-atom').map((a) => a.textContent)).toEqual(['npm ci']);
-    // Reaching the atom keeps it one box with the lit letter inside, so nothing shifts.
+    // Reaching the atom keeps it one box, marked as the current word, with nothing coloured inside.
     t.clock.advance(t.clock.nextIn()!);
     const atoms = t.qa('.sr-ribbon-row[data-position="middle"] .sr-atom');
     expect(atoms).toHaveLength(1);
-    expect(atoms[0].querySelector('.sr-flow-mid')!.textContent).toBe('m');
+    expect(current(t)).toBe('npm ci');
+    expect(atoms[0].children).toHaveLength(0);
   });
 });
 
@@ -296,7 +334,7 @@ describe('bottom-stage flow', () => {
 describe('fitting the chunk to the stage', () => {
   it('scales no smaller than 0.5 and wraps past that', () => {
     stubWidths({ 'sr-display': 360, 'sr-chunk': 1400, 'sr-before': 600, 'sr-pivot': 20 });
-    const t = mountHarness('<p>Supercalifragilisticexpialidocious_and_more_and_more_and_more_characters_here.</p>');
+    const t = mountHarness('<p>Supercalifragilisticexpialidocious_and_more_and_more_and_more_characters_here.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     const display = t.q('.sr-display')!;
     expect(t.q('.sr-chunk')!.style.getPropertyValue('--sr-scale')).toBe('0.500');
@@ -305,7 +343,7 @@ describe('fitting the chunk to the stage', () => {
 
   it('does not wrap a chunk that fits once scaled', () => {
     stubWidths({ 'sr-display': 400, 'sr-chunk': 300, 'sr-before': 250, 'sr-pivot': 20 });
-    const t = mountHarness('<p>Some words here.</p>');
+    const t = mountHarness('<p>Some words here.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     expect(t.q('.sr-display')!.dataset.wrap).toBeUndefined();
     expect(Number(t.q('.sr-chunk')!.style.getPropertyValue('--sr-scale'))).toBeGreaterThan(0.5);
@@ -316,6 +354,7 @@ describe('fitting the chunk to the stage', () => {
     stubWidths({ 'sr-display': 400, 'sr-chunk': 300, 'sr-before': 90, 'sr-pivot': 20 });
     const t = mountHarness(
       '<ul><li>first list item that is rather long indeed</li><li>second list item that is also long<ul><li>nested item in the list here</li></ul></li></ul>',
+      { settings: chunkSettings },
     );
     const list = t.doc.sections[0].blocks[0];
     if (list.kind !== 'list') throw new Error('list expected');
@@ -336,7 +375,7 @@ describe('fitting the chunk to the stage', () => {
       },
     );
     stubWidths({ 'sr-display': 1000, 'sr-chunk': 300, 'sr-before': 100, 'sr-pivot': 20 });
-    const t = mountHarness('<p>Some words here and more.</p>');
+    const t = mountHarness('<p>Some words here and more.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     t.handle.player.toggle();
     const chunk = t.q('.sr-chunk')!;
@@ -354,7 +393,7 @@ describe('list steps', () => {
     '<ul><li>first list item that is rather long indeed</li><li>second list item that is also long<ul><li>nested item in the list here</li></ul></li></ul>';
 
   it('item-chunk shows item i/n and indentation by depth', () => {
-    const t = mountHarness(LIST);
+    const t = mountHarness(LIST, { settings: chunkSettings });
     t.handle.player.toggle();
     expect(t.q('.sr-display')!.dataset.kind).toBe('item-chunk');
     expect(text(t.q('.sr-item-counter'))).toBe('item 1/2');
@@ -367,7 +406,7 @@ describe('list steps', () => {
   });
 
   it('list-whole shows every item', () => {
-    const t = mountHarness('<ul><li>apples</li><li>pears<ul><li>green</li></ul></li></ul>');
+    const t = mountHarness('<ul><li>apples</li><li>pears<ul><li>green</li></ul></li></ul>', { settings: chunkSettings });
     t.handle.player.toggle();
     const items = t.qa('.sr-list-whole li');
     expect(items.map((li) => li.textContent)).toEqual(['apples', 'pears', 'green']);
@@ -377,7 +416,7 @@ describe('list steps', () => {
 
 describe('cards', () => {
   it('chapter shows title, words, estimated time, summary and sub-headings', () => {
-    const t = mountHarness(ARTICLE);
+    const t = mountHarness(ARTICLE, { settings: chunkSettings });
     t.handle.player.toggle();
     const card = t.q('.sr-card-chapter')!;
     expect(text(card.querySelector('.sr-card-title'))).toBe('Guide');
@@ -388,20 +427,20 @@ describe('cards', () => {
   });
 
   it('chapter titles are written as text', () => {
-    const t = mountHarness('<h1>&lt;img src=x onerror="alert(1)"&gt; Title</h1><p>Body.</p>');
+    const t = mountHarness('<h1>&lt;img src=x onerror="alert(1)"&gt; Title</h1><p>Body.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     expect(text(t.q('.sr-card-title'))).toBe('<img src=x onerror="alert(1)"> Title');
     expect(t.reader.querySelector('img')).toBeNull();
   });
 
   it('title steps show the heading', () => {
-    const t = mountHarness('<h3>Minor</h3><p>Body.</p>');
+    const t = mountHarness('<h3>Minor</h3><p>Body.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     expect(text(t.q('.sr-card-title-step .sr-card-title'))).toBe('Minor');
   });
 
   it('stop shows the prompt', () => {
-    const t = mountHarness('<p>Intro.</p><pre>a\nb</pre><p>After.</p>');
+    const t = mountHarness('<p>Intro.</p><pre>a\nb</pre><p>After.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     t.clock.advance(10_000);
     expect(t.handle.player.state).toBe('stopped');
@@ -411,7 +450,7 @@ describe('cards', () => {
   });
 
   it('the end card shows words and time', () => {
-    const t = mountHarness('<p>One two.</p>');
+    const t = mountHarness('<p>One two.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     t.clock.advance(10_000);
     const card = t.q('.sr-card-end')!;
@@ -420,7 +459,7 @@ describe('cards', () => {
   });
 
   it('shows a ready card before playback starts', () => {
-    const t = mountHarness(ARTICLE);
+    const t = mountHarness(ARTICLE, { settings: chunkSettings });
     const card = t.q('.sr-card-ready')!;
     expect(text(card.querySelector('.sr-card-title'))).toBe('Guide');
     expect(text(card)).toContain('Space');
@@ -429,7 +468,7 @@ describe('cards', () => {
 
 describe('an empty document', () => {
   it('shows an empty state, never an end card, with the status Ready', () => {
-    const t = mountHarness('');
+    const t = mountHarness('', { settings: chunkSettings });
     expect(text(t.q('.sr-card-empty'))).toContain('Nothing to read here');
     t.handle.player.toggle();
     expect(t.q('.sr-card-end')).toBeNull();
@@ -440,7 +479,7 @@ describe('an empty document', () => {
 
 describe('status line', () => {
   it('shows WPM, state and overall progress', () => {
-    const t = mountHarness('<p>One two three four five six seven eight nine ten.</p>', { settings: { chunkWords: 2 } });
+    const t = mountHarness('<p>One two three four five six seven eight nine ten.</p>', { settings: { ...chunkSettings, chunkWords: 2 } });
     expect(text(t.q('.sr-status'))).toBe('300 WPM · Ready · 0%');
     t.handle.player.toggle();
     t.clock.advance(t.clock.nextIn()!);
@@ -474,7 +513,7 @@ describe('inline exhibit stops in flow mode', () => {
     expect(t.handle.player.state).toBe('stopped');
     expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
     expect(t.q('.sr-ribbon')).not.toBeNull();
-    expect(text(t.q('.sr-flow-mid')!.closest('.sr-w'))).toBe('⟨code 1⟩');
+    expect(current(t)).toBe('⟨code 1⟩');
     const details = t.q('.sr-stage-details')!;
     expect(details.hidden).toBe(false);
     expect(details.querySelector('.sr-card-stop')).not.toBeNull();
@@ -482,7 +521,7 @@ describe('inline exhibit stops in flow mode', () => {
     t.handle.player.continue();
     expect(details.hidden).toBe(true);
     expect(details.childNodes).toHaveLength(0);
-    expect(text(t.q('.sr-flow-mid')!.closest('.sr-w'))).toBe('then');
+    expect(current(t)).toBe('then');
   });
 
   it('titles the stop card with the chip number', () => {
@@ -511,5 +550,131 @@ describe('inline exhibit stops in flow mode', () => {
     for (let i = 0; i < 2; i++) t.clock.advance(t.clock.nextIn() ?? 0);
     expect(t.q('.sr-stage-details .sr-card-dwell')).not.toBeNull();
     expect(t.q('.sr-ribbon')).not.toBeNull();
+  });
+});
+
+describe('WPM stepper', () => {
+  const HTML = '<p>One two three four five six seven eight nine ten.</p>';
+  const wheel = (el: Element, init: WheelEventInit) => {
+    const event = new WheelEvent('wheel', { bubbles: true, cancelable: true, ...init });
+    el.dispatchEvent(event);
+    return event;
+  };
+  const press = (t: ReturnType<typeof mountHarness>, label: 'Slower' | 'Faster') => t.q<HTMLButtonElement>(`.sr-wpm-step[aria-label="${label}"]`)!.click();
+  const modes = [
+    ['chunk', chunkSettings],
+    ['flow', { readingMode: 'flow' as const }],
+  ] as const;
+
+  for (const [mode, settings] of modes) {
+    describe(`in ${mode} mode`, () => {
+      it('has Slower and Faster buttons around the WPM readout, first in the status line', () => {
+        const t = mountHarness(HTML, { settings });
+        const group = t.q('.sr-status')!.firstElementChild!;
+        expect(group.className).toBe('sr-wpm');
+        expect([...group.children].map((c) => c.className)).toEqual(['sr-wpm-step', 'sr-status-wpm', 'sr-wpm-step']);
+        expect([...group.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Slower', 'Faster']);
+        expect([...group.querySelectorAll('button')].map((b) => b.getAttribute('tabindex'))).toEqual(['-1', '-1']);
+        expect(text(t.q('.sr-status'))).toBe('300 WPM · Ready · 0%');
+      });
+
+      it('changes the speed by 25 WPM a press, within 100-1000, saving it and keeping playback going', () => {
+        const t = mountHarness(HTML, { settings });
+        t.handle.player.toggle();
+        press(t, 'Faster');
+        expect(t.handle.player.settings.wpm).toBe(325);
+        expect(text(t.q('.sr-status-wpm'))).toBe('325 WPM');
+        press(t, 'Slower');
+        press(t, 'Slower');
+        expect(t.handle.player.settings.wpm).toBe(275);
+        expect(t.handle.player.state).toBe('playing');
+        expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ wpm: 275 }));
+        t.handle.player.setSpeed(100);
+        press(t, 'Slower');
+        expect(t.handle.player.settings.wpm).toBe(100);
+        t.handle.player.setSpeed(1000);
+        press(t, 'Faster');
+        expect(t.handle.player.settings.wpm).toBe(1000);
+      });
+
+      it('steps one notch of the wheel (up faster, down slower), and prevents the page from scrolling', () => {
+        const t = mountHarness(HTML, { settings });
+        const readout = t.q('.sr-wpm')!;
+        expect(wheel(readout, { deltaY: -100 }).defaultPrevented).toBe(true);
+        expect(t.handle.player.settings.wpm).toBe(325);
+        wheel(readout, { deltaY: 100 });
+        wheel(readout, { deltaY: 100 });
+        expect(t.handle.player.settings.wpm).toBe(275);
+      });
+    });
+  }
+
+  it('accumulates small wheel deltas: a hundred px is one step, however many events it takes', () => {
+    const t = mountHarness(HTML);
+    const readout = t.q('.sr-wpm')!;
+    for (let i = 0; i < 24; i++) wheel(readout, { deltaY: -4 });
+    expect(t.handle.player.settings.wpm).toBe(300);
+    wheel(readout, { deltaY: -4 });
+    expect(t.handle.player.settings.wpm).toBe(325);
+    for (let i = 0; i < 50; i++) wheel(readout, { deltaY: -4 });
+    expect(t.handle.player.settings.wpm).toBe(375);
+  });
+
+  it('leaves a mostly horizontal swipe to the browser (p1-r3)', () => {
+    const t = mountHarness(HTML);
+    const event = wheel(t.q('.sr-wpm')!, { deltaX: 120, deltaY: 30 });
+    expect(event.defaultPrevented).toBe(false);
+    expect(t.handle.player.settings.wpm).toBe(300);
+  });
+
+  it('forgets a partial turn after 300 ms without wheel events', () => {
+    const t = mountHarness(HTML);
+    const readout = t.q('.sr-wpm')!;
+    wheel(readout, { deltaY: -60 });
+    t.clock.advance(400);
+    wheel(readout, { deltaY: -60 });
+    expect(t.handle.player.settings.wpm).toBe(300);
+    wheel(readout, { deltaY: -60 });
+    expect(t.handle.player.settings.wpm).toBe(325);
+  });
+
+  it('converts line-mode wheel deltas', () => {
+    const t = mountHarness(HTML);
+    wheel(t.q('.sr-wpm')!, { deltaY: -7, deltaMode: 1 });
+    expect(t.handle.player.settings.wpm).toBe(325);
+  });
+
+  it('ignores a wheel event with no vertical turn, and leaves ctrl and meta wheel (zoom) alone', () => {
+    const t = mountHarness(HTML);
+    const readout = t.q('.sr-wpm')!;
+    expect(wheel(readout, { deltaX: 120, deltaY: 0 }).defaultPrevented).toBe(false);
+    expect(wheel(readout, { deltaY: -100, ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(wheel(readout, { deltaY: -100, metaKey: true }).defaultPrevented).toBe(false);
+    expect(t.handle.player.settings.wpm).toBe(300);
+  });
+
+  it('with trustedEventsOnly, a synthetic press or wheel does not change the speed', () => {
+    const t = mountHarness(HTML, { trustedEventsOnly: true });
+    press(t, 'Faster');
+    const event = wheel(t.q('.sr-wpm')!, { deltaY: -100 });
+    expect(event.defaultPrevented).toBe(false);
+    expect(t.handle.player.settings.wpm).toBe(300);
+  });
+
+  it('keeps a focused button connected across a status rerender, and a pointer press returns focus to the reader', () => {
+    const t = mountHarness(HTML);
+    const faster = t.q<HTMLButtonElement>('.sr-wpm-step[aria-label="Faster"]')!;
+    faster.focus();
+    t.handle.player.toggle(); // the state changes: the status line renders again
+    expect(text(t.q('.sr-status'))).toContain('Playing');
+    expect(faster.isConnected).toBe(true);
+    expect(t.q('.sr-wpm-step[aria-label="Faster"]')).toBe(faster);
+    expect(document.activeElement).toBe(faster);
+    const down = new Event('pointerdown', { bubbles: true, cancelable: true });
+    faster.dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(t.reader);
+    t.key(' ');
+    expect(t.handle.player.state).toBe('paused');
   });
 });

@@ -10,7 +10,7 @@ import { createSpeechDriver } from './tts';
 import { buildTimeline, exhibitKind } from './timeline';
 
 const base = 200; // 300 wpm
-const one: Settings = { ...DEFAULT_SETTINGS, chunkWords: 1 };
+const one: Settings = { ...DEFAULT_SETTINGS, readingMode: 'chunk', chunkWords: 1 };
 
 function setup(d: Doc, settings: Settings = one) {
   const clock = fakeClock();

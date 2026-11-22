@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { extract } from '../extract/extract';
 import { DEFAULT_SETTINGS, memoryStore } from '../settings';
-import { ARTICLE, mountHarness } from '../testing/reader';
+import { ARTICLE, mountHarness, chunkSettings } from '../testing/reader';
 import { createCloneHost } from './clone-host';
 import { focusables } from './dom';
 import { mountReader } from './mount';
@@ -57,8 +57,21 @@ describe('settings panel', () => {
     expect(panel.querySelectorAll('select[name$="-mode"] option')).toHaveLength(9);
   });
 
+  it('has a Focus span field in characters that applies and saves at once', async () => {
+    const t = mountHarness(ARTICLE);
+    await t.settle();
+    const { field, set } = open(t);
+    expect(field('focusChars').value).toBe('20');
+    expect([field('focusChars').min, field('focusChars').max]).toEqual(['6', '40']);
+    set('focusChars', '12');
+    expect(t.handle.player.settings.focusChars).toBe(12);
+    expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ focusChars: 12 }));
+    set('focusChars', '99');
+    expect(t.handle.player.settings.focusChars).toBe(40);
+  });
+
   it('applies words per chunk at once, keeping the position, and saves it', async () => {
-    const t = mountHarness('<p>a bb cc dd ee ff gg hh ii.</p>');
+    const t = mountHarness('<p>a bb cc dd ee ff gg hh ii.</p>', { settings: chunkSettings });
     await t.settle();
     t.key(' ');
     t.key(' ');
@@ -76,7 +89,7 @@ describe('settings panel', () => {
   });
 
   it('selects flow mode immediately and restores the saved choice when Settings reopens', async () => {
-    const t = mountHarness('<p>one two three four five six.</p>');
+    const t = mountHarness('<p>one two three four five six.</p>', { settings: chunkSettings });
     await t.settle();
     t.handle.player.toggle();
     const first = open(t);
@@ -121,7 +134,7 @@ describe('settings panel', () => {
   it('shows values loaded from the store at mount', async () => {
     const t = mountHarness(ARTICLE, { saved: { chunkWords: 5, wpm: 400 } });
     await t.settle();
-    expect(t.handle.player.settings.readingMode).toBe('chunk');
+    expect(t.handle.player.settings.readingMode).toBe('flow');
     const { field } = open(t);
     expect(field('chunkWords').value).toBe('5');
     expect(field('wpm').value).toBe('400');
@@ -133,6 +146,24 @@ describe('settings panel', () => {
     t.key('ArrowUp');
     const { field } = open(t);
     expect(field('wpm').value).toBe('325');
+  });
+});
+
+describe('display choice (host setting)', () => {
+  it('shows the Reader field by default, as the browser reader declares it', () => {
+    const t = mountHarness(ARTICLE);
+    expect(open(t).field('display')).not.toBeNull();
+  });
+
+  it('is absent when the host declares no display, and the current choice is kept', async () => {
+    const t = mountHarness(ARTICLE, { display: false, saved: { display: 'dock' } });
+    await t.settle();
+    const { panel, set } = open(t);
+    expect(panel.querySelector('[name="display"]')).toBeNull();
+    expect(panel.textContent).not.toContain('Side panel');
+    set('wpm', '350');
+    expect(t.handle.player.settings.display).toBe('dock');
+    expect(t.handle.player.settings.wpm).toBe(350);
   });
 });
 

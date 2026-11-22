@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { mountHarness } from '../testing/reader';
+import { mountHarness, chunkSettings } from '../testing/reader';
 import { fakeSpeech, voice } from '../testing/speech';
 import { createSpeechDriver } from '../tts';
 
@@ -128,7 +128,7 @@ describe('Gecko on macOS (debug 2026-11-22-tts-firefox-noise)', () => {
 
 describe('speech on the stage', () => {
   it('chunks follow the voice boundaries, and a voice without boundaries shows the whole sentence', async () => {
-    const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], { saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1 } });
+    const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], { saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, ...chunkSettings } });
     await t.settle();
     t.handle.player.toggle();
     expect(speech.spoken.map((u) => u.text)).toEqual(['The first sentence is here.']);
@@ -152,7 +152,7 @@ describe('speech on the stage', () => {
     });
     await t.settle();
     t.handle.player.toggle();
-    const word = () => t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent;
+    const word = () => t.q('.sr-w[data-current]')!.textContent;
     expect(t.qa('.sr-ribbon-row')).toHaveLength(3);
     expect(word()).toBe('The');
     speech.spoken[0].boundary(4);
@@ -161,7 +161,7 @@ describe('speech on the stage', () => {
     speech.spoken[0].end();
     t.clock.advance(1000);
     expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
-    expect(t.q('.sr-flow-mid')).toBeNull();
+    expect(t.q('.sr-w[data-current]')).toBeNull();
     expect(t.q('.sr-flow-target')!.hidden).toBe(true);
     expect(t.q('.sr-ribbon-row[data-position="middle"]')!.textContent).toContain('A second one follows.');
     speech.spoken[1].end();
@@ -178,7 +178,7 @@ describe('speech on the stage', () => {
     await t.settle();
     t.handle.player.toggle();
     speech.spoken[0].start();
-    const word = () => t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent;
+    const word = () => t.q('.sr-w[data-current]')!.textContent;
     expect(word()).toBe('The');
     t.clock.advance(1500);
     expect(word()).not.toBe('The');
@@ -199,7 +199,7 @@ describe('flow whole-sentence fallback', () => {
       t.clock.advance(1000);
       expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
       expect(t.qa('.sr-ribbon-row')).toHaveLength(3);
-      expect(t.q('.sr-flow-mid')).toBeNull();
+      expect(t.q('.sr-w[data-current]')).toBeNull();
       expect(t.q('.sr-flow-target')!.hidden).toBe(true);
       expect(t.q('.sr-flow-whole')).toBeNull();
       expect(t.q('.sr-ribbon-row[data-position="top"]')!.textContent).toContain('A second one follows.');
@@ -267,7 +267,7 @@ describe('review p5b: voice panel', () => {
   });
 
   it('hides the sentence line while the whole sentence is on the stage (p5b-r6)', async () => {
-    const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], { saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1 } });
+    const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], { saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, ...chunkSettings } });
     await t.settle();
     t.handle.player.toggle();
     t.clock.advance(1000);

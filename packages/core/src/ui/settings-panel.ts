@@ -82,8 +82,9 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       {},
       h('legend', {}, 'Display'),
       field('Reading mode', null, select('readingMode', [['chunk', 'Chunk-by-chunk'], ['flow', 'Three-row flow']], 'Reading mode')),
+      field('Focus span', 'characters, 6-40', number('focusChars', 6, 40, 1)),
       field('Images and diagrams', 'seconds shown', number('imageDwellSeconds', 1, 60, 1)),
-      field('Reader', 'in the browser', select('display', [['overlay', 'Overlay'], ['dock', 'Side panel']])),
+      ctx.hostSettings.includes('display') ? field('Reader', 'in the browser', select('display', [['overlay', 'Overlay'], ['dock', 'Side panel']])) : null,
       ctx.hostSettings.includes('pageFade')
         ? field('Page behind the reader', 'strength, 10-80 %', number('pageFade', 10, 80, 1), h('span', { class: 'sr-field-hint' }, '%'))
         : null,
@@ -119,7 +120,8 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     }
     control('imageDwellSeconds').value = String(s.imageDwellSeconds);
     control('readingMode').value = s.readingMode;
-    control('display').value = s.display;
+    control('focusChars').value = String(s.focusChars);
+    if (control('display')) control('display').value = s.display;
     if (control('pageFade')) control('pageFade').value = String(Math.round(s.pageFade * 100));
     control('tts').checked = s.tts.enabled;
     showVoices(s.tts.voiceURI);
@@ -195,7 +197,8 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       math: exhibit('math'),
       imageDwellSeconds: num('imageDwellSeconds', current.imageDwellSeconds),
       readingMode: control('readingMode').value as Settings['readingMode'],
-      display: control('display').value as Settings['display'],
+      focusChars: num('focusChars', current.focusChars),
+      display: control('display') ? (control('display').value as Settings['display']) : current.display,
       pageFade: control('pageFade') ? num('pageFade', current.pageFade * 100) / 100 : current.pageFade,
       tts: { enabled: ttsToggle.checked, voiceURI: voiceSelect.value || (missingVoice ? current.tts.voiceURI : null) },
     });

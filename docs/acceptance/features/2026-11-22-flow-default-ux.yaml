@@ -1,0 +1,117 @@
+# Acceptance rows owned by one feature (spec 2026-11-04-repo-feature-settings R16).
+# The effective matrix is a fold over every fragment in this directory
+# (`fr acceptance status`); it is never stored. Write rows with
+# `fr acceptance add` / `set-status`, never by hand. Keep `rows:` before
+# `amendments:`.
+schema_version: 2
+feature: 2026-11-22-flow-default-ux
+repo: derio-labs/speed-read-fr
+rows:
+  - id: reader-flow-default
+    capability: reader-ui
+    acceptance: The reader opens in three-row flow mode by default in Chrome, Firefox
+      and VS Code, existing users who had chunk stored are moved to flow once, and a
+      later choice of chunk mode is kept.
+    origin:
+    - spec:2026-11-22-flow-default-ux#R1
+    - spec:2026-11-22-flow-default-ux#R2
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/settings.test.ts
+      - speed-read-fr:packages/browser-extension/src/storage.test.ts
+      - speed-read-fr:packages/vscode-extension/src/config.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Flow default and both host migrations verified by unit tests and the e2e
+      'flow is the default' case; CI runs npm test and the e2e suite.
+    verify: none
+  - id: reader-focus-span
+    capability: reader-ui
+    acceptance: In flow mode the red brackets have one fixed width, a configurable focus
+      span in characters (default 20, 6-40), centred on the target and the same for
+      every word, and no letter of the current word is red.
+    origin:
+    - spec:2026-11-22-flow-default-ux#R3
+    - spec:2026-11-22-flow-default-ux#R4
+    - spec:2026-11-22-flow-default-ux#R5
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/ui/ribbon-geometry.test.ts
+      - speed-read-fr:packages/core/src/ui/stage.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Fixed bracket width rule, live resize and no red letter verified by unit
+      tests and Playwright on the bottom-stage demo; screenshots on the PR.
+    verify: none
+    visual:
+      states:
+      - flow mode playing with the bracket at the default 20-character span, on a short
+        and on a long word
+      - focus span at 6 and at 40 (clamped to the row)
+      - current word with no red letter
+      interactions:
+      - change Focus span in Settings and see the bracket resize at once
+      - 'step several words: bracket width unchanged'
+  - id: reader-wpm-stepper
+    capability: reader-ui
+    acceptance: In both reading modes the WPM readout has − and + buttons and responds
+      to the mouse wheel, each step changing the speed by 25 WPM within 100-1000 without
+      stopping playback, and the speed is saved.
+    origin:
+    - spec:2026-11-22-flow-default-ux#R6
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/ui/stage.test.ts
+      - speed-read-fr:packages/browser-extension/src/reader-entry.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Stepper buttons, accumulated wheel, limits, trusted events and overlay wheel
+      routing verified by unit tests and Playwright in both modes.
+    verify: none
+    visual:
+      states:
+      - − and + beside the WPM readout in chunk mode
+      - − and + beside the WPM readout in flow mode
+      interactions:
+      - click + and −
+      - wheel up and down over the readout
+      - 'limits: − at 100 stays 100, + at 1000 stays 1000'
+  - id: vscode-no-display-choice
+    capability: vscode
+    acceptance: The VS Code reader offers no overlay / side-panel display choice, in
+      its Settings panel or its contributed settings, while the browser reader still
+      does.
+    origin:
+    - spec:2026-11-22-flow-default-ux#R7
+    levels:
+      unit:
+      - speed-read-fr:packages/vscode-extension/src/manifest.test.ts
+      - speed-read-fr:packages/core/src/ui/settings-panel.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/webview.spec.ts
+    status: ci
+    notes: No speedRead.display contribution and no Reader field in the real webview,
+      verified by manifest/settings-panel unit tests and webview.spec.ts.
+    verify: none
+amendments:
+  - row: reader-snake-flow
+    op: reword
+    base: 1
+    acceptance: In flow mode the reader shows three rows of one continuous text ribbon
+      in a near-full-width window; words glide one at a time into a fixed-width bracketed
+      target at the middle row's centre, the ribbon wrapping upward bottom to middle
+      to top; the wheel moves it backward or forward word by word, and cards and stops
+      behave as in chunk mode.
+    why: The target becomes a fixed focus-span bracket and the red middle letter is
+      dropped (spec 2026-11-22-flow-default-ux R3, R5).
+  - row: reader-three-row-flow
+    op: reword
+    base: 2
+    acceptance: The user can select a persisted reading mode in Chrome, Firefox and
+      VS Code; three-row flow is the default and existing users are moved to it once,
+      chunk mode stays selectable, and switching back restores it unchanged.
+    why: Flow becomes the default reading mode (spec 2026-11-22-flow-default-ux R1,
+      R2).

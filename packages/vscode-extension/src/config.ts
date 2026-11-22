@@ -16,7 +16,8 @@ export function flattenSettings(value: object, prefix = ''): Flat {
   return out;
 }
 
-const KEYS = Object.keys(flattenSettings(DEFAULT_SETTINGS));
+/** `display` (overlay or side panel) is the browser's choice: VS Code always reads in a panel, so it is never read or written. */
+const KEYS = Object.keys(flattenSettings(DEFAULT_SETTINGS)).filter((key) => key !== 'display');
 
 /** The `speedRead.*` configuration as `Settings` (normalized: missing or invalid values are defaults). */
 export function readSettings(): Settings {
@@ -60,4 +61,28 @@ export function onSettingsChange(listener: (settings: Settings) => void): vscode
   return vscode.workspace.onDidChangeConfiguration((e) => {
     if (e.affectsConfiguration(SECTION)) listener(readSettings());
   });
+}
+
+/** The part of `vscode.Memento` the migration uses (`ExtensionContext.globalState`). */
+export interface MigrationState {
+  get<T>(key: string): T | undefined;
+  update(key: string, value: unknown): PromiseLike<void>;
+}
+
+const FLOW_DEFAULT_FLAG = 'speedRead.migrated.flowDefault';
+
+/**
+ * Once: move an explicit `chunk` reading mode in the user (global) settings to `flow`, the new default, then record
+ * it in `state` so a later choice of chunk is kept. Workspace and workspace-folder values are never written: they
+ * may be a committed `.vscode/settings.json`.
+ */
+export async function migrateFlowDefault(config: vscode.WorkspaceConfiguration, state: MigrationState): Promise<void> {
+  if (state.get<boolean>(FLOW_DEFAULT_FLAG)) return;
+  const inspected = config.inspect<string>('readingMode');
+  try {
+    if (inspected?.globalValue === 'chunk') await config.update('readingMode', 'flow', vscode.ConfigurationTarget.Global);
+  } catch {
+    return; // A refused write (a read-only settings file): the flag stays unset, so the next activation tries again.
+  }
+  await state.update(FLOW_DEFAULT_FLAG, true);
 }

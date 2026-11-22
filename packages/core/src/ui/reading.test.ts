@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ARTICLE, mountHarness } from '../testing/reader';
+import { ARTICLE, mountHarness, chunkSettings } from '../testing/reader';
 
 const scrolled = vi.fn();
 beforeEach(() => {
@@ -46,7 +46,7 @@ describe('normal reading', () => {
   });
 
   it('Tab returns to the stage, paused, at the position, and releases the document', () => {
-    const t = mountHarness(ARTICLE, { settings: { stopLevels: [] } });
+    const t = mountHarness(ARTICLE, { settings: { ...chunkSettings, stopLevels: [] } });
     t.key(' ');
     t.key('Tab');
     const node = t.host.document.mock.results[0].value.node as Node;

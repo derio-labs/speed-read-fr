@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS, type Settings } from './settings';
 import { doc, exhibit, flatList, prose, section } from './testing/doc';
 import { buildTimeline, type Step } from './timeline';
 
-const s300: Settings = { ...DEFAULT_SETTINGS, wpm: 300 }; // base = 200 ms
+const s300: Settings = { ...DEFAULT_SETTINGS, readingMode: 'chunk', wpm: 300 }; // base = 200 ms
 const base = 200;
 const stepsOf = (d: ReturnType<typeof doc>, s: Settings = s300) => buildTimeline(d, s).steps;
 const firstChunk = (text: string, s: Settings = s300): Step => stepsOf(doc(section('s', undefined, prose(text))), s)[0];

@@ -169,6 +169,8 @@ function createState() {
     configWrites: [] as { key: string; value: unknown; target: unknown }[],
     /** Keys whose effective value comes from a workspace or workspace-folder setting. */
     configScopes: {} as Record<string, 'workspace' | 'workspaceFolder'>,
+    /** Extra workspace-scope values `inspect` reports alongside the effective one (a key set in both scopes). */
+    workspaceValues: {} as Record<string, unknown>,
     /** Test hook, called after each configuration write. */
     onUpdate: undefined as undefined | ((key: string, value: unknown) => void),
     configChanged: new EventEmitter<{ affectsConfiguration(section: string): boolean }>(),
@@ -292,7 +294,9 @@ export const workspace = {
       inspect(key: string) {
         const value = state.config[prefix + key];
         const scope = state.configScopes[prefix + key] ?? 'global';
-        return { key: prefix + key, [`${scope}Value`]: value };
+        const out: Record<string, unknown> = { key: prefix + key, [`${scope}Value`]: value };
+        if (prefix + key in state.workspaceValues) out.workspaceValue = state.workspaceValues[prefix + key];
+        return out;
       },
       async update(key: string, value: unknown, target?: unknown) {
         await Promise.resolve();

@@ -6,10 +6,11 @@ import { middleLetter } from '../text/middle';
 import { orp } from '../text/orp';
 import type { Step } from '../timeline';
 import type { ReaderContext, Zone } from './context';
-import { createDialStrip, type DialStrip } from './dial-strip';
-import { replaceChildren, type Child } from './dom';
+import { PROBE_TEXT } from './chunk-fit';
+import { createDialStrip, wheelDelta, type DialStrip } from './dial-strip';
+import { append, replaceChildren, type Child } from './dom';
 import { chipLabel, EXHIBIT_LABELS, formatDuration, plural } from './format';
-import { glideMs, runBounds, runWindow, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
+import { focusWidth, glideMs, runBounds, runWindow, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
 
 type ChunkStep = Extract<Step, { kind: 'chunk' | 'item-chunk' }>;
 
@@ -29,6 +30,15 @@ const EDGE_PX = 12;
 const DEPTH_PX = 28;
 /** Below this scale a chunk wraps inside the stage instead of shrinking further. */
 const MIN_SCALE = 0.5;
+
+/** Characters in the prose sample (the chunk fit's) whose width is divided down to one character's. */
+const PROBE_CHARS = PROBE_TEXT.length;
+
+/** WPM per press of a stepper button, or per `WHEEL_STEP_PX` of wheel turn (the ↑ / ↓ keys' step). */
+const WPM_STEP = 25;
+const WHEEL_STEP_PX = 100;
+/** A partial wheel turn is forgotten after this long without wheel events. */
+const WHEEL_IDLE_MS = 300;
 
 const isChunk = (step: Step): step is ChunkStep => step.kind === 'chunk' || step.kind === 'item-chunk';
 const sameSentence = (a: ChunkStep, b: Step) =>
@@ -122,6 +132,9 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     spans: WordSpan[];
     /** Width of a row, measured with the spans. */
     row: number;
+    /** An off-screen 10-character sample in the ribbon font, and the width of one character measured from it. */
+    probe: HTMLElement;
+    charWidth: number;
     /** The shared offset last applied (null before the first placement), the step on show, and the lit word. */
     x: number | null;
     index: number;
@@ -129,8 +142,6 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     lit: number | null;
   }
   let ribbon: Ribbon | null = null;
-
-  const TARGET_PAD = 4;
 
   function buildRibbon(run: RunRange, win: RunWindow): Ribbon {
     const steps = ctx.timeline.steps;
@@ -163,8 +174,9 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       h('span', { class: 'sr-flow-brace', 'data-side': 'top' }),
       h('span', { class: 'sr-flow-brace', 'data-side': 'bottom' }),
     );
-    const el = h('div', { class: 'sr-ribbon' }, ...rows, target);
-    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], row: 0, x: null, index: -1, hidden: false, lit: null };
+    const probe = h('span', { class: 'sr-ribbon-probe', 'aria-hidden': 'true' }, PROBE_TEXT);
+    const el = h('div', { class: 'sr-ribbon' }, ...rows, target, probe);
+    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], row: 0, probe, charWidth: 0, x: null, index: -1, hidden: false, lit: null };
   }
 
   const widthOf = (el: Element) => (typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect().width : 0);
@@ -195,6 +207,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   /** Measure the word spans once per layout, and the row width. */
   function measureRibbon(r: Ribbon) {
     r.row = widthOf(r.el.querySelector('.sr-ribbon-row[data-position="middle"]')!);
+    r.charWidth = widthOf(r.probe) / PROBE_CHARS;
     const origin = r.middle.getBoundingClientRect().left;
     r.spans = r.order.map((step) => {
       const { el } = r.words.get(step)!;
@@ -204,21 +217,12 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     });
   }
 
-  function lightMiddle(r: Ribbon, step: number | null) {
-    if (r.lit !== null && r.lit !== step) {
-      const prev = r.words.get(r.lit);
-      if (prev) replaceChildren(prev.el, ...tokenNodes(prev.tokens));
-    }
+  /** Mark the word on the target with `data-current` (unstyled: no letter is coloured), or none. */
+  function markCurrent(r: Ribbon, step: number | null) {
+    if (r.lit !== null && r.lit !== step) r.words.get(r.lit)?.el.removeAttribute('data-current');
     r.lit = step;
     const word = step === null ? undefined : r.words.get(step);
-    if (!word) return;
-    const text = joinTokens(word.tokens);
-    const [at, end] = middleLetter(text);
-    const mid = (...children: Child[]) => h('span', { class: 'sr-flow-mid' }, ...children);
-    // An atom keeps one box around the whole word, so lighting a letter never moves the others.
-    if (word.tokens.length === 1 && word.tokens[0].kind === 'atom')
-      return replaceChildren(word.el, h('span', { class: 'sr-atom' }, text.slice(0, at), mid(text.slice(at, end)), text.slice(end)));
-    replaceChildren(word.el, ...tokenNodes(word.tokens, 0, at), mid(...tokenNodes(word.tokens, at, end)), ...tokenNodes(word.tokens, end));
+    word?.el.setAttribute('data-current', '');
   }
 
   const reducedMotion = () => !!ctx.document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
@@ -238,11 +242,18 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     r.el.style.setProperty('--sr-w', String(round(row)));
     r.el.style.setProperty('--sr-glide', `${glide}ms`);
     r.el.style.setProperty('--sr-x', String(round(x)));
-    r.target.style.setProperty('--sr-target-x', String(round(row / 2 - (span.mid - span.start) - TARGET_PAD)));
-    r.target.style.setProperty('--sr-target-w', String(round(span.width + 2 * TARGET_PAD)));
+    sizeTarget(r);
     r.target.hidden = hidden;
-    // With the braces hidden no word is known yet, so none is lit.
-    lightMiddle(r, hidden ? null : index);
+    // With the braces hidden no word is known yet, so none is current.
+    markCurrent(r, hidden ? null : index);
+  }
+
+  /** The target: the focus span wide (never wider than the row), centred on the row, the same for every word. */
+  function sizeTarget(r: Ribbon) {
+    const focusChars = player.settings.focusChars;
+    const width = focusWidth({ focusChars, charWidth: r.charWidth, row: r.row });
+    r.target.style.setProperty('--sr-target-x', String(round((r.row - width) / 2)));
+    r.target.style.setProperty('--sr-target-w', String(round(width)));
   }
 
   /** Show the ribbon around the chunk at `index`; `hidden` hides the braces (a position no one knows yet). */
@@ -484,15 +495,56 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     );
   }
 
+  /** The WPM readout with its − and + buttons, built once so a focused button survives every status render. */
+  const wpmText = h('span', { class: 'sr-status-wpm' });
+  const stepButton = (label: string, delta: number) => {
+    const button = h('button', { type: 'button', class: 'sr-wpm-step', 'aria-label': label, tabindex: -1 });
+    button.addEventListener('click', (e) => {
+      if (ctx.accepts(e)) player.speed(delta);
+    });
+    // A pointer press must not take focus from the reader, or Space would press the button instead of toggling playback.
+    button.addEventListener('pointerdown', (e) => {
+      if (!ctx.accepts(e)) return;
+      e.preventDefault();
+      ctx.reader.focus({ preventScroll: true });
+    });
+    return button;
+  };
+  const wpmGroup = h('span', { class: 'sr-wpm' }, stepButton('Slower', -WPM_STEP), wpmText, stepButton('Faster', WPM_STEP));
+  let wheelTurn = 0;
+  let wheelAt = 0;
+  wpmGroup.addEventListener(
+    'wheel',
+    (e) => {
+      const event = e as WheelEvent;
+      // Zoom, a horizontal swipe (back/forward) and a turn with no vertical part stay the browser's.
+      if (!ctx.accepts(event) || event.ctrlKey || event.metaKey || event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+      event.preventDefault();
+      const now = ctx.scheduler.now();
+      if (now - wheelAt > WHEEL_IDLE_MS) wheelTurn = 0;
+      wheelAt = now;
+      // Wheel up (a negative turn) is faster; a mouse notch is one step, a trackpad flick a few.
+      wheelTurn += wheelDelta(event, ctx.document.defaultView?.innerHeight ?? 800);
+      const steps = Math.trunc(wheelTurn / WHEEL_STEP_PX);
+      if (steps === 0) return;
+      wheelTurn -= steps * WHEEL_STEP_PX;
+      player.speed(-steps * WPM_STEP);
+    },
+    { passive: false },
+  );
+
   function renderStatus() {
     const total = ctx.timeline.steps.length;
     const pct = total === 0 ? 0 : Math.round((Math.min(player.index, total) / total) * 100);
     const signature = JSON.stringify([player.settings.wpm, player.state, pct, ctx.speech.failed, hostNote, inlinePrompt]);
     if (signature === lastStatus) return;
     lastStatus = signature;
-    replaceChildren(
+    wpmText.textContent = `${player.settings.wpm} WPM`;
+    // The WPM group stays the first child, so a button with focus is never detached; only what follows is replaced.
+    if (status.firstChild !== wpmGroup) status.prepend(wpmGroup);
+    while (wpmGroup.nextSibling) wpmGroup.nextSibling.remove();
+    append(
       status,
-      h('span', { class: 'sr-status-wpm' }, `${player.settings.wpm} WPM`),
       h('span', { class: 'sr-status-sep' }, ' · '),
       h('span', { class: 'sr-status-state' }, STATE_LABELS[player.state]),
       h('span', { class: 'sr-status-sep' }, ' · '),
@@ -581,7 +633,10 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     },
     refresh() {
       syncInset();
-      ribbon = null;
+      // A ribbon of the old timeline is stale; one the rebuild's step event just laid out is the live one (a resize still re-places it).
+      if (ribbon && ribbon.steps !== ctx.timeline.steps) ribbon = null;
+      // A changed focus span re-sizes the bracket of the ribbon on show, whatever the player is doing.
+      else if (ribbon && ribbon.el.isConnected) sizeTarget(ribbon);
       if (!shown) showReady();
       renderStatus();
     },

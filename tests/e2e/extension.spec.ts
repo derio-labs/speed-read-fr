@@ -7,6 +7,7 @@ import { chromium, expect, test, type BrowserContext, type Page, type Worker } f
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { installMiddleBox } from './mid';
 
 // The extension API inside `worker.evaluate` (the service worker's global).
 declare const chrome: any; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -62,8 +63,14 @@ test.afterAll(async () => {
   rmSync(userDataDir, { recursive: true, force: true });
 });
 
+/**
+ * Most tests here read chunk by chunk, which is no longer the default: each starts from storage that holds the
+ * user's own choice of chunk mode (the one-time flow-default migration has already run for it). The tests of the
+ * default and of the migration clear it first.
+ */
 test.beforeEach(async () => {
   await worker.evaluate(() => chrome.storage.local.clear());
+  await saveSettings({});
 });
 
 test.afterEach(() => {
@@ -99,8 +106,37 @@ const currentChunk = (page: Page) => page.locator('[data-speed-read-host] .sr-ch
 const outlineRows = (page: Page) => page.locator('[data-speed-read-host] .sr-outline-row');
 
 async function saveSettings(settings: Record<string, unknown>) {
-  await worker.evaluate((s) => chrome.storage.local.set({ settings: s }), settings);
+  // Settings a test saves are the user's own choices (chunk mode unless it says otherwise), and the one-time
+  // flow-default migration has already run for them.
+  await worker.evaluate((s) => chrome.storage.local.set({ settings: { readingMode: 'chunk', ...s }, migrations: ['flow-default'] }), settings);
 }
+
+test('with nothing saved the reader opens in three-row flow (R1)', async () => {
+  await worker.evaluate(() => chrome.storage.local.clear());
+  const page = await openPage(ARTICLE);
+  await openReader(page, 'auto');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(host(page).locator('.sr-ribbon-row')).toHaveCount(3);
+});
+
+test('saved chunk mode from before the default moves to flow once, and a later choice of chunk is kept (R2)', async () => {
+  await worker.evaluate(() => chrome.storage.local.clear());
+  await worker.evaluate(() => chrome.storage.local.set({ settings: { readingMode: 'chunk', wpm: 400 } }));
+  let page = await openPage(ARTICLE);
+  await openReader(page, 'auto');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(host(page).locator('.sr-ribbon-row')).toHaveCount(3);
+  expect(await worker.evaluate(() => chrome.storage.local.get(['settings', 'migrations']))).toMatchObject({ settings: { readingMode: 'flow', wpm: 400 }, migrations: ['flow-default'] });
+  // The user picks chunk again (the reader saves it like this): the migration does not run again, so it is kept.
+  await worker.evaluate(() => chrome.storage.local.set({ settings: { readingMode: 'chunk', wpm: 400 } }));
+  page = await openPage(ARTICLE);
+  await openReader(page, 'auto');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(currentChunk(page)).toBeVisible();
+});
 
 test('the reader opens on the main content only', async () => {
   const page = await openPage(ARTICLE);
@@ -354,7 +390,8 @@ test('page scripts cannot drive the reader: synthetic keys change nothing in sto
     }
   });
   await expect(page.locator('[data-speed-read-host] .sr-status-wpm')).toHaveText('300 WPM');
-  expect(await worker.evaluate(async () => (await chrome.storage.local.get('settings')).settings)).toBeUndefined();
+  // Storage is what the test started with (the chunk-mode baseline): nothing was written.
+  expect(await worker.evaluate(async () => (await chrome.storage.local.get('settings')).settings)).toEqual({ readingMode: 'chunk' });
 });
 
 test('a page script cannot outline a block or open the reader by dispatching Alt-hover events (l-security-r2)', async () => {
@@ -856,14 +893,15 @@ for (const display of ['dock', 'overlay']) {
       await page.keyboard.press('Space');
       await expect(host(page).locator('.sr-status-state')).toHaveText('Paused');
       await page.waitForTimeout(250);
+      await installMiddleBox(page);
       const lit = await inReader(page, (root) => {
         const row = root.querySelector('.sr-ribbon-row[data-position="middle"]')!.getBoundingClientRect();
-        const mid = root.querySelector('.sr-flow-mid')!.getBoundingClientRect();
+        const mid = window.__middleBox(root.querySelector('.sr-w[data-current]')!);
         const rows = ['top', 'middle', 'bottom'].map((p) => {
           const box = root.querySelector(`.sr-ribbon-row[data-position="${p}"]`)!.getBoundingClientRect();
           return !!root.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)?.closest(`.sr-ribbon-row[data-position="${p}"]`);
         });
-        const hitMid = !!root.elementFromPoint(mid.left + mid.width / 2, mid.top + mid.height / 2)?.closest('.sr-flow-mid');
+        const hitMid = !!root.elementFromPoint(mid.left + mid.width / 2, mid.top + mid.height / 2)?.closest('.sr-w[data-current]');
         return { off: Math.abs(mid.left + mid.width / 2 - (row.left + row.width / 2)), rows, hitMid };
       });
       expect(lit.off).toBeLessThan(1);

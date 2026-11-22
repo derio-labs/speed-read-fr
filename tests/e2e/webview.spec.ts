@@ -2,6 +2,7 @@
 // under the CSP the extension writes, with a stub acquireVsCodeApi. There is no VS Code here: the
 // real host is an operator walk (vscode-extension-in-host).
 import { expect, test, type Page } from '@playwright/test';
+import { installMiddleBox } from './mid';
 import { DEFAULT_SETTINGS } from '../../packages/core/src/settings';
 import { openWebview, readFixture, sendRead } from '../../scripts/webview-harness.mjs';
 
@@ -66,17 +67,27 @@ test('the webview renders the Markdown into the reader, offline and within its C
   await expect(page.locator('.sr-outline-row')).toHaveText([/Reading a structured answer/, /Lists/, /Math and a diagram/, /Code and a table/, /Pictures/]);
 });
 
+test('the webview Settings panel has a Focus span field and no Reader (overlay / side panel) field (R7)', async ({ page }) => {
+  await open(page);
+  await page.keyboard.press(',');
+  await expect(page.locator('.sr-settings')).toBeVisible();
+  await expect(page.locator('.sr-settings [name="focusChars"]')).toBeVisible();
+  await expect(page.locator('.sr-settings [name="display"]')).toHaveCount(0);
+});
+
 test('flow mode in the webview reads a three-row ribbon across the panel with the middle letter on the target', async ({ page }) => {
   await open(page, { ...FAST, readingMode: 'flow', wpm: 300 });
   await page.keyboard.press('Space');
   await expect(page.locator('.sr-ribbon-row')).toHaveCount(3, { timeout: 20_000 });
-  await expect(page.locator('.sr-flow-mid')).toHaveCount(1);
+  await expect(page.locator('.sr-w[data-current]')).toHaveCount(1);
+  await expect(page.locator('.sr-flow-mid')).toHaveCount(0);
   await page.keyboard.press('Space');
   await expect(page.locator('.sr-status-state')).toHaveText('Paused');
   await page.waitForTimeout(250);
+  await installMiddleBox(page);
   const g = await page.evaluate(() => {
     const row = document.querySelector('.sr-ribbon-row[data-position="middle"]')!.getBoundingClientRect();
-    const mid = document.querySelector('.sr-flow-mid')!.getBoundingClientRect();
+    const mid = window.__middleBox(document.querySelector('.sr-w[data-current]')!);
     return { dx: Math.abs(mid.x + mid.width / 2 - (row.x + row.width / 2)), stage: document.querySelector('.sr-stage')!.getBoundingClientRect().width, window: innerWidth };
   });
   expect(g.dx).toBeLessThan(1);

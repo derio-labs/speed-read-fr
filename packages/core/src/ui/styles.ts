@@ -171,7 +171,15 @@ export const READER_CSS = `
   border-bottom: 1px solid var(--sr-border);
 }
 .sr-status { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13px; color: var(--sr-muted); font-variant-numeric: tabular-nums; }
-.sr-status-wpm { font-weight: 650; color: var(--sr-text); }
+.sr-status-wpm { font-weight: 650; color: var(--sr-text); min-width: 10ch; text-align: center; }
+.sr-wpm { display: inline-flex; align-items: center; gap: 4px; }
+.sr-wpm-step {
+  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; line-height: 1;
+  border: 1px solid var(--sr-border); border-radius: 6px; background: transparent; color: var(--sr-muted); font: inherit; font-size: 15px; cursor: pointer;
+}
+.sr-wpm-step::before { content: "−"; }
+.sr-wpm-step[aria-label="Faster"]::before { content: "+"; }
+.sr-wpm-step:hover { background: var(--sr-surface-2); color: var(--sr-text); }
 .sr-status-state { padding: 1px 8px; border-radius: 999px; background: var(--sr-surface-2); font-size: 12px; }
 .sr-reader[data-state="playing"] .sr-status-state { background: var(--sr-progress-soft); color: var(--sr-progress); }
 .sr-status-sep { color: var(--sr-border); }
@@ -206,7 +214,7 @@ export const READER_CSS = `
   transform: translateX(calc(var(--sr-x, 0) * -1px + var(--sr-shift, 0px))); transition: transform var(--sr-glide) ease-out;
 }
 .sr-ribbon-sep { color: var(--sr-faint); }
-.sr-flow-mid { color: var(--sr-accent); font-weight: inherit; }
+.sr-ribbon-probe { position: absolute; left: 0; top: 0; visibility: hidden; white-space: pre; pointer-events: none; }
 .sr-flow-target {
   grid-row: 2; grid-column: 1; position: relative; z-index: 1; align-self: stretch; justify-self: start; pointer-events: none;
   margin-left: calc(var(--sr-target-x, 0) * 1px); width: calc(var(--sr-target-w, 0) * 1px);

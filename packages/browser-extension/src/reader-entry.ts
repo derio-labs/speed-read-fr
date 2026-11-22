@@ -476,6 +476,8 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
   function routeWheel(e: WheelEvent, handle: ReaderHandle) {
     if (e.ctrlKey || e.metaKey) return;
     const target = e.target as Element | null;
+    // The WPM readout's own stepper takes the wheel there (p1-r1).
+    if (e.defaultPrevented || target?.closest('.sr-wpm')) return;
     if (!target || target.closest('.sr-stage')) return; // the stage's own dial handles it
     const own = target.closest(OWN_SCROLL);
     if (!own) return handle.wheel(e);
@@ -562,7 +564,7 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       frame: frames,
       layout: mode === 'overlay' ? 'floating' : 'panel',
       bottomStage: true,
-      hostSettings: ['pageFade'],
+      hostSettings: ['pageFade', 'display'],
     });
     // Overlay: every wheel event on the page turns the dial, except where the reader scrolls its own
     // content; zoom (ctrl/meta) and horizontal swipes stay the browser's.
