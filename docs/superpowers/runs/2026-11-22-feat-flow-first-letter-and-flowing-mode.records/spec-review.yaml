@@ -1,0 +1,100 @@
+schema_version: 12
+run: 2026-11-22-feat-flow-first-letter-and-flowing-mode
+step: spec-review
+outcome: done
+journal:
+- kind: finding
+  id: s1
+  title: Flow motion changes never reach the stage through player.on('settings'); they rebuild the timeline
+  review_scope: in
+  body: 'target: spec'
+- kind: finding
+  id: s2
+  title: Item gaps and inline stops/dwells are not designed for Flowing; the slide trigger catches inline dwells
+  review_scope: in
+  body: 'target: spec'
+- kind: finding
+  id: s3
+  title: A position jump while playing cannot be told apart from an ordinary advance or a spoken boundary
+  review_scope: in
+  body: 'target: spec'
+- kind: finding
+  id: s4
+  title: The speech path misses the sentence's first word, and its slide pace can stop and start
+  review_scope: in
+  body: 'target: spec'
+- kind: finding
+  id: s5
+  title: The mid-slide window-rebuild clause describes a case that cannot happen and misses the real coordinate handover
+  review_scope: in
+  body: 'target: spec'
+- kind: finding
+  id: s6
+  title: The test surface misses existing tests that the red first letter and the Flowing default will break
+  review_scope: in
+  body: 'target: spec'
+- kind: finding
+  id: s7
+  title: Several stage.ts line citations are off
+  review_scope: in
+  body: 'target: spec'
+- kind: finding
+  id: s8
+  title: markBracket is not re-run when the bracket or the layout changes without a step
+  review_scope: in
+  body: 'target: spec'
+- kind: finding
+  id: s9
+  title: R3 does not state that Flow motion is shown only in flow mode, though the design and the acceptance row do
+  review_scope: in
+  body: 'target: spec'
+- kind: finding
+  id: s10
+  title: 'The Test Plan points to tests listed in ## Verification, but they are listed under Test surface'
+  review_scope: in
+  body: 'target: spec'
+- kind: review
+  id: spec-review
+  title: 'independent spec review: 10 findings (all in scope, all fixed)'
+  body: fr-spec-reviewer raised s1-s10; every finding was fixed in the spec.
+- kind: lens
+  lens: tests
+  title: Flowing is timing-heavy and many existing middle-letter / no-red-letter assertions must be rewritten
+- kind: lens
+  lens: simplicity
+  title: Slide state must survive rebuilds, relayouts, motion switches and speech retargets
+resolves:
+- id: s1
+  state: fixed
+  body: 'flowMotion is now render-only: sameExceptLive in mount.ts, player.setFlowMotion emitting settings, stage settings listener handles the switch; R3 says the position does not move.'
+- id: s2
+  state: fixed
+  body: Design now slides across item gaps in the gap's time, ends a word before an inline stop/dwell on its mid and holds with no back-glide; R4/R5 updated; tests added.
+- id: s3
+  state: fixed
+  body: Continuation/resume/jump rules defined by index relative to r.index; a jump places the word at once then flows; tests for speech on and off.
+- id: s4
+  state: fixed
+  body: First word via show() handled by the same rule; slide time is spokenWordMs(wpm), the tts estimator's own pace, exported from tts.ts.
+- id: s5
+  state: fixed
+  body: Slides are expressed as word anchors and pixels re-derived from current spans every frame, so rebuilds and relayouts need no re-anchoring and cannot jump back; RUN_EDGE test added.
+- id: s6
+  state: fixed
+  body: Test surface names each affected test and whether it is rewritten or pinned to word (flowOpts, core.spec, extension.spec, webview.spec, tts-panel).
+- id: s7
+  state: fixed
+  body: Line references corrected to the reviewer's verified lines.
+- id: s8
+  state: fixed
+  body: sizeTarget and relayoutRibbon re-mark; R1 states it; paused focus-span/relayout test added.
+- id: s9
+  state: fixed
+  body: R3 states the visibility rule; panel design describes the toggle listener and read() keeping the stored value.
+- id: s10
+  state: fixed
+  body: 'Test Plan now points at Test surface under ## Design.'
+acceptance: []
+evidence:
+  review: spec-review
+  reviewer: a16bba414bbcf428e
