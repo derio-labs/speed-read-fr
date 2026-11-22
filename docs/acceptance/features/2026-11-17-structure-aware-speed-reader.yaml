@@ -549,3 +549,13 @@ amendments:
     why: 'walk 2026-11-22 in Firefox (Zen Browser): with TTS on, speech is incomprehensible,
       a loud noise follows after ~1 s, and playback no longer advances while TTS stays
       enabled. Fixing on fix/tts-firefox-noise'
+  - row: tts-speaks-in-sync
+    op: set-status
+    base: 1
+    status: walk-owed
+    notes: 'Firefox/Zen on macOS: speech is now off by design (row speech-off-gecko-macos).
+      Still owed: a walk in Chrome and in VS Code with a local voice. Start at LOW volume:
+      the Firefox walk produced loud bangs from the engine.'
+    why: 'Firefox/Zen on macOS: speech is now off by design (row speech-off-gecko-macos).
+      Still owed: a walk in Chrome and in VS Code with a local voice. Start at LOW volume:
+      the Firefox walk produced loud bangs from the engine.'
