@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../settings';
-import { mountHarness } from '../testing/reader';
+import { mountHarness, chunkSettings } from '../testing/reader';
 import { chunkFit } from './chunk-fit';
 
 afterEach(() => {
@@ -35,7 +35,7 @@ function stubObservers() {
 }
 
 const TEXT = '<p>aa bb cc dd ee ff gg hh ii jj kk ll mm nn.</p>';
-const WIDE = { chunkWords: 8, chunkChars: 80 };
+const WIDE = { ...chunkSettings, chunkWords: 8, chunkChars: 80 };
 const chars = (t: ReturnType<typeof mountHarness>) => t.handle.player.settings.chunkChars;
 const words = (t: ReturnType<typeof mountHarness>) => t.handle.player.settings.chunkWords;
 

@@ -39,7 +39,7 @@ export const DEFAULT_SETTINGS: Settings = {
   math: { mode: 'stop', dwellSeconds: 5 },
   imageDwellSeconds: 3,
   display: 'overlay',
-  readingMode: 'chunk',
+  readingMode: 'flow',
   tts: { enabled: false, voiceURI: null },
   pageFade: 0.32,
 };

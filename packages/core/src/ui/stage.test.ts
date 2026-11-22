@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { orp } from '../text/orp';
-import { ARTICLE, mountHarness } from '../testing/reader';
+import { ARTICLE, mountHarness, chunkSettings } from '../testing/reader';
 import { formatDuration } from './format';
 
 afterEach(() => {
@@ -23,7 +23,7 @@ const text = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' '
 
 describe('chunk steps', () => {
   it('show before/pivot/after spans with the pivot marked', () => {
-    const t = mountHarness('<p>The first paragraph has several words. It has two sentences.</p>');
+    const t = mountHarness('<p>The first paragraph has several words. It has two sentences.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     const split = orp('The first paragraph');
     expect(t.q('.sr-chunk .sr-before')!.textContent).toBe(split.before);
@@ -33,7 +33,7 @@ describe('chunk steps', () => {
   });
 
   it('show the current sentence below with the current chunk emphasised', () => {
-    const t = mountHarness('<p>The first paragraph has several words. It has two sentences.</p>');
+    const t = mountHarness('<p>The first paragraph has several words. It has two sentences.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     const parts = t.qa('.sr-sentence > span');
     expect(parts.map((p) => p.textContent)).toEqual(['The first paragraph', 'has several words.']);
@@ -43,7 +43,7 @@ describe('chunk steps', () => {
   });
 
   it('render atoms in a monospace span', () => {
-    const t = mountHarness('<p>Install with <code>npm ci</code> first.</p>');
+    const t = mountHarness('<p>Install with <code>npm ci</code> first.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     expect(t.qa('.sr-chunk .sr-atom').map((a) => a.textContent).join('')).toBe('npm ci');
     expect(text(t.q('.sr-chunk'))).toBe('Install with npm ci');
@@ -51,7 +51,7 @@ describe('chunk steps', () => {
   });
 
   it('keep the pivot on the axis by shifting the chunk by the width before it', () => {
-    const t = mountHarness('<p>The first paragraph has several words.</p>');
+    const t = mountHarness('<p>The first paragraph has several words.</p>', { settings: chunkSettings });
     // jsdom has no layout: the shift falls back to 0 and is still set.
     t.handle.player.toggle();
     expect(t.q('.sr-chunk')!.style.getPropertyValue('--sr-shift')).toBe('0px');
@@ -296,7 +296,7 @@ describe('bottom-stage flow', () => {
 describe('fitting the chunk to the stage', () => {
   it('scales no smaller than 0.5 and wraps past that', () => {
     stubWidths({ 'sr-display': 360, 'sr-chunk': 1400, 'sr-before': 600, 'sr-pivot': 20 });
-    const t = mountHarness('<p>Supercalifragilisticexpialidocious_and_more_and_more_and_more_characters_here.</p>');
+    const t = mountHarness('<p>Supercalifragilisticexpialidocious_and_more_and_more_and_more_characters_here.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     const display = t.q('.sr-display')!;
     expect(t.q('.sr-chunk')!.style.getPropertyValue('--sr-scale')).toBe('0.500');
@@ -305,7 +305,7 @@ describe('fitting the chunk to the stage', () => {
 
   it('does not wrap a chunk that fits once scaled', () => {
     stubWidths({ 'sr-display': 400, 'sr-chunk': 300, 'sr-before': 250, 'sr-pivot': 20 });
-    const t = mountHarness('<p>Some words here.</p>');
+    const t = mountHarness('<p>Some words here.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     expect(t.q('.sr-display')!.dataset.wrap).toBeUndefined();
     expect(Number(t.q('.sr-chunk')!.style.getPropertyValue('--sr-scale'))).toBeGreaterThan(0.5);
@@ -316,6 +316,7 @@ describe('fitting the chunk to the stage', () => {
     stubWidths({ 'sr-display': 400, 'sr-chunk': 300, 'sr-before': 90, 'sr-pivot': 20 });
     const t = mountHarness(
       '<ul><li>first list item that is rather long indeed</li><li>second list item that is also long<ul><li>nested item in the list here</li></ul></li></ul>',
+      { settings: chunkSettings },
     );
     const list = t.doc.sections[0].blocks[0];
     if (list.kind !== 'list') throw new Error('list expected');
@@ -336,7 +337,7 @@ describe('fitting the chunk to the stage', () => {
       },
     );
     stubWidths({ 'sr-display': 1000, 'sr-chunk': 300, 'sr-before': 100, 'sr-pivot': 20 });
-    const t = mountHarness('<p>Some words here and more.</p>');
+    const t = mountHarness('<p>Some words here and more.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     t.handle.player.toggle();
     const chunk = t.q('.sr-chunk')!;
@@ -354,7 +355,7 @@ describe('list steps', () => {
     '<ul><li>first list item that is rather long indeed</li><li>second list item that is also long<ul><li>nested item in the list here</li></ul></li></ul>';
 
   it('item-chunk shows item i/n and indentation by depth', () => {
-    const t = mountHarness(LIST);
+    const t = mountHarness(LIST, { settings: chunkSettings });
     t.handle.player.toggle();
     expect(t.q('.sr-display')!.dataset.kind).toBe('item-chunk');
     expect(text(t.q('.sr-item-counter'))).toBe('item 1/2');
@@ -367,7 +368,7 @@ describe('list steps', () => {
   });
 
   it('list-whole shows every item', () => {
-    const t = mountHarness('<ul><li>apples</li><li>pears<ul><li>green</li></ul></li></ul>');
+    const t = mountHarness('<ul><li>apples</li><li>pears<ul><li>green</li></ul></li></ul>', { settings: chunkSettings });
     t.handle.player.toggle();
     const items = t.qa('.sr-list-whole li');
     expect(items.map((li) => li.textContent)).toEqual(['apples', 'pears', 'green']);
@@ -377,7 +378,7 @@ describe('list steps', () => {
 
 describe('cards', () => {
   it('chapter shows title, words, estimated time, summary and sub-headings', () => {
-    const t = mountHarness(ARTICLE);
+    const t = mountHarness(ARTICLE, { settings: chunkSettings });
     t.handle.player.toggle();
     const card = t.q('.sr-card-chapter')!;
     expect(text(card.querySelector('.sr-card-title'))).toBe('Guide');
@@ -388,20 +389,20 @@ describe('cards', () => {
   });
 
   it('chapter titles are written as text', () => {
-    const t = mountHarness('<h1>&lt;img src=x onerror="alert(1)"&gt; Title</h1><p>Body.</p>');
+    const t = mountHarness('<h1>&lt;img src=x onerror="alert(1)"&gt; Title</h1><p>Body.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     expect(text(t.q('.sr-card-title'))).toBe('<img src=x onerror="alert(1)"> Title');
     expect(t.reader.querySelector('img')).toBeNull();
   });
 
   it('title steps show the heading', () => {
-    const t = mountHarness('<h3>Minor</h3><p>Body.</p>');
+    const t = mountHarness('<h3>Minor</h3><p>Body.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     expect(text(t.q('.sr-card-title-step .sr-card-title'))).toBe('Minor');
   });
 
   it('stop shows the prompt', () => {
-    const t = mountHarness('<p>Intro.</p><pre>a\nb</pre><p>After.</p>');
+    const t = mountHarness('<p>Intro.</p><pre>a\nb</pre><p>After.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     t.clock.advance(10_000);
     expect(t.handle.player.state).toBe('stopped');
@@ -411,7 +412,7 @@ describe('cards', () => {
   });
 
   it('the end card shows words and time', () => {
-    const t = mountHarness('<p>One two.</p>');
+    const t = mountHarness('<p>One two.</p>', { settings: chunkSettings });
     t.handle.player.toggle();
     t.clock.advance(10_000);
     const card = t.q('.sr-card-end')!;
@@ -420,7 +421,7 @@ describe('cards', () => {
   });
 
   it('shows a ready card before playback starts', () => {
-    const t = mountHarness(ARTICLE);
+    const t = mountHarness(ARTICLE, { settings: chunkSettings });
     const card = t.q('.sr-card-ready')!;
     expect(text(card.querySelector('.sr-card-title'))).toBe('Guide');
     expect(text(card)).toContain('Space');
@@ -429,7 +430,7 @@ describe('cards', () => {
 
 describe('an empty document', () => {
   it('shows an empty state, never an end card, with the status Ready', () => {
-    const t = mountHarness('');
+    const t = mountHarness('', { settings: chunkSettings });
     expect(text(t.q('.sr-card-empty'))).toContain('Nothing to read here');
     t.handle.player.toggle();
     expect(t.q('.sr-card-end')).toBeNull();
@@ -440,7 +441,7 @@ describe('an empty document', () => {
 
 describe('status line', () => {
   it('shows WPM, state and overall progress', () => {
-    const t = mountHarness('<p>One two three four five six seven eight nine ten.</p>', { settings: { chunkWords: 2 } });
+    const t = mountHarness('<p>One two three four five six seven eight nine ten.</p>', { settings: { ...chunkSettings, chunkWords: 2 } });
     expect(text(t.q('.sr-status'))).toBe('300 WPM · Ready · 0%');
     t.handle.player.toggle();
     t.clock.advance(t.clock.nextIn()!);

@@ -140,3 +140,6 @@ npm test</code></pre>
 <table><tr><th>a</th><th>b</th></tr><tr><td>1</td><td>2</td></tr></table>
 <ul><li>first list item that is rather long indeed</li><li>second list item that is also long<ul><li>nested item in the list here</li></ul></li></ul>
 `;
+
+/** Settings for a test of chunk mode, which is no longer the default reading mode. */
+export const chunkSettings = { readingMode: 'chunk' } as const;

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { mountHarness } from '../testing/reader';
+import { mountHarness, chunkSettings } from '../testing/reader';
 import { fakeSpeech, voice } from '../testing/speech';
 import { createSpeechDriver } from '../tts';
 
@@ -101,7 +101,7 @@ describe('speech settings (spec section 9)', () => {
 
 describe('speech on the stage', () => {
   it('chunks follow the voice boundaries, and a voice without boundaries shows the whole sentence', async () => {
-    const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], { saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1 } });
+    const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], { saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, ...chunkSettings } });
     await t.settle();
     t.handle.player.toggle();
     expect(speech.spoken.map((u) => u.text)).toEqual(['The first sentence is here.']);
@@ -240,7 +240,7 @@ describe('review p5b: voice panel', () => {
   });
 
   it('hides the sentence line while the whole sentence is on the stage (p5b-r6)', async () => {
-    const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], { saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1 } });
+    const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], { saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, ...chunkSettings } });
     await t.settle();
     t.handle.player.toggle();
     t.clock.advance(1000);

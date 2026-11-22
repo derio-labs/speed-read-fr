@@ -61,3 +61,23 @@ export function onSettingsChange(listener: (settings: Settings) => void): vscode
     if (e.affectsConfiguration(SECTION)) listener(readSettings());
   });
 }
+
+/** The part of `vscode.Memento` the migration uses (`ExtensionContext.globalState`). */
+export interface MigrationState {
+  get<T>(key: string): T | undefined;
+  update(key: string, value: unknown): PromiseLike<void>;
+}
+
+const FLOW_DEFAULT_FLAG = 'speedRead.migrated.flowDefault';
+
+/**
+ * Once: move an explicit `chunk` reading mode, in the user (global) and workspace scopes, to `flow`, the new
+ * default, then record it in `state` so a later choice of chunk is kept. Workspace-folder values are left alone.
+ */
+export async function migrateFlowDefault(config: vscode.WorkspaceConfiguration, state: MigrationState): Promise<void> {
+  if (state.get<boolean>(FLOW_DEFAULT_FLAG)) return;
+  const inspected = config.inspect<string>('readingMode');
+  if (inspected?.globalValue === 'chunk') await config.update('readingMode', 'flow', vscode.ConfigurationTarget.Global);
+  if (inspected?.workspaceValue === 'chunk') await config.update('readingMode', 'flow', vscode.ConfigurationTarget.Workspace);
+  await state.update(FLOW_DEFAULT_FLAG, true);
+}

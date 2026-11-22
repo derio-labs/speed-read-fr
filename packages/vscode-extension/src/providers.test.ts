@@ -20,7 +20,14 @@ const TEXT = [
   'last', //              12
 ].join('\n');
 
-const context = () => ({ subscriptions: [] as { dispose(): unknown }[], extensionUri: vscode.Uri.file('/ext') });
+const context = () => {
+  const data: Record<string, unknown> = {};
+  return {
+    subscriptions: [] as { dispose(): unknown }[],
+    extensionUri: vscode.Uri.file('/ext'),
+    globalState: { data, get: (key: string) => data[key], update: async (key: string, value: unknown) => void (data[key] = value) },
+  };
+};
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 let ctx: ReturnType<typeof context>;
@@ -29,6 +36,16 @@ beforeEach(() => {
   __stub.reset();
   ctx = context();
   activate(ctx as unknown as vscode.ExtensionContext);
+});
+
+it('activation moves an explicit chunk reading mode to flow once', async () => {
+  __stub.reset();
+  __stub.setConfig({ 'speedRead.readingMode': 'chunk' }, false);
+  const c = context();
+  activate(c as unknown as vscode.ExtensionContext);
+  await tick();
+  expect(__stub.state.configWrites).toContainEqual({ key: 'speedRead.readingMode', value: 'flow', target: vscode.ConfigurationTarget.Global });
+  expect(c.globalState.data['speedRead.migrated.flowDefault']).toBe(true);
 });
 
 const panel = (): StubPanel => __stub.state.panels.at(-1)!;

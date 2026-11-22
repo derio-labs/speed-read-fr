@@ -16,7 +16,7 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.imageDwellSeconds).toBe(3);
     expect(DEFAULT_SETTINGS.display).toBe('overlay');
     expect(DEFAULT_SETTINGS.tts).toEqual({ enabled: false, voiceURI: null });
-    expect(DEFAULT_SETTINGS.readingMode).toBe('chunk');
+    expect(DEFAULT_SETTINGS.readingMode).toBe('flow');
   });
 });
 
@@ -26,10 +26,10 @@ describe('normalizeSettings', () => {
     expect(normalizeSettings({ wpm: 450 })).toEqual({ ...DEFAULT_SETTINGS, wpm: 450 });
   });
 
-  it('keeps flow mode and normalizes missing or unknown reading modes to chunk', () => {
+  it('keeps chunk mode and normalizes missing or unknown reading modes to flow', () => {
     expect(normalizeSettings({ readingMode: 'flow' }).readingMode).toBe('flow');
-    expect(normalizeSettings({}).readingMode).toBe('chunk');
-    expect(normalizeSettings({ readingMode: 'unknown' } as never).readingMode).toBe('chunk');
+    expect(normalizeSettings({}).readingMode).toBe('flow');
+    expect(normalizeSettings({ readingMode: 'unknown' } as never).readingMode).toBe('flow');
   });
 
   it('drops unknown keys', () => {

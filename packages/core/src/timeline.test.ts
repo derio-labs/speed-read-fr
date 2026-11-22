@@ -4,7 +4,7 @@ import { doc, exhibit, flatList, item, list, prose, section } from './testing/do
 import type { Block, Token } from './model';
 import { buildTimeline, exhibitKey, exhibitKind, type BlockExhibit, type Step } from './timeline';
 
-const settings = (over: Partial<Settings> = {}) => normalizeSettings({ ...DEFAULT_SETTINGS, ...over });
+const settings = (over: Partial<Settings> = {}) => normalizeSettings({ ...DEFAULT_SETTINGS, readingMode: 'chunk', ...over });
 const kinds = (d: ReturnType<typeof doc>, s = settings()) => buildTimeline(d, s).steps.map((st) => st.kind);
 
 describe('buildTimeline: headings', () => {

@@ -62,7 +62,7 @@
         "speedRead.math.dwellSeconds": { "type": "number", "default": 5, "minimum": 1, "maximum": 60, "description": "Seconds display math is shown when its mode is dwell." },
         "speedRead.imageDwellSeconds": { "type": "number", "default": 3, "minimum": 1, "maximum": 60, "description": "Seconds images and diagrams are shown." },
         "speedRead.display": { "type": "string", "enum": ["overlay", "dock"], "default": "overlay", "description": "Display mode of the browser reader. VS Code always reads in a panel beside the editor." },
-        "speedRead.readingMode": { "type": "string", "enum": ["chunk", "flow"], "default": "chunk", "description": "Reading mode: chunk-at-a-time or rolling three-row flow." },
+        "speedRead.readingMode": { "type": "string", "enum": ["chunk", "flow"], "default": "flow", "description": "Reading mode: chunk-at-a-time or rolling three-row flow." },
         "speedRead.pageFade": { "type": "number", "minimum": 0.1, "maximum": 0.8, "default": 0.32, "description": "Strength of the web page behind the browser's floating reader. Not used in VS Code." },
         "speedRead.tts.enabled": { "type": "boolean", "default": false, "description": "Read aloud with text-to-speech." },
         "speedRead.tts.voiceURI": { "type": ["string", "null"], "default": null, "description": "Text-to-speech voice; empty picks the first local voice." }

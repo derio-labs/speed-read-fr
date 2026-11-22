@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { extract } from '../extract/extract';
 import { DEFAULT_SETTINGS, memoryStore } from '../settings';
-import { ARTICLE, mountHarness } from '../testing/reader';
+import { ARTICLE, mountHarness, chunkSettings } from '../testing/reader';
 import { createCloneHost } from './clone-host';
 import { focusables } from './dom';
 import { mountReader } from './mount';
@@ -58,7 +58,7 @@ describe('settings panel', () => {
   });
 
   it('applies words per chunk at once, keeping the position, and saves it', async () => {
-    const t = mountHarness('<p>a bb cc dd ee ff gg hh ii.</p>');
+    const t = mountHarness('<p>a bb cc dd ee ff gg hh ii.</p>', { settings: chunkSettings });
     await t.settle();
     t.key(' ');
     t.key(' ');
@@ -76,7 +76,7 @@ describe('settings panel', () => {
   });
 
   it('selects flow mode immediately and restores the saved choice when Settings reopens', async () => {
-    const t = mountHarness('<p>one two three four five six.</p>');
+    const t = mountHarness('<p>one two three four five six.</p>', { settings: chunkSettings });
     await t.settle();
     t.handle.player.toggle();
     const first = open(t);
@@ -121,7 +121,7 @@ describe('settings panel', () => {
   it('shows values loaded from the store at mount', async () => {
     const t = mountHarness(ARTICLE, { saved: { chunkWords: 5, wpm: 400 } });
     await t.settle();
-    expect(t.handle.player.settings.readingMode).toBe('chunk');
+    expect(t.handle.player.settings.readingMode).toBe('flow');
     const { field } = open(t);
     expect(field('chunkWords').value).toBe('5');
     expect(field('wpm').value).toBe('400');

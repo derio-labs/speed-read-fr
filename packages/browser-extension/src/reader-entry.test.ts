@@ -310,6 +310,7 @@ describe('mount', () => {
     reader = createReader({ api: fake.api, win: window, scope });
     await reader.open('auto');
     await reader.current!.handle.ready;
+    fake.raw.storage.local.set.mockClear(); // loading records the one-time flow-default migration
     const root = hostEl()!.shadowRoot!.querySelector('.sr-reader') as HTMLElement;
     for (let i = 0; i < 5; i++) root.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, composed: true }));
     await flush();

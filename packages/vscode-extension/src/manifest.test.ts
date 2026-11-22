@@ -67,9 +67,9 @@ describe('VS Code extension manifest', () => {
     }
   });
 
-  it('contributes the Reading mode selector with the chunk default', () => {
+  it('contributes the Reading mode selector with the flow default', () => {
     const readingMode = pkg.contributes.configuration.properties['speedRead.readingMode'];
-    expect(readingMode).toMatchObject({ type: 'string', enum: ['chunk', 'flow'], default: 'chunk' });
+    expect(readingMode).toMatchObject({ type: 'string', enum: ['chunk', 'flow'], default: 'flow' });
     expect(readingMode.description).toMatch(/reading mode/i);
   });
 
