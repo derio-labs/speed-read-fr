@@ -72,13 +72,17 @@ export interface MigrationState {
 const FLOW_DEFAULT_FLAG = 'speedRead.migrated.flowDefault';
 
 /**
- * Once: move an explicit `chunk` reading mode, in the user (global) and workspace scopes, to `flow`, the new
- * default, then record it in `state` so a later choice of chunk is kept. Workspace-folder values are left alone.
+ * Once: move an explicit `chunk` reading mode in the user (global) settings to `flow`, the new default, then record
+ * it in `state` so a later choice of chunk is kept. Workspace and workspace-folder values are never written: they
+ * may be a committed `.vscode/settings.json`.
  */
 export async function migrateFlowDefault(config: vscode.WorkspaceConfiguration, state: MigrationState): Promise<void> {
   if (state.get<boolean>(FLOW_DEFAULT_FLAG)) return;
   const inspected = config.inspect<string>('readingMode');
-  if (inspected?.globalValue === 'chunk') await config.update('readingMode', 'flow', vscode.ConfigurationTarget.Global);
-  if (inspected?.workspaceValue === 'chunk') await config.update('readingMode', 'flow', vscode.ConfigurationTarget.Workspace);
+  try {
+    if (inspected?.globalValue === 'chunk') await config.update('readingMode', 'flow', vscode.ConfigurationTarget.Global);
+  } catch {
+    return; // A refused write (a read-only settings file): the flag stays unset, so the next activation tries again.
+  }
   await state.update(FLOW_DEFAULT_FLAG, true);
 }

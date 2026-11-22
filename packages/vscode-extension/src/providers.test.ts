@@ -48,6 +48,16 @@ it('activation moves an explicit chunk reading mode to flow once', async () => {
   expect(c.globalState.data['speedRead.migrated.flowDefault']).toBe(true);
 });
 
+it('activation survives a rejected settings update (l-tests-r3)', async () => {
+  __stub.reset();
+  __stub.setConfig({ 'speedRead.readingMode': 'chunk' }, false);
+  __stub.state.updateError = new Error('read-only');
+  const c = context();
+  expect(() => activate(c as unknown as vscode.ExtensionContext)).not.toThrow();
+  await tick();
+  expect(c.globalState.data['speedRead.migrated.flowDefault']).toBeUndefined();
+});
+
 const panel = (): StubPanel => __stub.state.panels.at(-1)!;
 const lastRead = () => panel().webview.posted.filter((m) => m.type === 'read').at(-1);
 

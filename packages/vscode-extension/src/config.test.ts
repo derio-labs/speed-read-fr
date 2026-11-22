@@ -68,11 +68,31 @@ describe('migrateFlowDefault', () => {
     expect(state.data[FLAG]).toBe(true);
   });
 
-  it('moves an explicit workspace chunk in the workspace scope', async () => {
+  it('never writes a workspace value (a possibly committed .vscode/settings.json), even beside a global chunk', async () => {
+    __stub.setConfig({ 'speedRead.readingMode': 'chunk' }, false);
+    __stub.state.workspaceValues['speedRead.readingMode'] = 'chunk';
+    await run();
+    expect(writes()).toEqual([{ key: 'speedRead.readingMode', value: 'flow', target: vscode.ConfigurationTarget.Global }]);
+  });
+
+  it('leaves a workspace-only chunk alone', async () => {
     __stub.setConfig({ 'speedRead.readingMode': 'chunk' }, false);
     __stub.state.configScopes['speedRead.readingMode'] = 'workspace';
-    await run();
-    expect(writes()).toEqual([{ key: 'speedRead.readingMode', value: 'flow', target: vscode.ConfigurationTarget.Workspace }]);
+    const state = await run();
+    expect(writes()).toEqual([]);
+    expect(state.data[FLAG]).toBe(true);
+  });
+
+  it('a rejected update leaves the flag unset and does not throw; the next run migrates and sets it', async () => {
+    __stub.setConfig({ 'speedRead.readingMode': 'chunk' }, false);
+    __stub.state.updateError = new Error('read-only settings');
+    const state = memento();
+    await expect(run(state)).resolves.toBe(state);
+    expect(state.data[FLAG]).toBeUndefined();
+    __stub.state.updateError = undefined;
+    await run(state);
+    expect(writes()).toEqual([{ key: 'speedRead.readingMode', value: 'flow', target: vscode.ConfigurationTarget.Global }]);
+    expect(state.data[FLAG]).toBe(true);
   });
 
   it('leaves an unset or flow value alone but still sets the flag', async () => {

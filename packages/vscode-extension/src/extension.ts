@@ -43,7 +43,7 @@ type Range = { startLine: number; endLine?: number };
 export function activate(context: vscode.ExtensionContext): void {
   const panel = new ReaderPanel(context.extensionUri);
   // The one-time move of an explicit chunk reading mode to the new flow default.
-  void migrateFlowDefault(vscode.workspace.getConfiguration('speedRead'), context.globalState);
+  void migrateFlowDefault(vscode.workspace.getConfiguration('speedRead'), context.globalState).catch(() => undefined);
 
   // The last text editor that had focus: while the reader has focus there is no active text editor.
   let lastEditor = vscode.window.activeTextEditor;
