@@ -171,7 +171,7 @@ export const READER_CSS = `
   border-bottom: 1px solid var(--sr-border);
 }
 .sr-status { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13px; color: var(--sr-muted); font-variant-numeric: tabular-nums; }
-.sr-status-wpm { font-weight: 650; color: var(--sr-text); }
+.sr-status-wpm { font-weight: 650; color: var(--sr-text); min-width: 10ch; text-align: center; }
 .sr-wpm { display: inline-flex; align-items: center; gap: 4px; }
 .sr-wpm-step {
   display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; line-height: 1;
