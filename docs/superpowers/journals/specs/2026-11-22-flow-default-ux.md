@@ -176,3 +176,10 @@ row_kinds:
 run_gate: developer
 run_kind: none
 ```
+
+<!-- fr:journal kind=discovery scope=spec id=test-plan-step-1 created=2026-11-22T10:55:14+00:00 -->
+### test-plan-step-1 · discovery · Test Plan step 1: n/a
+
+Step: No post-merge operator steps are required; every requirement is covered before merge by the tests listed in `## Verification`.
+
+Reason: Spec Test Plan lists no post-merge operator steps; every requirement is covered pre-merge by the tests in ## Verification.
