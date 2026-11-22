@@ -448,7 +448,10 @@ rows:
     status: ci
     notes: 'Debug 2026-11-22-tts-firefox-noise: Gecko''s macOS speech engine bangs at
       every utterance end, plays about 2x the asked rate, and jams for good after one
-      cancel; blocked by user agent (a Gecko UA spoofed to another OS is not caught).'
+      cancel; blocked by user agent (a Gecko UA spoofed to another OS is not caught).;
+      Bringing TTS back to Firefox: issue #16 (optional bundled WASM speech engine).'
+    issues:
+    - derio-labs/speed-read-fr#16
 amendments:
   - row: vscode-cursor-follows
     op: reword
