@@ -75,10 +75,10 @@ tasks:
   steps:
   - id: P1.T4.S1
     text: |-
-      Add failing stage.test.ts cases in both modes: the status line has `button.sr-wpm-step` Slower and Faster around `.sr-status-wpm`; clicks change WPM by ∓25 and clamp at 100 / 1000; playback state is unchanged; an untrusted click or wheel is ignored with trustedEventsOnly; a focused button stays connected across a status rerender, and a pointer click returns focus to the reader root; wheel deltas accumulate (one 100 px notch = one step, many 4 px trackpad events = few steps), zero-vertical and ctrl/meta wheel events are ignored and not prevented.
+      Add failing stage.test.ts cases in both modes: the status line has `button.sr-wpm-step` Slower and Faster around `.sr-status-wpm`; button presses change WPM by ∓25 and clamp at 100 / 1000; playback state is unchanged; an untrusted press or wheel event is ignored with trustedEventsOnly; a focused button stays connected across a status rerender, and a pointer press returns focus to the reader root; wheel deltas accumulate (one 100 px notch = one step, many 4 px trackpad events = few steps), zero-vertical and ctrl/meta wheel events are ignored and not prevented.
   - id: P1.T4.S2
     text: |-
-      Implement in stage.ts: build the stepper group once; renderStatus keeps it as status's first child and updates only its text plus the trailing spans; click and wheel handlers gated on ctx.accepts, calling player.speed(±25); wheel via dial-strip's wheelDelta with a 100 px accumulator reset after 300 ms; buttons tabindex -1. Style `.sr-wpm-step` in styles.ts (small, theme-coloured). Run green.
+      Implement in stage.ts: build the stepper group once; renderStatus keeps it as status's first child and updates only its text plus the trailing spans; press and wheel handlers gated on ctx.accepts, calling player.speed(±25); wheel via dial-strip's wheelDelta with a 100 px accumulator reset after 300 ms; buttons tabindex -1. Style `.sr-wpm-step` in styles.ts (small, theme-coloured). Run green.
   - id: P1.T4.S3
     text: |-
       Refactor: move wheelDelta into a shared module if importing it from dial-strip creates a cycle; re-run the suite.
