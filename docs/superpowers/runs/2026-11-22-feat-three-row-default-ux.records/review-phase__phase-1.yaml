@@ -45,7 +45,6 @@ journal:
     phase: 1
     title: 'Phase 1 independent review: 6 findings (p1-r1..p1-r6), all in scope'
     body: The reviewer read the full diff against R1-R7, ran vitest/tsc and the new e2e tests, and drove the demo and the Chrome extension overlay with fresh screenshots. Findings p1-r1..p1-r6 were fixed with tests; the suite is green after the fixes.
-  - {kind: lens, lens: browser-overlay-input, title: 'New toolbar controls pass through reader-entry page-level wheel routing'}
 resolves:
   - id: p1-r1
     state: fixed
