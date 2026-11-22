@@ -1,0 +1,187 @@
+schema_version: 2
+phase:
+  number: 1
+  title: Flow by default, fixed focus bracket, WPM stepper, no display choice in VS
+    Code
+  tag: agentic
+  depends_on: []
+  tracking_issue: null
+  acceptance:
+  - reader-flow-default
+  - reader-focus-span
+  - reader-wpm-stepper
+  - vscode-no-display-choice
+  tier: standard
+  files:
+  - packages/core/src/settings.ts
+  - packages/core/src/settings.test.ts
+  - packages/core/src/ui/*.ts
+  - packages/core/src/testing/**
+  - packages/browser-extension/src/storage.ts
+  - packages/browser-extension/src/storage.test.ts
+  - packages/browser-extension/src/reader-entry.ts
+  - packages/browser-extension/src/*.test.ts
+  - packages/vscode-extension/package.json
+  - packages/vscode-extension/src/*.ts
+  - tests/demo/**
+  - tests/e2e/*.spec.ts
+  - README.md
+  estimate_lines: 700
+tasks:
+- number: 1
+  title: Flow is the default; chunk tests pin their mode
+  steps:
+  - id: P1.T1.S1
+    text: |-
+      Add failing tests: normalizeSettings({}) and an unknown readingMode give 'flow' (settings.test.ts); flip storage.test.ts's legacy/bogus reading-mode fallback assertion to 'flow'; manifest.test.ts expects `speedRead.readingMode` default "flow". Run `npx vitest run` and see them fail.
+  - id: P1.T1.S2
+    text: |-
+      Set DEFAULT_SETTINGS.readingMode to 'flow' (settings.ts:42) and the `speedRead.readingMode` default in packages/vscode-extension/package.json to "flow". Pin `readingMode: 'chunk'` in every chunk-mode unit test (chunk-cap.test.ts, the `.sr-pivot` / chunk cases in stage.test.ts and others the run reveals) and chunk-mode e2e cases (tests/e2e/*.spec.ts via the demo's settings). Run `npx vitest run` green.
+  - id: P1.T1.S3
+    text: |-
+      Refactor: if several tests repeat `{ readingMode: 'chunk' }`, add a `chunkSettings` helper in packages/core/src/testing/; re-run the suite.
+- number: 2
+  title: One-time migration of existing users to flow
+  steps:
+  - id: P1.T2.S1
+    text: |-
+      Add failing storage.test.ts cases: stored settings with readingMode 'chunk' and no `migrations` key load as 'flow', are written back, and `migrations` gains 'flow-default'; a later load after choosing chunk returns chunk; with no stored settings only the id is recorded; a failed write leaves the id unrecorded so the next load migrates again.
+  - id: P1.T2.S2
+    text: |-
+      Implement the migration in extensionStore.load (packages/browser-extension/src/storage.ts) with a separate `migrations` storage.local key. Run the storage tests green.
+  - id: P1.T2.S3
+    text: |-
+      Add failing config.test.ts cases for a pure VS Code helper `migrateFlowDefault(config, state)`: an explicit global or workspace 'chunk' readingMode is updated to 'flow' in that scope and the `speedRead.migrated.flowDefault` flag is set; with the flag set nothing changes. Implement it in packages/vscode-extension/src/config.ts and call it from activate (extension.ts) with context.globalState; run green.
+- number: 3
+  title: Fixed-width focus bracket, no red letter
+  steps:
+  - id: P1.T3.S1
+    text: |-
+      Add failing tests: `focusChars` defaults to 20 and clamps to [6, 40] (settings.test.ts); a pure `focusWidth({ focusChars, charWidth, row })` returns min(row, focusChars × charWidth) (ribbon-geometry.test.ts); manifest.test.ts expects `speedRead.focusChars` (number, 6–40, default 20); settings-panel.test.ts expects a Focus span field that saves focusChars.
+  - id: P1.T3.S2
+    text: |-
+      Add `focusChars` to Settings / DEFAULT_SETTINGS / normalizeSettings, the `speedRead.focusChars` contribution, `focusWidth` in ribbon-geometry.ts and the Focus span field (characters, 6–40) in the Display fieldset of settings-panel.ts (show/read). Run the focused tests green.
+  - id: P1.T3.S3
+    text: |-
+      Add failing stage.test.ts cases: in flow mode the target's width equals focusWidth for the measured char width and stays the same across several steps of short and long words; it is centred on the row; changing focusChars via settings resizes the live bracket without a resize event; no `.sr-flow-mid` remains and the current word's `.sr-w` carries `data-current`.
+  - id: P1.T3.S4
+    text: |-
+      Implement in stage.ts: measure a 10-character probe in the ribbon font in measureRibbon; placeRibbon sets --sr-target-w / --sr-target-x from focusWidth, centred; a player.on('settings') handler re-places the target when focusChars changed; replace lightMiddle's colouring with moving `data-current`; remove the `.sr-flow-mid` style (styles.ts:209). Move existing unit tests (stage.test.ts, tts-panel.test.ts) and e2e specs (core.spec.ts, extension.spec.ts, webview.spec.ts) from `.sr-flow-mid` to `.sr-w[data-current]` (middle-letter positions via `middleLetter`). Run `npx vitest run` green.
+  - id: P1.T3.S5
+    text: |-
+      Refactor: remove now-dead TARGET_PAD / per-word target code; re-run the suite.
+- number: 4
+  title: WPM stepper on the status line
+  steps:
+  - id: P1.T4.S1
+    text: |-
+      Add failing stage.test.ts cases in both modes: the status line has `button.sr-wpm-step` Slower and Faster around `.sr-status-wpm`; clicks change WPM by ∓25 and clamp at 100 / 1000; playback state is unchanged; an untrusted click or wheel is ignored with trustedEventsOnly; a focused button stays connected across a status rerender, and a pointer click returns focus to the reader root; wheel deltas accumulate (one 100 px notch = one step, many 4 px trackpad events = few steps), zero-vertical and ctrl/meta wheel events are ignored and not prevented.
+  - id: P1.T4.S2
+    text: |-
+      Implement in stage.ts: build the stepper group once; renderStatus keeps it as status's first child and updates only its text plus the trailing spans; click and wheel handlers gated on ctx.accepts, calling player.speed(±25); wheel via dial-strip's wheelDelta with a 100 px accumulator reset after 300 ms; buttons tabindex -1. Style `.sr-wpm-step` in styles.ts (small, theme-coloured). Run green.
+  - id: P1.T4.S3
+    text: |-
+      Refactor: move wheelDelta into a shared module if importing it from dial-strip creates a cycle; re-run the suite.
+- number: 5
+  title: No display choice in VS Code
+  steps:
+  - id: P1.T5.S1
+    text: |-
+      Add failing tests: settings-panel.test.ts — without 'display' declared the Reader field is absent and read() keeps the current display; with it the field shows; manifest.test.ts — no `speedRead.display` contribution; config.test.ts — readSettings/writeSettings never read or write `display`.
+  - id: P1.T5.S2
+    text: |-
+      Widen HostSetting to 'pageFade' | 'display' (context.ts:46); gate the Reader field, its populate line (settings-panel.ts:122) and read() (:198); add the harness `display?: boolean` option (default true) in testing/reader.ts; pass 'display' from reader-entry.ts:565 and the demo (tests/demo/demo.ts); remove `speedRead.display` from package.json and skip `display` in config.ts. Run `npx vitest run` and `npm run typecheck` green.
+- number: 6
+  title: README, e2e and screenshots
+  steps:
+  - id: P1.T6.S1
+    text: |-
+      Add Playwright cases on the bottom-stage demo (tests/e2e/core.spec.ts): the reader opens in flow; the bracket width is the same across several steps and changes when Focus span is set to 6 and 40; no red letter; − / + and wheel over the readout change the WPM in flow and chunk modes, with limits at 100 and 1000. Capture screenshots of each state into a git-ignored dir and open them.
+  - id: P1.T6.S2
+    text: |-
+      Update README.md: flow is the default and existing users are moved once; the fixed focus-span bracket with no red letter; − / + and wheel on the WPM readout; Focus span (6–40, default 20) and the Reading mode default in the Settings table; VS Code has no Reader display choice.
+  - id: P1.T6.S3
+    text: |-
+      Run the full suite last, after the final code commit: `npm run typecheck && npx vitest run && npx playwright test` into a log outside the repo.
+state:
+  steps:
+    P1.T1.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T1.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T1.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S4:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S5:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T5.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T5.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T6.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T6.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T6.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+  completion:
+    at: null
+    note: null
+    observed_prs: []
