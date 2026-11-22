@@ -834,6 +834,14 @@ describe('flowing motion', () => {
     frames.forEach((f, i) => {
       if (i > 0) expect(f.x).toBeGreaterThan(frames[i - 1].x);
     });
+    // The line reads "first list item that is rather long indeed • second ...": 'indeed' ends at 420 and
+    // 'second' begins at 450. The gap starts from the one edge, and the next item from the other.
+    const nextItem = sample(t, 10).find((f) => f.index === 9)!;
+    expect(inGap[0].x).toBeGreaterThanOrEqual(420 - 1e-6);
+    expect(inGap[0].x).toBeLessThan(420 + 5);
+    expect(inGap.at(-1)!.x).toBeLessThanOrEqual(450 + 1e-6);
+    expect(nextItem.x).toBeGreaterThanOrEqual(450 - 1e-6);
+    expect(nextItem.x).toBeLessThan(450 + 3);
   });
 
   it('ends the word before an inline stop on its middle and holds there, with no back-glide', () => {
@@ -980,6 +988,38 @@ describe('flowing motion', () => {
     expect(frames.at(-1)!.x).toBeGreaterThan(frames[0].x);
   });
 
+  it("switched back to Flowing mid-step, reaches the step's handover in the step's remaining time", () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    sample(t, 3);
+    t.handle.applySettings({ ...t.handle.player.settings, flowMotion: 'word' });
+    sample(t, 2);
+    t.handle.applySettings({ ...t.handle.player.settings, flowMotion: 'flowing' });
+    const frames = sample(t, 40);
+    const inAlpha = frames.filter((f) => f.index === 0);
+    expect(inAlpha.length).toBeGreaterThan(2);
+    // alpha's middle is 25 and beta's 75: alpha's step ends on the handover, 50, by the time beta begins, never past it.
+    for (const f of inAlpha) expect(f.x).toBeLessThanOrEqual(50 + 1e-6);
+    expect(inAlpha.at(-1)!.x).toBeGreaterThan(50 - 4);
+  });
+
+  it('switching motion while paused moves nothing until playback resumes', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    sample(t, 3);
+    t.handle.player.toggle();
+    expect(t.handle.player.state).toBe('paused');
+    t.handle.applySettings({ ...t.handle.player.settings, flowMotion: 'word' });
+    // Word by word places the current word on the target: alpha's middle.
+    expect(xOf(t)).toBe(25);
+    t.handle.applySettings({ ...t.handle.player.settings, flowMotion: 'flowing' });
+    for (const f of sample(t, 10)) expect(f.x).toBe(25);
+    t.handle.player.toggle();
+    expect(sample(t, 5).at(-1)!.x).toBeGreaterThan(25);
+  });
+
   describe('with speech', () => {
     const TEXT = '<p>The first sentence is here. A second one follows.</p>';
     const spoken = async (html = TEXT, estimate = false) => {
@@ -1024,6 +1064,19 @@ describe('flowing motion', () => {
       expect(end).toBeGreaterThan(mid);
       t.runFrames(160);
       expect(xOf(t)).toBe(end);
+    });
+
+    it('flows on without holding through estimated boundaries, one spoken word per word', async () => {
+      const { t, speech } = await spoken(TEXT, true);
+      speech.spoken[0].start();
+      const frames = sample(t, 60);
+      // 60 frames at 200 ms per spoken word cross several estimated boundaries.
+      expect(new Set(frames.map((f) => f.index)).size).toBeGreaterThan(3);
+      frames.forEach((f, i) => {
+        if (i > 0) expect(f.x).toBeGreaterThanOrEqual(frames[i - 1].x - 1e-6);
+      });
+      const still = frames.filter((f, i) => i > 0 && f.x <= frames[i - 1].x + 1e-6);
+      expect(still.length).toBeLessThanOrEqual(1);
     });
 
     it('retargets an early boundary from the current position, without a jump', async () => {
