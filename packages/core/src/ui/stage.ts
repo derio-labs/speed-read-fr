@@ -11,7 +11,7 @@ import { PROBE_TEXT } from './chunk-fit';
 import { createDialStrip, wheelDelta, type DialStrip } from './dial-strip';
 import { append, replaceChildren, type Child } from './dom';
 import { chipLabel, EXHIBIT_LABELS, formatDuration, plural } from './format';
-import { anchorX, firstLetter, focusWidth, glideMs, inBracket, overlapping, pointAnchor, runBounds, runWindow, slideX, type Anchor, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
+import { anchorX, firstLetter, focusWidth, glideMs, overlapping, pointAnchor, runBounds, runWindow, slideX, type Anchor, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
 
 type ChunkStep = Extract<Step, { kind: 'chunk' | 'item-chunk' }>;
 
@@ -286,12 +286,10 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   function markBracket(r: Ribbon, x: number) {
     const now = new Set<number>();
     if (!r.hidden) {
-      // Only the spans near the target can overlap it: the bracket's screen interval, in line coordinates.
+      // The bracket's screen interval in line coordinates (a word sits at start - x + row / 2 on screen).
       const lo = r.bracket.x + x - r.row / 2;
       const [first, end] = overlapping(r.spans, lo, lo + r.bracket.w);
-      for (let at = first; at < end; at++) {
-        if (inBracket({ span: r.spans[at], x, row: r.row, target: r.bracket })) now.add(r.order[at]);
-      }
+      for (let at = first; at < end; at++) now.add(r.order[at]);
     }
     for (const step of r.marked) if (!now.has(step)) r.words.get(step)?.el.removeAttribute('data-in');
     for (const step of now) if (!r.marked.has(step)) r.words.get(step)?.el.setAttribute('data-in', '');

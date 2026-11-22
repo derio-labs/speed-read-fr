@@ -11,7 +11,6 @@ import {
   firstLetter,
   focusWidth,
   glideMs,
-  inBracket,
   runBounds,
   runWindow,
   type WordSpan,
@@ -144,27 +143,6 @@ describe('firstLetter', () => {
   });
 });
 
-describe('inBracket', () => {
-  // Row 400, bracket 100 wide at x 150: [150, 250). A word at line start s with the line at x sits at s - x + 200.
-  const target = { x: 150, w: 100 };
-  const row = 400;
-  it('is true when the word overlaps the bracket by a sliver', () => {
-    // right edge = 150.1: start 100.1 - x 0 + 200 - ... use x so left = 100.1, width 50
-    expect(inBracket({ span: { start: 100.1 - 200, width: 50 }, x: 0, row, target })).toBe(true);
-  });
-  it('is false when the word only touches the bracket, on either side', () => {
-    expect(inBracket({ span: { start: 100 - 200, width: 50 }, x: 0, row, target })).toBe(false);
-    expect(inBracket({ span: { start: 250 - 200, width: 50 }, x: 0, row, target })).toBe(false);
-  });
-  it('is true when the word spans the whole bracket', () => {
-    expect(inBracket({ span: { start: 100 - 200, width: 200 }, x: 0, row, target })).toBe(true);
-  });
-  it('follows the line offset', () => {
-    expect(inBracket({ span: { start: 0, width: 50 }, x: 0, row, target })).toBe(true);
-    expect(inBracket({ span: { start: 0, width: 50 }, x: 100, row, target })).toBe(false);
-  });
-});
-
 describe('anchorX', () => {
   // widths 40, 60, 20, 30 with a 10px gap: starts 0, 50, 120, 150; mids 20, 80, 130, 165.
   const sp = spans([40, 60, 20, 30]);
@@ -233,6 +211,24 @@ describe('overlapping', () => {
     expect(overlapping(sp, 40, 50)).toEqual([1, 1]);
     expect(overlapping(sp, -10, 500)).toEqual([0, 4]);
     expect(overlapping(sp, 180, 300)).toEqual([4, 4]);
+  });
+  it('counts a sliver of overlap, on either side', () => {
+    expect(overlapping(sp, 109.9, 115)).toEqual([1, 2]);
+    expect(overlapping(sp, 112, 120.1)).toEqual([2, 3]);
+  });
+  it('does not count a span that only touches an end, on either side', () => {
+    // [110, 120) is the gap between spans 1 and 2: touching 1's right edge and 2's left edge.
+    expect(overlapping(sp, 110, 120)).toEqual([2, 2]);
+    expect(overlapping(sp, 40, 50)).toEqual([1, 1]);
+  });
+  it('counts a span that covers the whole interval', () => {
+    expect(overlapping(sp, 60, 100)).toEqual([1, 2]);
+  });
+  it('follows the interval as the line offset moves it', () => {
+    // A 30-wide bracket at screen x 0 with the line at offset x sits at line (x, x + 30).
+    expect(overlapping(sp, 0, 30)).toEqual([0, 1]);
+    expect(overlapping(sp, 45, 75)).toEqual([1, 2]);
+    expect(overlapping(sp, 112, 142)).toEqual([2, 3]);
   });
   it('agrees with a full scan', () => {
     for (let lo = -20; lo < 200; lo += 7) {

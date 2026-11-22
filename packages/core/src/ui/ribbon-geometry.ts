@@ -89,15 +89,6 @@ export function firstLetter(text: string): [number, number] | null {
   return null;
 }
 
-/** Where a word's left edge sits on screen: its line position, less the shared offset, plus the middle row's half-row shift. */
-export const screenLeft = (span: { start: number }, x: number, row: number): number => span.start - x + row / 2;
-
-/** Whether any part of the word sits inside the bracket (touching an edge does not count). */
-export function inBracket({ span, x, row, target }: { span: { start: number; width: number }; x: number; row: number; target: { x: number; w: number } }): boolean {
-  const left = screenLeft(span, x, row);
-  return left < target.x + target.w && left + span.width > target.x;
-}
-
 /**
  * A point on the ribbon's line, named by the word it belongs to (a step index) so that it survives the
  * spans being measured again: the word's middle; the handover `before` it (from the previous word) or
@@ -153,7 +144,10 @@ export function pointAnchor(spans: readonly WordSpan[], order: readonly number[]
   return between({ word: order[lo], at: 'mid' }, { word: order[lo + 1], at: 'mid' }, spans[lo].mid, spans[lo + 1].mid);
 }
 
-/** Indices `[first, end)` of the spans (in line order) that overlap the line interval `(lo, hi)`. */
+/**
+ * Indices `[first, end)` of the spans (in line order, not overlapping one another) with any part inside the
+ * open line interval `(lo, hi)`: a span that only touches an end does not count.
+ */
 export function overlapping(spans: readonly WordSpan[], lo: number, hi: number): [number, number] {
   // First span whose right edge is past lo.
   let a = 0;
