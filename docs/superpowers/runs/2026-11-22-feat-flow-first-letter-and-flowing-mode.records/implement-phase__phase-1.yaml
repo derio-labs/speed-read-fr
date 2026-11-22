@@ -20,7 +20,6 @@ evidence:
   tests: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/e5d9083a-87da-472c-aaf7-3850919c84c7/scratchpad/phase1-suite.log
 visual:
   - row: reader-flow-first-letter
-    script: tests/e2e/core.spec.ts
     shots:
       - {path: .visual/2026-11-22-flow-first-letter-and-flowing/word-by-word-first-letters.png, shows: ["word-by-word flow playing with several words inside the bracket, each with a red first letter", "top and bottom rows with no red letters"]}
       - {path: .visual/2026-11-22-flow-first-letter-and-flowing/word-by-word-after-leaving.png, shows: ["top and bottom rows with no red letters", "play in both motions and watch letters turn red on entering and clear on leaving"]}
@@ -34,7 +33,6 @@ visual:
       - {path: .visual/2026-11-22-flow-first-letter-and-flowing/focus-span-6.png, shows: ["focus span at 6 and at 40"]}
       - {path: .visual/2026-11-22-flow-first-letter-and-flowing/focus-span-40.png, shows: ["focus span at 6 and at 40"]}
   - row: reader-flowing-motion
-    script: tests/e2e/core.spec.ts
     shots:
       - {path: .visual/2026-11-22-flow-first-letter-and-flowing/settings-default-flowing.png, shows: ["Settings showing Flow motion = Flowing by default, hidden in chunk mode"]}
       - {path: .visual/2026-11-22-flow-first-letter-and-flowing/settings-chunk-hidden.png, shows: ["Settings showing Flow motion = Flowing by default, hidden in chunk mode"]}
