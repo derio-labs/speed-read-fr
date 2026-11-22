@@ -562,7 +562,7 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       frame: frames,
       layout: mode === 'overlay' ? 'floating' : 'panel',
       bottomStage: true,
-      hostSettings: ['pageFade'],
+      hostSettings: ['pageFade', 'display'],
     });
     // Overlay: every wheel event on the page turns the dial, except where the reader scrolls its own
     // content; zoom (ctrl/meta) and horizontal swipes stay the browser's.

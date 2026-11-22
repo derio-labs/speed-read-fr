@@ -39,7 +39,7 @@ function open() {
   const bottomStage = params.has('bottomStage');
   const layoutParam = params.get('layout');
   const layout = layoutParam === 'floating' || (bottomStage && layoutParam !== 'panel') ? 'floating' : 'panel';
-  handle = mountReader(container, extract(content), { settings: DEFAULT_SETTINGS, store, host, layout, bottomStage });
+  handle = mountReader(container, extract(content), { settings: DEFAULT_SETTINGS, store, host, layout, bottomStage, hostSettings: ['display'] });
   (window as unknown as { __reader?: ReaderHandle }).__reader = handle;
 }
 

@@ -42,5 +42,5 @@ export interface FrameSource {
   cancel(handle: unknown): void;
 }
 
-/** A setting only some hosts use: `pageFade`, the browser overlay's page strength (R29). */
-export type HostSetting = 'pageFade';
+/** A setting only some hosts use: `pageFade`, the browser overlay's page strength (R29), and `display`, the browser's overlay or side panel. */
+export type HostSetting = 'pageFade' | 'display';

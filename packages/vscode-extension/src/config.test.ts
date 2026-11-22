@@ -43,6 +43,15 @@ describe('VS Code focus span setting', () => {
   });
 });
 
+describe('the display setting', () => {
+  it('is never read from or written to the VS Code configuration', async () => {
+    __stub.setConfig({ 'speedRead.display': 'dock' }, false);
+    expect(readSettings().display).toBe('overlay');
+    await writeSettings({ ...DEFAULT_SETTINGS, display: 'dock', wpm: 350 });
+    expect(__stub.state.configWrites.map((w) => w.key)).toEqual(['speedRead.wpm']);
+  });
+});
+
 describe('migrateFlowDefault', () => {
   const memento = (initial: Record<string, unknown> = {}) => {
     const data = { ...initial };

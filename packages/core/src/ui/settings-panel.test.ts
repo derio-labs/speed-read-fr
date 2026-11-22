@@ -149,6 +149,24 @@ describe('settings panel', () => {
   });
 });
 
+describe('display choice (host setting)', () => {
+  it('shows the Reader field by default, as the browser reader declares it', () => {
+    const t = mountHarness(ARTICLE);
+    expect(open(t).field('display')).not.toBeNull();
+  });
+
+  it('is absent when the host declares no display, and the current choice is kept', async () => {
+    const t = mountHarness(ARTICLE, { display: false, saved: { display: 'dock' } });
+    await t.settle();
+    const { panel, set } = open(t);
+    expect(panel.querySelector('[name="display"]')).toBeNull();
+    expect(panel.textContent).not.toContain('Side panel');
+    set('wpm', '350');
+    expect(t.handle.player.settings.display).toBe('dock');
+    expect(t.handle.player.settings.wpm).toBe(350);
+  });
+});
+
 describe('page fade setting (R29)', () => {
   it('is absent unless the host declares it', () => {
     const t = mountHarness(ARTICLE);

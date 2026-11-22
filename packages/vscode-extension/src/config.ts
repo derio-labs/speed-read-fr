@@ -16,7 +16,8 @@ export function flattenSettings(value: object, prefix = ''): Flat {
   return out;
 }
 
-const KEYS = Object.keys(flattenSettings(DEFAULT_SETTINGS));
+/** `display` (overlay or side panel) is the browser's choice: VS Code always reads in a panel, so it is never read or written. */
+const KEYS = Object.keys(flattenSettings(DEFAULT_SETTINGS)).filter((key) => key !== 'display');
 
 /** The `speedRead.*` configuration as `Settings` (normalized: missing or invalid values are defaults). */
 export function readSettings(): Settings {
