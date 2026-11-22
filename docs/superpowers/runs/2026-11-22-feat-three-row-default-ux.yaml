@@ -3,7 +3,7 @@ run: 2026-11-22-feat-three-row-default-ux
 workflow: fr-goal@1
 branch: feat/three-row-default-ux
 started: '2026-11-22T08:13:01+00:00'
-cursor: plan-review
+cursor: implement
 steps:
   brainstorm:
     state: done
@@ -46,7 +46,11 @@ steps:
           returned: '2026-11-22T08:29:16+00:00'
           outcome: done
   plan-review:
-    state: pending
+    state: done
+    at: '2026-11-22T08:29:18+00:00'
+    exit: 0
+    stdout: |
+      self-review passed
   implement:
     state: pending
     members:
