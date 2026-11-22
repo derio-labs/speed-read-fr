@@ -96,3 +96,21 @@ amendments:
       of being cut off.
     why: 'Spec review s-r3: the cap applies to every bottom-stage host, not only the
       dock'
+  - row: reader-snake-flow
+    op: set-status
+    base: 0
+    status: walked
+    notes: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5:
+      snake Test Plan 1-5 confirmed (flow at 300/600 WPM, wheel both ways, chapter and
+      code cards, speech follow, long inline-code chip)'
+    walk:
+      strategy: live
+      harness: chrome+vscode
+      model: operator
+      outcome: pass
+      at: '2026-11-22T00:00:00Z'
+      evidence: 'operator walk: snake Test Plan 1-5 confirmed (flow at 300/600 WPM,
+        wheel both ways, chapter and code cards, speech follow, long inline-code chip)'
+    why: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5: snake
+      Test Plan 1-5 confirmed (flow at 300/600 WPM, wheel both ways, chapter and code
+      cards, speech follow, long inline-code chip)'
