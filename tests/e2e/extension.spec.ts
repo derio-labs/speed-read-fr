@@ -63,8 +63,14 @@ test.afterAll(async () => {
   rmSync(userDataDir, { recursive: true, force: true });
 });
 
+/**
+ * Most tests here read chunk by chunk, which is no longer the default: each starts from storage that holds the
+ * user's own choice of chunk mode (the one-time flow-default migration has already run for it). The tests of the
+ * default and of the migration clear it first.
+ */
 test.beforeEach(async () => {
   await worker.evaluate(() => chrome.storage.local.clear());
+  await saveSettings({});
 });
 
 test.afterEach(() => {
@@ -100,9 +106,37 @@ const currentChunk = (page: Page) => page.locator('[data-speed-read-host] .sr-ch
 const outlineRows = (page: Page) => page.locator('[data-speed-read-host] .sr-outline-row');
 
 async function saveSettings(settings: Record<string, unknown>) {
-  // Settings a test saves are the user's own choices: the one-time flow-default migration has already run for them.
-  await worker.evaluate((s) => chrome.storage.local.set({ settings: s, migrations: ['flow-default'] }), settings);
+  // Settings a test saves are the user's own choices (chunk mode unless it says otherwise), and the one-time
+  // flow-default migration has already run for them.
+  await worker.evaluate((s) => chrome.storage.local.set({ settings: { readingMode: 'chunk', ...s }, migrations: ['flow-default'] }), settings);
 }
+
+test('with nothing saved the reader opens in three-row flow (R1)', async () => {
+  await worker.evaluate(() => chrome.storage.local.clear());
+  const page = await openPage(ARTICLE);
+  await openReader(page, 'auto');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(host(page).locator('.sr-ribbon-row')).toHaveCount(3);
+});
+
+test('saved chunk mode from before the default moves to flow once, and a later choice of chunk is kept (R2)', async () => {
+  await worker.evaluate(() => chrome.storage.local.clear());
+  await worker.evaluate(() => chrome.storage.local.set({ settings: { readingMode: 'chunk', wpm: 400 } }));
+  let page = await openPage(ARTICLE);
+  await openReader(page, 'auto');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(host(page).locator('.sr-ribbon-row')).toHaveCount(3);
+  expect(await worker.evaluate(() => chrome.storage.local.get(['settings', 'migrations']))).toMatchObject({ settings: { readingMode: 'flow', wpm: 400 }, migrations: ['flow-default'] });
+  // The user picks chunk again (the reader saves it like this): the migration does not run again, so it is kept.
+  await worker.evaluate(() => chrome.storage.local.set({ settings: { readingMode: 'chunk', wpm: 400 } }));
+  page = await openPage(ARTICLE);
+  await openReader(page, 'auto');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await expect(currentChunk(page)).toBeVisible();
+});
 
 test('the reader opens on the main content only', async () => {
   const page = await openPage(ARTICLE);
@@ -129,7 +163,6 @@ test('the reader opens on the main content only', async () => {
 });
 
 test('with a selection it reads the selection', async () => {
-  await saveSettings({ readingMode: 'chunk' });
   const page = await openPage(ARTICLE);
   await page.evaluate(() => {
     const p = document.querySelectorAll('#content > p')[1];
@@ -357,7 +390,8 @@ test('page scripts cannot drive the reader: synthetic keys change nothing in sto
     }
   });
   await expect(page.locator('[data-speed-read-host] .sr-status-wpm')).toHaveText('300 WPM');
-  expect(await worker.evaluate(async () => (await chrome.storage.local.get('settings')).settings)).toBeUndefined();
+  // Storage is what the test started with (the chunk-mode baseline): nothing was written.
+  expect(await worker.evaluate(async () => (await chrome.storage.local.get('settings')).settings)).toEqual({ readingMode: 'chunk' });
 });
 
 test('a page script cannot outline a block or open the reader by dispatching Alt-hover events (l-security-r2)', async () => {
