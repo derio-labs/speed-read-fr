@@ -885,7 +885,7 @@ for (const display of ['dock', 'overlay']) {
 
     test('flow shows three rows with the lit letter on the middle row centre', async () => {
       const page = await openPage(READER_DOCK);
-      await saveSettings({ display, readingMode: 'flow', wpm: 300 });
+      await saveSettings({ display, readingMode: 'flow', flowMotion: 'word', wpm: 300 });
       await openReader(page, 'auto');
       await page.keyboard.press('Space');
       await page.keyboard.press('Space');

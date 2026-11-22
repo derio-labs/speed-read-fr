@@ -203,7 +203,7 @@ const SHOTS = '.visual/snake-shots';
 
 /** A flow-mode reader on the bottom-stage demo (the layout every host ships), in a 1440 px viewport. */
 async function openFlow(page: Page, layout: 'floating' | 'panel', saved: Record<string, unknown> = {}) {
-  await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ readingMode: 'flow', wpm: 120, ...saved })] as const);
+  await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ readingMode: 'flow', flowMotion: 'word', wpm: 120, ...saved })] as const);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${DEMO}?bottomStage&layout=${layout}`);
   await expect(page.locator('.sr-reader')).toBeFocused();
@@ -247,11 +247,11 @@ async function ribbonSample(page: Page) {
       word: w ? { x: w.x, width: w.width, top: w.y, bottom: w.y + w.height } : null,
       target: { x: target.x, width: target.width, top: target.y, bottom: target.y + target.height },
       braces: braces.map((b) => ({ top: b.y, bottom: b.y + b.height, x: b.x, width: b.width })),
-      /** No letter is coloured: the current word has the row's colour and weight, and nothing inside it is styled apart. */
+      /** The current word has the row's colour and weight, and nothing inside it but its first letter is styled apart. */
       word_style: {
         weight: word ? getComputedStyle(word).fontWeight : '',
         color: word ? getComputedStyle(word).color : '',
-        inner: word ? [...word.querySelectorAll('*')].map((e) => getComputedStyle(e).color) : [],
+        inner: word ? [...word.querySelectorAll('*:not(.sr-w-first)')].map((e) => getComputedStyle(e).color) : [],
         coloured: document.querySelectorAll('.sr-flow-mid').length,
       },
       charWidth: (() => { const probe = document.querySelector('.sr-ribbon-probe')!; return probe.getBoundingClientRect().width / probe.textContent!.length; })(),
@@ -263,6 +263,62 @@ async function ribbonSample(page: Page) {
 /** Wait for the ribbon's glide to finish before measuring it. */
 const settleGlide = (page: Page) => page.waitForTimeout(220);
 
+/**
+ * The middle row's words with the colour of the first letter and of the rest, and whether each overlaps the
+ * bracket, measured on the page now: the rule is that exactly the overlapping words have a red first letter.
+ */
+async function letterColours(page: Page) {
+  return page.evaluate(() => {
+    const row = document.querySelector('.sr-ribbon-row[data-position="middle"]')!;
+    const rowBox = row.getBoundingClientRect();
+    const target = document.querySelector('.sr-flow-target')!.getBoundingClientRect();
+    const rowColour = getComputedStyle(row).color;
+    const rowWeight = getComputedStyle(row).fontWeight;
+    const words = [...row.querySelectorAll<HTMLElement>('.sr-w')].flatMap((w, index) => {
+      const box = w.getBoundingClientRect();
+      if (box.right <= rowBox.left || box.left >= rowBox.right) return [];
+      const first = w.querySelector<HTMLElement>('.sr-w-first');
+      return [
+        {
+          index,
+          text: w.textContent ?? '',
+          // How far the word reaches into the bracket (negative: how far outside it is).
+          overlap: Math.min(box.right, target.right) - Math.max(box.left, target.left),
+          marked: w.hasAttribute('data-in'),
+          firstColour: first ? getComputedStyle(first).color : null,
+          firstWeight: first ? getComputedStyle(first).fontWeight : null,
+          wordColour: getComputedStyle(w).color,
+          restColours: [...w.querySelectorAll('*:not(.sr-w-first)')].map((e) => getComputedStyle(e).color),
+        },
+      ];
+    });
+    const others = ['top', 'bottom'].map((p) => [...document.querySelectorAll(`.sr-ribbon-row[data-position="${p}"] .sr-w, .sr-ribbon-row[data-position="${p}"] .sr-w *`)].map((e) => getComputedStyle(e).color));
+    return { rowColour, rowWeight, words, others };
+  });
+}
+
+/** Exactly the words that overlap the bracket have a red, not bold, first letter; everything else keeps the row's colour. */
+async function expectRedFirstLetters(page: Page) {
+  const c = await letterColours(page);
+  let red = 0;
+  for (const w of c.words) {
+    // A word that only just touches the bracket may fall either side of the mark within half a pixel.
+    if (Math.abs(w.overlap) < 0.5) continue;
+    expect(w.marked, `"${w.text}" overlap ${w.overlap}`).toBe(w.overlap > 0);
+    expect(w.wordColour).toBe(c.rowColour);
+    expect(w.restColours.every((x) => x === c.rowColour), `the rest of "${w.text}"`).toBe(true);
+    if (w.firstColour === null) continue;
+    expect(w.firstWeight).toBe(c.rowWeight);
+    if (w.overlap > 0) {
+      expect(w.firstColour, `first letter of "${w.text}" is red`).not.toBe(c.rowColour);
+      red++;
+    } else expect(w.firstColour, `first letter of "${w.text}" is not red`).toBe(c.rowColour);
+  }
+  // The top and bottom rows carry no red letter: all their colours are their own.
+  for (const colours of c.others) expect(new Set(colours).size).toBeLessThanOrEqual(1);
+  return { red, words: c.words, rowColour: c.rowColour };
+}
+
 async function pauseFlow(page: Page) {
   await page.keyboard.press('Space');
   await expect(state(page)).toHaveText('Paused');
@@ -271,7 +327,7 @@ async function pauseFlow(page: Page) {
 
 for (const layout of ['floating', 'panel'] as const) {
   test.describe(`snake flow, bottom stage, ${layout} layout`, () => {
-    test('three rows of consecutive text, the middle letter on the target, a fixed-width bracket and no red letter', async ({ page }) => {
+    test('three rows of consecutive text, the middle letter on the target, a fixed-width bracket and a red first letter in the bracket', async ({ page }) => {
       // Far enough into the text that the top row is full; then back, a word at a time.
       await openFlow(page, layout, { wpm: 600 });
       await startFlow(page);
@@ -308,12 +364,13 @@ for (const layout of ['floating', 'panel'] as const) {
         expect(sample.braces).toHaveLength(2);
         expect(sample.braces[0].bottom).toBeLessThanOrEqual(sample.word!.top + 1);
         expect(sample.braces[1].top).toBeGreaterThanOrEqual(sample.word!.bottom - 1);
-        // No red letter: the word keeps the row's colour and weight.
+        // The word keeps the row's colour and weight; only the first letters of words inside the bracket are red.
         const rowStyle = await page.locator('.sr-ribbon-row[data-position="middle"]').evaluate((e) => ({ color: getComputedStyle(e).color, weight: getComputedStyle(e).fontWeight }));
         expect(sample.word_style.color).toBe(rowStyle.color);
         expect(sample.word_style.weight).toBe(rowStyle.weight);
         expect(sample.word_style.inner.every((c) => c === rowStyle.color)).toBe(true);
         expect(sample.word_style.coloured).toBe(0);
+        expect((await expectRedFirstLetters(page)).red).toBeGreaterThan(0);
         await page.locator('.sr-stage').hover();
         await page.mouse.wheel(0, -120);
         await settleGlide(page);
@@ -876,7 +933,7 @@ const PHASE2_SHOTS = '.visual/phase2-shots';
 
 /** The long-inline-code demo on the bottom stage, in a 1440 px viewport. */
 async function openInline(page: Page, layout: 'floating' | 'panel', saved: Record<string, unknown>) {
-  await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ wpm: 600, ...saved })] as const);
+  await page.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORE_KEY, JSON.stringify({ wpm: 600, flowMotion: 'word', ...saved })] as const);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${DEMO}?bottomStage&layout=${layout}&doc=inline`);
   await expect(page.locator('.sr-reader')).toBeFocused();
@@ -1223,7 +1280,7 @@ async function bracket(page: Page) {
   });
 }
 
-test('flow is the default on first open, with one fixed-width bracket across words, and no red letter', async ({ page }) => {
+test('flow is the default on first open, with one fixed-width bracket across words, and a red first letter only inside it', async ({ page }) => {
   await openFresh(page);
   await page.keyboard.press(',');
   await expect(page.locator('.sr-settings [name="readingMode"]')).toHaveValue('flow');
@@ -1271,16 +1328,17 @@ test('flow is the default on first open, with one fixed-width bracket across wor
     await page.screenshot({ path: `${UX_SHOTS}/flow-step-${i + 1}.png` });
   }
   expect(seen.size).toBe(4);
-  // No letter is red: the current word has the row's colour, and no span is coloured inside it.
+  // Only the first letters of words inside the bracket are red: the current word has the row's colour, and nothing is coloured inside it but that letter.
   const colours = await page.evaluate(() => {
     const row = getComputedStyle(document.querySelector('.sr-ribbon-row[data-position="middle"]')!).color;
     const word = document.querySelector('.sr-w[data-current]')!;
-    return { row, word: getComputedStyle(word).color, inner: [...word.querySelectorAll('*')].map((e) => getComputedStyle(e).color), mid: document.querySelectorAll('.sr-flow-mid').length };
+    return { row, word: getComputedStyle(word).color, inner: [...word.querySelectorAll('*:not(.sr-w-first)')].map((e) => getComputedStyle(e).color), mid: document.querySelectorAll('.sr-flow-mid').length };
   });
   expect(colours.word).toBe(colours.row);
   expect(colours.inner.every((c) => c === colours.row)).toBe(true);
   expect(colours.mid).toBe(0);
-  await page.locator('.sr-display').screenshot({ path: `${UX_SHOTS}/flow-no-red-letter.png` });
+  expect((await expectRedFirstLetters(page)).red).toBeGreaterThan(0);
+  await page.locator('.sr-display').screenshot({ path: `${UX_SHOTS}/flow-red-first-letter.png` });
 });
 
 test('the Focus span setting resizes the bracket at once, from 6 to 40 characters (clamped to the row)', async ({ page }) => {
@@ -1394,4 +1452,126 @@ test('the + button does not move while the speed grows from 975 to 1000 WPM (p1-
   await expect(wpmText(page)).toHaveText('1000 WPM');
   expect(Math.abs((await faster.boundingBox())!.x - before)).toBeLessThan(0.5);
   await page.setViewportSize({ width: 1440, height: 900 });
+});
+
+const FLOW_SHOTS = '.visual/2026-11-22-flow-first-letter-and-flowing';
+/** The middle row's line transform: where the ribbon is on screen. */
+const lineTransform = (page: Page) => page.evaluate(() => getComputedStyle(document.querySelector('.sr-ribbon-row[data-position="middle"] .sr-ribbon-line')!).transform);
+const litWord = (page: Page) => page.locator('.sr-ribbon-row[data-position="middle"] .sr-w[data-current]').textContent();
+
+test.describe('first letter in the bracket and flowing motion', () => {
+  test('in Word by word a first letter is red while its word overlaps the bracket, and clears after it leaves', async ({ page }) => {
+    await openFlow(page, 'floating', { wpm: 100 });
+    await startFlow(page);
+    await expect.poll(async () => (await ribbonSample(page)).index, { timeout: 20_000 }).toBeGreaterThan(8);
+    await pauseFlow(page);
+    const before = await expectRedFirstLetters(page);
+    expect(before.red).toBeGreaterThan(1);
+    await page.locator('.sr-display').screenshot({ path: `${FLOW_SHOTS}/word-by-word-first-letters.png` });
+    const leaving = before.words.find((w) => w.overlap > 0 && w.firstColour !== null)!;
+    await page.evaluate(() => (window as unknown as { __reader: { player: { scrub(n: number): number } } }).__reader.player.scrub(30));
+    await settleGlide(page);
+    const after = await expectRedFirstLetters(page);
+    const same = after.words.find((w) => w.index === leaving.index);
+    if (same) {
+      expect(same.overlap).toBeLessThan(0);
+      expect(same.firstColour).toBe(after.rowColour);
+    }
+    expect(after.red).toBeGreaterThan(1);
+    await page.locator('.sr-display').screenshot({ path: `${FLOW_SHOTS}/word-by-word-after-leaving.png` });
+  });
+
+  test('a word that starts with a digit or punctuation marks its first letter or digit; the focus span moves the marks', async ({ page }) => {
+    await openFlow(page, 'floating', { wpm: 100 });
+    await startFlow(page);
+    await expect.poll(async () => (await ribbonSample(page)).index, { timeout: 20_000 }).toBeGreaterThan(8);
+    await pauseFlow(page);
+    const firsts = await page.evaluate(() => [...document.querySelectorAll('.sr-ribbon-row[data-position="middle"] .sr-w-first')].map((e) => ({ first: e.textContent!, word: e.closest('.sr-w')!.textContent! })));
+    expect(firsts.length).toBeGreaterThan(10);
+    for (const { first, word } of firsts) {
+      expect(first).toMatch(/^[\p{L}\p{N}]$/u);
+      expect(word.slice(0, word.indexOf(first)), `"${word}" starts with what comes before its first letter`).not.toMatch(/[\p{L}\p{N}]/u);
+    }
+    for (const span of ['6', '40']) {
+      await page.keyboard.press(',');
+      await page.locator('.sr-settings [name="focusChars"]').fill(span);
+      await page.keyboard.press('Escape');
+      await settleGlide(page);
+      const marks = await expectRedFirstLetters(page);
+      expect(marks.red, `focus span ${span}`).toBeGreaterThan(0);
+      await page.locator('.sr-display').screenshot({ path: `${FLOW_SHOTS}/focus-span-${span}.png` });
+    }
+  });
+
+  test('in Flowing the ribbon moves within one word\'s time and keeps marking; in Word by word it holds', async ({ page }) => {
+    await openFlow(page, 'floating', { wpm: 100, flowMotion: 'flowing' });
+    await startFlow(page);
+    await expect.poll(async () => (await ribbonSample(page)).index, { timeout: 20_000 }).toBeGreaterThan(3);
+    const a = await lineTransform(page);
+    await page.screenshot({ path: `${FLOW_SHOTS}/flowing-t0.png` });
+    await page.waitForTimeout(60);
+    const b = await lineTransform(page);
+    expect(b, 'the line moved within one word').not.toBe(a);
+    await page.waitForTimeout(120);
+    await page.screenshot({ path: `${FLOW_SHOTS}/flowing-t1.png` });
+    for (let i = 0; i < 4; i++) {
+      await expectRedFirstLetters(page);
+      await page.waitForTimeout(90);
+    }
+    // Pause freezes it where it is; resume carries on from there.
+    await page.keyboard.press('Space');
+    await expect(state(page)).toHaveText('Paused');
+    const frozen = await lineTransform(page);
+    await page.waitForTimeout(250);
+    expect(await lineTransform(page), 'paused mid-slide').toBe(frozen);
+    await expectRedFirstLetters(page);
+    await page.locator('.sr-display').screenshot({ path: `${FLOW_SHOTS}/flowing-paused-mid-slide.png` });
+    await page.keyboard.press('Space');
+    await expect(state(page)).toHaveText('Playing');
+    await page.waitForTimeout(120);
+    expect(await lineTransform(page), 'resumed').not.toBe(frozen);
+    // The wheel steps word by word, as in Word by word.
+    await page.locator('.sr-stage').hover();
+    const at = (await ribbonSample(page)).index;
+    await page.mouse.wheel(0, 120);
+    await expect.poll(async () => (await ribbonSample(page)).index).toBe(at + 1);
+    // Switching to Word by word applies at once: the line stops sliding.
+    await page.keyboard.press(',');
+    await page.locator('.sr-settings [name="flowMotion"]').selectOption('word');
+    await page.keyboard.press('Escape');
+    await expect.poll(async () => (await ribbonSample(page)).index).toBeGreaterThan(at);
+    await page.waitForTimeout(500);
+    let held = false;
+    for (let attempt = 0; attempt < 4 && !held; attempt++) {
+      const word = await litWord(page);
+      await page.waitForTimeout(150);
+      const x = await lineTransform(page);
+      await page.waitForTimeout(100);
+      held = (await lineTransform(page)) === x && (await litWord(page)) === word;
+      if (!held) await page.waitForTimeout(500);
+    }
+    expect(held, 'in Word by word the line holds between steps').toBe(true);
+    await page.screenshot({ path: `${FLOW_SHOTS}/word-by-word-holding.png` });
+  });
+
+  test('the Flow motion field shows Flowing by default in flow mode, is hidden in chunk mode, and the choice persists', async ({ page }) => {
+    await openFresh(page);
+    await page.keyboard.press(',');
+    const field = page.locator('.sr-settings [name="flowMotion"]');
+    await expect(field).toBeVisible();
+    await expect(field).toHaveValue('flowing');
+    await page.screenshot({ path: `${FLOW_SHOTS}/settings-flow-motion.png` });
+    await page.locator('.sr-settings [name="readingMode"]').selectOption('chunk');
+    await expect(field).toBeHidden();
+    await page.screenshot({ path: `${FLOW_SHOTS}/settings-chunk-no-flow-motion.png` });
+    await page.locator('.sr-settings [name="readingMode"]').selectOption('flow');
+    await expect(field).toBeVisible();
+    await expect(field).toHaveValue('flowing');
+    await field.selectOption('word');
+    await page.keyboard.press('Escape');
+    await page.reload();
+    await expect(page.locator('.sr-reader')).toBeFocused();
+    await page.keyboard.press(',');
+    await expect(page.locator('.sr-settings [name="flowMotion"]')).toHaveValue('word');
+  });
 });
