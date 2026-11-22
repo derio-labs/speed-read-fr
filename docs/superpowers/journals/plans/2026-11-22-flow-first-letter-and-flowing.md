@@ -285,3 +285,8 @@ Asserts known values 300->200, 180->333.33, 60->666.67, 1000->111.11; removing t
 ### l-tests-r9-resolved · finding [fixed] · resolves l-tests-r9: garbled leftover comment in inBracket test
 
 Moot: the test was deleted with l-simplicity-r3.
+
+<!-- fr:journal kind=discovery scope=plan id=ci-screenshot-flake created=2026-11-22T18:32:29+00:00 -->
+### ci-screenshot-flake · discovery · Pre-existing CI flake: flow-wide screenshot fails Page.captureScreenshot in the floating layout
+
+The e2e 'the flow window is wider than 1000px…' (floating) failed on main's CI run 45015358247 before this branch and again on PR #21 (run 45050391820) with 'Unable to capture screenshot' — no assertion failed. Hardened in this PR: the screenshot waits for finite CSS animations to finish and retries once on that protocol error (it is a PR artifact, not an assertion).
