@@ -1,0 +1,78 @@
+schema_version: 12
+run: 2026-11-22-feat-flow-first-letter-and-flowing-mode
+step: brainstorm
+outcome: done
+questions: {rounds: 1}
+journal:
+  - kind: discovery
+    input: true
+    id: operator-brief
+    title: Operator brief (verbatim)
+    body: |
+      two changes: 1. in the three row flow mode, the first letter of each word becomes red as soon as it enters inside the red brackets and remains so as long as any part of the word remains inside the brackets. 2. add a modifier to the three row flow mode, word-based vs flowing. The word-based is the current one, the flowing is the same speed but continuous, flowing, without stopping for each word.
+  - kind: decision
+    id: d1-flowing-pace
+    title: "Flowing pace: per-word timing"
+    body: The ribbon slides continuously over each word's own scheduled time (handover point to handover point); average speed equals WPM, pauses become slowdowns. Decided by the operator (recommended option).
+  - kind: decision
+    id: d2-motion-control
+    title: "Control: Settings field 'Flow motion', default Flowing"
+    body: A Flow motion select (Word by word / Flowing) in Settings, saved per host (speedRead.flowMotion in VS Code). Operator chose the recommended field but with Flowing as the default.
+  - kind: decision
+    id: d3-speech-reduced-motion
+    title: "Flowing keeps flowing with speech; reduced motion falls back to word steps"
+    body: With speech on, each spoken/estimated boundary starts a slide toward the next word over its estimated time; reduced motion behaves like Word by word. Decided by the operator.
+  - kind: decision
+    id: d4-verification
+    title: "Verification: unit + Playwright, developer gate"
+    body: Unit tests and Playwright before merge with PR screenshots; developer gate; no post-merge steps. Decided by the operator (recommended option).
+  - kind: decision
+    id: d5-which-words
+    title: "Every middle-row word overlapping the bracket gets its first letter/digit red"
+    body: Follows the brief's explicit "each word"; the letter is the first letter or digit (same alphabet as middleLetter), red not bold. Author's call from the brief text.
+acceptance:
+  - id: reader-flow-first-letter
+    capability: reader-ui
+    acceptance: In three-row flow mode every middle-row word any part of which is inside the red brackets shows its first letter in red, from the moment its leading edge enters until its trailing edge leaves; no other flow letter is red.
+    origin: [spec:2026-11-22-flow-first-letter-and-flowing#R1, spec:2026-11-22-flow-first-letter-and-flowing#R2]
+    status: not-implemented
+    verify: none
+    visual:
+      states:
+        - word-by-word flow playing with several words inside the bracket, each with a red first letter
+        - flowing motion mid-word with one word entering and one leaving the bracket
+        - top and bottom rows with no red letters
+        - a word starting with punctuation or a digit
+        - focus span at 6 and at 40
+      interactions:
+        - play in both motions and watch letters turn red on entering and clear on leaving
+        - pause in flowing with a word half inside the bracket
+  - id: reader-flowing-motion
+    capability: reader-ui
+    acceptance: Flow mode offers a persisted Flow motion choice, Word by word or Flowing (the default); in Flowing the ribbon moves continuously at the set speed without holding on each word, freezes on pause and resumes from there, scrubs word by word, keeps flowing with speech on, and falls back to word steps under reduced motion.
+    origin: [spec:2026-11-22-flow-first-letter-and-flowing#R3, spec:2026-11-22-flow-first-letter-and-flowing#R4, spec:2026-11-22-flow-first-letter-and-flowing#R5, spec:2026-11-22-flow-first-letter-and-flowing#R6, spec:2026-11-22-flow-first-letter-and-flowing#R7]
+    status: not-implemented
+    verify: none
+    visual:
+      states:
+        - Settings showing Flow motion = Flowing by default, hidden in chunk mode
+        - flowing ribbon at two moments within one word's time, visibly moved
+        - word-by-word ribbon holding on a word
+        - paused mid-slide
+      interactions:
+        - switch Flow motion in Settings while reading and see it apply at once
+        - play, pause, resume in flowing
+        - turn the wheel or dial in flowing (word-by-word scrub)
+        - reopen the reader and confirm the choice persisted
+  - row: reader-focus-span
+    op: reword
+    why: The first letter of words inside the bracket is now red (spec 2026-11-22-flow-first-letter-and-flowing R1, R2).
+    acceptance: In flow mode the red brackets have one fixed width, a configurable focus span in characters (default 20, 6-40), centred on the target and the same for every word; the only red letters are the first letters of words inside the brackets.
+  - row: reader-snake-flow
+    op: reword
+    why: Flow mode gains a Flowing motion, the default, beside the word-by-word glide (spec 2026-11-22-flow-first-letter-and-flowing R3, R4).
+    acceptance: In flow mode the reader shows three rows of one continuous text ribbon in a near-full-width window; words flow continuously, or one at a time with a glide, through a fixed-width bracketed target at the middle row's centre, the ribbon wrapping upward bottom to middle to top; the wheel moves it backward or forward word by word, and cards and stops behave as in chunk mode.
+resolves: []
+emitted:
+  spec: docs/superpowers/specs/2026-11-22-flow-first-letter-and-flowing-design.md
+evidence: {}
