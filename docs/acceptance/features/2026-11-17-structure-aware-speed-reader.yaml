@@ -430,6 +430,25 @@ rows:
       - speed-read-fr:tests/package.test.ts
     status: ci
     notes: Verified by the automated suite, which CI runs on every pull request
+  - id: speech-off-gecko-macos
+    capability: Text-to-speech safety in Firefox on macOS
+    acceptance: In Firefox and its forks (Zen) on macOS the reader never calls the speech
+      engine, even with speech saved on; Settings disables the toggle and says why.
+      Other browsers and VS Code are unaffected.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R22
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/tts.test.ts#names a reason for Firefox and Zen
+        on macOS, and none elsewhere
+      - speed-read-fr:packages/core/src/tts.test.ts#a blocked driver is unavailable,
+        never touches the engine, and says why
+      - speed-read-fr:packages/core/src/ui/tts-panel.test.ts#the default driver never
+        speaks, even with speech saved on, and the panel says why
+    status: ci
+    notes: 'Debug 2026-11-22-tts-firefox-noise: Gecko''s macOS speech engine bangs at
+      every utterance end, plays about 2x the asked rate, and jams for good after one
+      cancel; blocked by user agent (a Gecko UA spoofed to another OS is not caught).'
 amendments:
   - row: vscode-cursor-follows
     op: reword
