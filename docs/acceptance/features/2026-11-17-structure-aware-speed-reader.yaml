@@ -445,3 +445,21 @@ amendments:
       page, and page elements fixed to the right edge are moved out from under it.
     why: 'D10: the overlay is no longer a full-page panel over a dimmed page; this row
       keeps the dock, the floating overlay has its own row'
+  - row: browser-floating-overlay-on-sites
+    op: set-status
+    base: 0
+    status: walked
+    notes: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5:
+      structure-aware Test Plan 0 confirmed (faded page, full-strength block, follow,
+      wheel and dial strip)'
+    walk:
+      strategy: live
+      harness: chrome
+      model: operator
+      outcome: pass
+      at: '2026-11-22T00:00:00Z'
+      evidence: 'operator walk: structure-aware Test Plan 0 confirmed (faded page, full-strength
+        block, follow, wheel and dial strip)'
+    why: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5: structure-aware
+      Test Plan 0 confirmed (faded page, full-strength block, follow, wheel and dial
+      strip)'
