@@ -76,6 +76,15 @@ describe('extension settings persistence', () => {
       expect(state.stored[MIGRATIONS_KEY]).toEqual(['flow-default']);
     });
 
+    it('records the id when saving, so a chosen chunk survives a failed migration write (p1-r5)', async () => {
+      const { state, area } = fakeArea({ [SETTINGS_KEY]: { readingMode: 'chunk' }, [MIGRATIONS_KEY]: ['other'] }, 1);
+      const store = extensionStore(area);
+      await store.load(); // the write fails: the id stays unrecorded
+      await store.save({ ...DEFAULT_SETTINGS, readingMode: 'chunk' });
+      expect(state.stored[MIGRATIONS_KEY]).toEqual(['other', 'flow-default']);
+      expect((await store.load()).readingMode).toBe('chunk');
+    });
+
     it('does not touch settings once the id is recorded', async () => {
       const { area } = fakeArea({ [SETTINGS_KEY]: { readingMode: 'chunk' }, [MIGRATIONS_KEY]: ['flow-default'] });
       expect((await extensionStore(area).load()).readingMode).toBe('chunk');

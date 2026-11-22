@@ -32,7 +32,11 @@ export function extensionStore(area: ExtApi['storage']['local']): SettingsStore 
       }
     },
     async save(settings) {
-      await area.set({ [SETTINGS_KEY]: settings });
+      // Saving is the user's own choice: it also records the migration, so a failed migration write cannot
+      // force flow again over a chunk they picked afterwards.
+      const applied = (await area.get(MIGRATIONS_KEY))?.[MIGRATIONS_KEY];
+      const ids = Array.isArray(applied) ? (applied as string[]) : [];
+      await area.set({ [SETTINGS_KEY]: settings, [MIGRATIONS_KEY]: ids.includes(FLOW_DEFAULT) ? ids : [...ids, FLOW_DEFAULT] });
     },
   };
 }
