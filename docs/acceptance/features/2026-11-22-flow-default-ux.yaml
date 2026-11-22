@@ -74,7 +74,7 @@ rows:
 amendments:
   - row: reader-snake-flow
     op: reword
-    base: 0
+    base: 1
     acceptance: In flow mode the reader shows three rows of one continuous text ribbon
       in a near-full-width window; words glide one at a time into a fixed-width bracketed
       target at the middle row's centre, the ribbon wrapping upward bottom to middle
