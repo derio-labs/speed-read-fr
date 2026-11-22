@@ -1,4 +1,5 @@
 import { baseMs } from '../pacing';
+import { ALNUM } from '../text/orp';
 
 /** Pure geometry of the flow-mode ribbon: no DOM, so the renderer only measures and applies it. */
 
@@ -76,4 +77,23 @@ export const GLIDE_MAX_MS = 100;
 export function glideMs({ wpm, distance, rowWidth, reducedMotion }: { wpm: number; distance: number; rowWidth: number; reducedMotion: boolean }): number {
   if (reducedMotion || distance > rowWidth) return 0;
   return Math.min(GLIDE_MAX_MS, baseMs({ wpm }) / 3);
+}
+
+/** Offsets `[start, end)` of the first letter or digit of `text`, as a whole code point; null when it has none. */
+export function firstLetter(text: string): [number, number] | null {
+  let offset = 0;
+  for (const ch of text) {
+    if (ALNUM.test(ch)) return [offset, offset + ch.length];
+    offset += ch.length;
+  }
+  return null;
+}
+
+/** Where a word's left edge sits on screen: its line position, less the shared offset, plus the middle row's half-row shift. */
+export const screenLeft = (span: { start: number }, x: number, row: number): number => span.start - x + row / 2;
+
+/** Whether any part of the word sits inside the bracket (touching an edge does not count). */
+export function inBracket({ span, x, row, target }: { span: { start: number; width: number }; x: number; row: number; target: { x: number; w: number } }): boolean {
+  const left = screenLeft(span, x, row);
+  return left < target.x + target.w && left + span.width > target.x;
 }

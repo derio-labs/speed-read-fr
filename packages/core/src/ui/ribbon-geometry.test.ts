@@ -3,8 +3,10 @@ import {
   GLIDE_MAX_MS,
   RUN_EDGE,
   RUN_WINDOW,
+  firstLetter,
   focusWidth,
   glideMs,
+  inBracket,
   runBounds,
   runWindow,
   type WordSpan,
@@ -117,5 +119,43 @@ describe('focusWidth', () => {
 
   it('is zero without a measure', () => {
     expect(focusWidth({ focusChars: 20, charWidth: 0, row: 1000 })).toBe(0);
+  });
+});
+
+describe('firstLetter', () => {
+  it('finds the first letter or digit as offsets', () => {
+    expect(firstLetter('hello')).toEqual([0, 1]);
+    expect(firstLetter('(Über')).toEqual([1, 2]);
+    expect(firstLetter('42nd')).toEqual([0, 1]);
+    expect(firstLetter('\u27e8code 1\u27e9')).toEqual([1, 2]);
+  });
+  it('is null for a word without a letter or digit', () => {
+    expect(firstLetter('\u2014')).toBeNull();
+    expect(firstLetter('')).toBeNull();
+  });
+  it('returns a whole code point for a surrogate pair', () => {
+    expect(firstLetter('\u{1d4d0}b')).toEqual([0, 2]);
+    expect(firstLetter('"\u{1d4d0}b')).toEqual([1, 3]);
+  });
+});
+
+describe('inBracket', () => {
+  // Row 400, bracket 100 wide at x 150: [150, 250). A word at line start s with the line at x sits at s - x + 200.
+  const target = { x: 150, w: 100 };
+  const row = 400;
+  it('is true when the word overlaps the bracket by a sliver', () => {
+    // right edge = 150.1: start 100.1 - x 0 + 200 - ... use x so left = 100.1, width 50
+    expect(inBracket({ span: { start: 100.1 - 200, width: 50 }, x: 0, row, target })).toBe(true);
+  });
+  it('is false when the word only touches the bracket, on either side', () => {
+    expect(inBracket({ span: { start: 100 - 200, width: 50 }, x: 0, row, target })).toBe(false);
+    expect(inBracket({ span: { start: 250 - 200, width: 50 }, x: 0, row, target })).toBe(false);
+  });
+  it('is true when the word spans the whole bracket', () => {
+    expect(inBracket({ span: { start: 100 - 200, width: 200 }, x: 0, row, target })).toBe(true);
+  });
+  it('follows the line offset', () => {
+    expect(inBracket({ span: { start: 0, width: 50 }, x: 0, row, target })).toBe(true);
+    expect(inBracket({ span: { start: 0, width: 50 }, x: 100, row, target })).toBe(false);
   });
 });

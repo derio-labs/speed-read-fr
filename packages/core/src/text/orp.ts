@@ -4,7 +4,7 @@ export interface OrpSplit {
   after: string;
 }
 
-const ALNUM = /[\p{L}\p{N}]/u;
+export const ALNUM = /[\p{L}\p{N}]/u;
 
 /** Character offsets, in `word`, of its letters and digits. */
 export function alnumOffsets(word: string): number[] {
