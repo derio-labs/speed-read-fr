@@ -48,14 +48,18 @@ acceptance:
     origin: [spec:2026-11-22-flow-default-ux#R3, spec:2026-11-22-flow-default-ux#R4, spec:2026-11-22-flow-default-ux#R5]
     status: not-implemented
     verify: none
-    visual: ["bracket width at default 20 across several steps (short and long words)", "focus span at 6 and at 40 (clamped to the row)", "no red letter in the current word"]
+    visual:
+      states: ["flow mode playing with the bracket at the default 20-character span, on a short and on a long word", "focus span at 6 and at 40 (clamped to the row)", "current word with no red letter"]
+      interactions: ["change Focus span in Settings and see the bracket resize at once", "step several words: bracket width unchanged"]
   - id: reader-wpm-stepper
     capability: reader-ui
     acceptance: In both reading modes the WPM readout has − and + buttons and responds to the mouse wheel, each step changing the speed by 25 WPM within 100-1000 without stopping playback, and the speed is saved.
     origin: [spec:2026-11-22-flow-default-ux#R6]
     status: not-implemented
     verify: none
-    visual: ["− and + beside the readout in chunk and in flow mode", "click + and −, wheel up and down over the readout", "limits: at 100 the − step stays 100, at 1000 the + step stays 1000"]
+    visual:
+      states: ["− and + beside the WPM readout in chunk mode", "− and + beside the WPM readout in flow mode"]
+      interactions: ["click + and −", "wheel up and down over the readout", "limits: − at 100 stays 100, + at 1000 stays 1000"]
   - id: vscode-no-display-choice
     capability: vscode
     acceptance: The VS Code reader offers no overlay / side-panel display choice, in its Settings panel or its contributed settings, while the browser reader still does.
