@@ -148,7 +148,8 @@ describe.skipIf(!bundled)('the bundled VS Code extension (l-tests-r4)', () => {
     const ext = load();
     expect(typeof ext.activate).toBe('function');
     const subscriptions: { dispose(): void }[] = [];
-    ext.activate({ subscriptions, extensionUri: vscodeStub.Uri.file('/ext') });
+    const globalState = { get: () => undefined, update: async () => {} };
+    ext.activate({ subscriptions, extensionUri: vscodeStub.Uri.file('/ext'), globalState });
     const { state } = vscodeStub.__stub;
     expect([...state.commands.keys()].sort()).toEqual(['speedRead.readFile', 'speedRead.readFromCursor', 'speedRead.readFromLine', 'speedRead.readSection', 'speedRead.readSelection']);
     expect(state.codeLensProviders).toHaveLength(1);

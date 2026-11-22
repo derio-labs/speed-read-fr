@@ -80,8 +80,9 @@ Flow shows the text as one continuous ribbon wrapped onto three rows of a much
 wider window (up to 1200 px in the browser overlay, the full panel in the browser dock and VS Code):
 read top left to bottom right, the rows are plain running text, with what you just read on top, the
 current line in the middle and what comes next below. Each step moves the ribbon left by one word, so
-the current word glides onto the middle letter of the middle row's center, inside a red bracket above
-and below the row. The bracket is the span your eye takes in at one glance: one fixed width, the
+the current word glides into a braced target at the center of the middle row, with its middle letter
+on the center, between a red bracket above and below it. The bracket is the span your eye takes in
+at one glance: one fixed width, the
 **Focus span** (20 characters by default, 6-40 in Settings), the same for every word and never wider
 than the row; no letter is coloured red. The wheel or the dial moves the ribbon
 back and forward word by word with the same glide, and reading resumes from the word you reach; under
