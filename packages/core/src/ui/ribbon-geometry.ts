@@ -130,15 +130,42 @@ export function anchorX(spans: readonly WordSpan[], order: readonly number[], an
   }
 }
 
-const sameAnchor = (a: Anchor, b: Anchor): boolean => JSON.stringify(a) === JSON.stringify(b);
-
 /**
- * The anchor a slide `from` → `to` has reached at `progress` (0-1). A slide that began at a frozen point
- * heading for the same end collapses into one frozen point, so repeated pauses never nest deeper than one level.
+ * The pixel `x` as a one-level anchor: between the middles of the two adjacent words around it (the first
+ * word's left edge or the last word's right edge outside them). Freezing a slide through this keeps every
+ * frozen point flat, however many slides were cut short before it. Spans are in line order.
  */
-export function freezeAnchor(from: Anchor, to: Anchor, progress: number): Anchor {
-  if ('between' in from && sameAnchor(from.between[1], to)) return { between: [from.between[0], to], t: from.t + (1 - from.t) * progress };
-  return { between: [from, to], t: progress };
+export function pointAnchor(spans: readonly WordSpan[], order: readonly number[], x: number): Anchor | null {
+  const n = Math.min(spans.length, order.length);
+  if (n === 0) return null;
+  const between = (a: Anchor, b: Anchor, ax: number, bx: number): Anchor => ({ between: [a, b], t: bx > ax ? Math.min(1, Math.max(0, (x - ax) / (bx - ax))) : 0 });
+  if (x <= spans[0].mid) return between({ word: order[0], at: 'begin' }, { word: order[0], at: 'mid' }, spans[0].start, spans[0].mid);
+  const last = n - 1;
+  if (x >= spans[last].mid) return between({ word: order[last], at: 'mid' }, { word: order[last], at: 'end' }, spans[last].mid, spans[last].start + spans[last].width);
+  // The last span whose middle is at or before x.
+  let lo = 0;
+  let hi = last;
+  while (hi - lo > 1) {
+    const m = (lo + hi) >> 1;
+    if (spans[m].mid <= x) lo = m;
+    else hi = m;
+  }
+  return between({ word: order[lo], at: 'mid' }, { word: order[lo + 1], at: 'mid' }, spans[lo].mid, spans[lo + 1].mid);
+}
+
+/** Indices `[first, end)` of the spans (in line order) that overlap the line interval `(lo, hi)`. */
+export function overlapping(spans: readonly WordSpan[], lo: number, hi: number): [number, number] {
+  // First span whose right edge is past lo.
+  let a = 0;
+  let b = spans.length;
+  while (a < b) {
+    const m = (a + b) >> 1;
+    if (spans[m].start + spans[m].width > lo) b = m;
+    else a = m + 1;
+  }
+  let end = a;
+  while (end < spans.length && spans[end].start < hi) end++;
+  return [a, end];
 }
 
 /** Where a slide is at `now`: linear from `fromX` to `toX` over `durationMs`, clamped; at `toX` for no duration. */

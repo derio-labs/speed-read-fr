@@ -1039,6 +1039,37 @@ describe('flowing motion', () => {
       expect(xOf(t)).toBeGreaterThan(before);
     });
 
+    it('stays continuous and forward through a long run of early boundaries', async () => {
+      const { t, speech } = await spoken();
+      t.runFrames(16);
+      let last = xOf(t);
+      // Every boundary of the first sentence arrives a third of a word early: each one cuts the slide short.
+      for (const at of [4, 10, 19, 22]) {
+        t.runFrames(64);
+        const before = xOf(t);
+        expect(before).toBeGreaterThanOrEqual(last - 1e-6);
+        speech.spoken[0].boundary(at);
+        expect(xOf(t)).toBeCloseTo(before, 5);
+        last = before;
+      }
+      t.runFrames(400);
+      expect(xOf(t)).toBeGreaterThan(last);
+    });
+
+    it('keeps a ribbon held without boundaries in place across an item gap', async () => {
+      const { t, speech } = await spoken('<ul><li>first list item that is rather long indeed</li><li>second list item that is also long</li></ul>');
+      // No boundary ever came: the ribbon still rests on the item's first word when the voice ends.
+      speech.spoken[0].end();
+      expect(current(t)).toBe('first');
+      // The first item's eight words are steps 0-7; the gap (step 8) is timed and must not sweep the ribbon across the item.
+      for (let i = 0; i < 50 && t.handle.player.index < 8; i++) t.runFrames(16);
+      expect(t.handle.player.index).toBe(8);
+      const inGap = sample(t, 30).filter((f) => f.index === 8);
+      expect(inGap.length).toBeGreaterThan(1);
+      // 'first' has its middle at 25 and 'list' at 80: the ribbon may finish first's own slide, never sweep past it.
+      for (const f of inGap) expect(f.x).toBeLessThanOrEqual(52.5 + 1e-6);
+    });
+
     it('treats a jump while speaking as a jump: the reached word is placed at once', async () => {
       const { t } = await spoken();
       t.runFrames(100);

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   GLIDE_MAX_MS,
   anchorX,
-  freezeAnchor,
+  overlapping,
+  pointAnchor,
   slideX,
   type Anchor,
   RUN_EDGE,
@@ -194,17 +195,52 @@ describe('anchorX', () => {
   });
 });
 
-describe('freezeAnchor', () => {
-  const a: Anchor = { word: 1, at: 'before' };
-  const b: Anchor = { word: 1, at: 'after' };
-  it('freezes a slide at its progress', () => {
-    expect(freezeAnchor(a, b, 0.5)).toEqual({ between: [a, b], t: 0.5 });
+describe('pointAnchor', () => {
+  // mids 20, 80, 130, 165; first word starts at 0, last ends at 180.
+  const sp = spans([40, 60, 20, 30]);
+  const order = [10, 11, 12, 13];
+  const flat = (a: Anchor | null) => !!a && 'between' in a && a.between.every((b) => !('between' in b));
+
+  it('re-expresses a pixel between the two adjacent word middles, one level deep', () => {
+    const a = pointAnchor(sp, order, 105)!;
+    expect(a).toEqual({ between: [{ word: 11, at: 'mid' }, { word: 12, at: 'mid' }], t: 0.5 });
+    expect(anchorX(sp, order, a)).toBe(105);
   });
-  it('collapses a slide that started from a frozen point of the same run to one level', () => {
-    const first = freezeAnchor(a, b, 0.5);
-    const second = freezeAnchor(first, b, 0.5);
-    expect(second).toEqual({ between: [a, b], t: 0.75 });
-    expect(freezeAnchor(second, b, 0.5)).toEqual({ between: [a, b], t: 0.875 });
+  it("uses the first word's left edge and the last word's right edge outside the middles", () => {
+    expect(anchorX(sp, order, pointAnchor(sp, order, 10)!)).toBe(10);
+    expect(anchorX(sp, order, pointAnchor(sp, order, 172)!)).toBe(172);
+    expect(anchorX(sp, order, pointAnchor(sp, order, 80)!)).toBe(80);
+  });
+  it('stays flat however often a cut-short slide is frozen again', () => {
+    let here: Anchor = { word: 10, at: 'mid' };
+    for (let i = 0; i < 50; i++) {
+      const to: Anchor = { word: order[(i % 3) + 1], at: 'after' };
+      const x = anchorX(sp, order, here) + (anchorX(sp, order, to) - anchorX(sp, order, here)) * 0.3;
+      here = pointAnchor(sp, order, x)!;
+      expect(flat(here)).toBe(true);
+    }
+  });
+  it('is null with no spans', () => {
+    expect(pointAnchor([], [], 5)).toBeNull();
+  });
+});
+
+describe('overlapping', () => {
+  // spans [0,40) [50,110) [120,140) [150,180)
+  const sp = spans([40, 60, 20, 30]);
+  it('finds exactly the spans that overlap an open interval', () => {
+    expect(overlapping(sp, 45, 125)).toEqual([1, 3]);
+    expect(overlapping(sp, 40, 50)).toEqual([1, 1]);
+    expect(overlapping(sp, -10, 500)).toEqual([0, 4]);
+    expect(overlapping(sp, 180, 300)).toEqual([4, 4]);
+  });
+  it('agrees with a full scan', () => {
+    for (let lo = -20; lo < 200; lo += 7) {
+      const hi = lo + 33;
+      const [a, b] = overlapping(sp, lo, hi);
+      const scan = sp.map((s, i) => (s.start < hi && s.start + s.width > lo ? i : -1)).filter((i) => i >= 0);
+      expect(Array.from({ length: b - a }, (_, k) => a + k)).toEqual(scan);
+    }
   });
 });
 

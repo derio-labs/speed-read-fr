@@ -11,7 +11,7 @@ import { PROBE_TEXT } from './chunk-fit';
 import { createDialStrip, wheelDelta, type DialStrip } from './dial-strip';
 import { append, replaceChildren, type Child } from './dom';
 import { chipLabel, EXHIBIT_LABELS, formatDuration, plural } from './format';
-import { anchorX, firstLetter, focusWidth, freezeAnchor, glideMs, inBracket, runBounds, runWindow, slideX, type Anchor, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
+import { anchorX, firstLetter, focusWidth, glideMs, inBracket, overlapping, pointAnchor, runBounds, runWindow, slideX, type Anchor, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
 
 type ChunkStep = Extract<Step, { kind: 'chunk' | 'item-chunk' }>;
 
@@ -279,9 +279,12 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   function markBracket(r: Ribbon, x: number) {
     const now = new Set<number>();
     if (!r.hidden) {
-      r.order.forEach((step, at) => {
-        if (inBracket({ span: r.spans[at], x, row: r.row, target: r.bracket })) now.add(step);
-      });
+      // Only the spans near the target can overlap it: the bracket's screen interval, in line coordinates.
+      const lo = r.bracket.x + x - r.row / 2;
+      const [first, end] = overlapping(r.spans, lo, lo + r.bracket.w);
+      for (let at = first; at < end; at++) {
+        if (inBracket({ span: r.spans[at], x, row: r.row, target: r.bracket })) now.add(r.order[at]);
+      }
     }
     for (const step of r.marked) if (!now.has(step)) r.words.get(step)?.el.removeAttribute('data-in');
     for (const step of now) if (!r.marked.has(step)) r.words.get(step)?.el.setAttribute('data-in', '');
@@ -318,7 +321,11 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   /** Where the ribbon is now, as an anchor: the slide's progress frozen, or where it rests. */
   function hereAnchor(): Anchor | null {
     if (!slide) return rest;
-    return freezeAnchor(slide.from, slide.to, slide.durationMs > 0 ? Math.min(1, Math.max(0, (ctx.scheduler.now() - slide.startedAt) / slide.durationMs)) : 1);
+    const r = ribbon;
+    if (!r) return null;
+    // Re-expressed between two adjacent words, so a chain of cut-short slides (early speech boundaries) never nests.
+    const x = slideX({ fromX: anchorX(r.spans, r.order, slide.from), toX: anchorX(r.spans, r.order, slide.to), startedAt: slide.startedAt, durationMs: slide.durationMs, now: ctx.scheduler.now() });
+    return pointAnchor(r.spans, r.order, x);
   }
 
   /** Write the offset with no glide, and mark the bracket. */
@@ -409,6 +416,9 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     const next = nextWord(index - 1);
     if (!r || next < 0) return;
     stepInfo = null;
+    // Only a ribbon resting on (or sliding off) the item's last word crosses the gap; one held elsewhere (speech
+    // without boundaries, a scrub that landed on the gap) stays put until the next word places it.
+    if (r.hidden || nextWord(r.index) !== next) return;
     startSlide(r, hereAnchor() ?? { word: r.index, at: 'end' }, { word: next, at: 'begin' }, ms);
   }
 
