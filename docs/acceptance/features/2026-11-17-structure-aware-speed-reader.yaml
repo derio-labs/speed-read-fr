@@ -512,3 +512,21 @@ amendments:
         hover, math and Mermaid, cursor follow'
     why: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5: structure-aware
       Test Plan 4 confirmed: commands, CodeLens, hover, math and Mermaid, cursor follow'
+  - row: tts-speaks-in-sync
+    op: set-status
+    base: 0
+    status: failing
+    notes: 'walk 2026-11-22 in Firefox (Zen Browser): with TTS on, speech is incomprehensible,
+      a loud noise follows after ~1 s, and playback no longer advances while TTS stays
+      enabled. Fixing on fix/tts-firefox-noise'
+    walk:
+      strategy: live
+      harness: firefox (Zen Browser)
+      model: operator
+      outcome: fail
+      at: '2026-11-22T00:00:00Z'
+      evidence: 'operator walk: garbled speech, loud noise after ~1 s, playback stalls
+        with TTS on'
+    why: 'walk 2026-11-22 in Firefox (Zen Browser): with TTS on, speech is incomprehensible,
+      a loud noise follows after ~1 s, and playback no longer advances while TTS stays
+      enabled. Fixing on fix/tts-firefox-noise'
