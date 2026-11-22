@@ -15,9 +15,16 @@ rows:
     origin:
     - spec:2026-11-22-flow-first-letter-and-flowing#R1
     - spec:2026-11-22-flow-first-letter-and-flowing#R2
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/ui/ribbon-geometry.test.ts
+      - speed-read-fr:packages/core/src/ui/stage.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: First-letter rule and bracket marks in both motions verified by ribbon-geometry
+      and stage unit tests and Playwright on the bottom-stage demo; CI runs npm test
+      and the e2e suite.
     verify: none
     visual:
       states:
