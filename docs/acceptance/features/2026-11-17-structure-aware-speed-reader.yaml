@@ -580,3 +580,16 @@ amendments:
       1 in 2904 ms, no bang). The bang is Firefox-only, blocked by row speech-off-gecko-macos.
       Still owed: the reader with speech on in Chrome, the offline local voice and the
       network-voice warning (spec Test Plan 5).'
+  - row: speech-off-gecko-macos
+    op: set-status
+    base: 0
+    status: ci
+    notes: 'Debug 2026-11-22-tts-firefox-noise: Gecko''s macOS speech engine bangs at
+      every utterance end, plays about 2x the asked rate, and jams for good after one
+      cancel; blocked by user agent (a Gecko UA spoofed to another OS is not caught).
+      Bringing TTS back to Firefox: issue #16 (optional bundled WASM speech engine).'
+    issues:
+    - derio-labs/speed-read-fr#16
+    why: 'Track bringing TTS back to Firefox (optional bundled WASM speech engine) in
+      issue #16; bookkeeping commit 3eef43b of fix/tts-firefox-noise landed after PR
+      #15 merged'
