@@ -77,3 +77,83 @@ export function glideMs({ wpm, distance, rowWidth, reducedMotion }: { wpm: numbe
   if (reducedMotion || distance > rowWidth) return 0;
   return Math.min(GLIDE_MAX_MS, baseMs({ wpm }) / 3);
 }
+
+/**
+ * A point on the ribbon's line, named by the word it belongs to (a step index) so that it survives the
+ * spans being measured again: the word's middle; the handover `before` it (from the previous word) or
+ * `after` it (to the next one); its right (`end`) or left (`begin`) edge, which bound the gap between two
+ * list items; or a frozen point part-way between two anchors (a paused slide).
+ */
+export type Anchor = { word: number; at: 'mid' | 'before' | 'after' | 'end' | 'begin' } | { between: [Anchor, Anchor]; t: number };
+
+/** Pixels of an anchor on the current spans; `order` lists the step index of each span. */
+export function anchorX(spans: readonly WordSpan[], order: readonly number[], anchor: Anchor): number {
+  if ('between' in anchor) {
+    const from = anchorX(spans, order, anchor.between[0]);
+    return from + (anchorX(spans, order, anchor.between[1]) - from) * anchor.t;
+  }
+  const i = order.indexOf(anchor.word);
+  const span = spans[i];
+  if (!span) return 0;
+  const handover = (other: WordSpan | undefined) => (other ? (other.mid + span.mid) / 2 : span.mid);
+  switch (anchor.at) {
+    case 'mid':
+      return span.mid;
+    case 'before':
+      return handover(spans[i - 1]);
+    case 'after':
+      return handover(spans[i + 1]);
+    case 'end':
+      return span.start + span.width;
+    case 'begin':
+      return span.start;
+  }
+}
+
+/**
+ * The pixel `x` as a one-level anchor: between the middles of the two adjacent words around it (the first
+ * word's left edge or the last word's right edge outside them). Freezing a slide through this keeps every
+ * frozen point flat, however many slides were cut short before it. Spans are in line order.
+ */
+export function pointAnchor(spans: readonly WordSpan[], order: readonly number[], x: number): Anchor | null {
+  const n = Math.min(spans.length, order.length);
+  if (n === 0) return null;
+  const between = (a: Anchor, b: Anchor, ax: number, bx: number): Anchor => ({ between: [a, b], t: bx > ax ? Math.min(1, Math.max(0, (x - ax) / (bx - ax))) : 0 });
+  if (x <= spans[0].mid) return between({ word: order[0], at: 'begin' }, { word: order[0], at: 'mid' }, spans[0].start, spans[0].mid);
+  const last = n - 1;
+  if (x >= spans[last].mid) return between({ word: order[last], at: 'mid' }, { word: order[last], at: 'end' }, spans[last].mid, spans[last].start + spans[last].width);
+  // The last span whose middle is at or before x.
+  let lo = 0;
+  let hi = last;
+  while (hi - lo > 1) {
+    const m = (lo + hi) >> 1;
+    if (spans[m].mid <= x) lo = m;
+    else hi = m;
+  }
+  return between({ word: order[lo], at: 'mid' }, { word: order[lo + 1], at: 'mid' }, spans[lo].mid, spans[lo + 1].mid);
+}
+
+/**
+ * Indices `[first, end)` of the spans (in line order, not overlapping one another) with any part inside the
+ * open line interval `(lo, hi)`: a span that only touches an end does not count.
+ */
+export function overlapping(spans: readonly WordSpan[], lo: number, hi: number): [number, number] {
+  // First span whose right edge is past lo.
+  let a = 0;
+  let b = spans.length;
+  while (a < b) {
+    const m = (a + b) >> 1;
+    if (spans[m].start + spans[m].width > lo) b = m;
+    else a = m + 1;
+  }
+  let end = a;
+  while (end < spans.length && spans[end].start < hi) end++;
+  return [a, end];
+}
+
+/** Where a slide is at `now`: linear from `fromX` to `toX` over `durationMs`, clamped; at `toX` for no duration. */
+export function slideX({ fromX, toX, startedAt, durationMs, now }: { fromX: number; toX: number; startedAt: number; durationMs: number; now: number }): number {
+  if (!(durationMs > 0)) return toX;
+  const progress = Math.min(1, Math.max(0, (now - startedAt) / durationMs));
+  return fromX + (toX - fromX) * progress;
+}

@@ -577,6 +577,35 @@ describe('review p1-r6: replaceTimeline and setSpeed', () => {
   });
 });
 
+describe('setFlowMotion', () => {
+  it('emits settings exactly once when the motion changes, keeping the position and the state', () => {
+    const r = setup(doc(section('s', undefined, prose('Aa bb cc.'))), { ...one, flowMotion: 'word' });
+    r.player.toggle();
+    r.clock.advance(r.steps[0].durationMs!);
+    const steps = r.steps.length;
+    r.player.setFlowMotion('flowing');
+    expect(r.saved.map((s) => s.flowMotion)).toEqual(['flowing']);
+    expect(r.player.settings.flowMotion).toBe('flowing');
+    expect(r.player.index).toBe(1);
+    expect(r.player.state).toBe('playing');
+    expect(r.steps).toHaveLength(steps);
+  });
+
+  it('emits nothing for the motion already set', () => {
+    const r = setup(doc(section('s', undefined, prose('Aa bb.'))), { ...one, flowMotion: 'flowing' });
+    r.player.setFlowMotion('flowing');
+    expect(r.saved).toHaveLength(0);
+  });
+
+  it('does nothing after close', () => {
+    const r = setup(doc(section('s', undefined, prose('Aa bb.'))), { ...one, flowMotion: 'word' });
+    r.player.close();
+    r.player.setFlowMotion('flowing');
+    expect(r.saved).toHaveLength(0);
+    expect(r.player.settings.flowMotion).toBe('word');
+  });
+});
+
 describe('review p1-r7: skipped exhibits are revealed by position passed', () => {
   it('reveals a step-less section of skipped exhibits when playback passes it', () => {
     const d = doc(

@@ -2,15 +2,16 @@ import type { Token } from '../model';
 import { baseMs, sectionEstimate } from '../pacing';
 import type { EndStep, PlayerState, StepEvent } from '../player';
 import { joinTokens } from '../text/chunks';
-import { middleLetter } from '../text/middle';
+import { firstLetter, middleLetter } from '../text/middle';
 import { orp } from '../text/orp';
 import type { Step } from '../timeline';
+import { spokenWordMs } from '../tts';
 import type { ReaderContext, Zone } from './context';
 import { PROBE_TEXT } from './chunk-fit';
 import { createDialStrip, wheelDelta, type DialStrip } from './dial-strip';
 import { append, replaceChildren, type Child } from './dom';
 import { chipLabel, EXHIBIT_LABELS, formatDuration, plural } from './format';
-import { focusWidth, glideMs, runBounds, runWindow, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
+import { anchorX, focusWidth, glideMs, overlapping, pointAnchor, runBounds, runWindow, slideX, type Anchor, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
 
 type ChunkStep = Extract<Step, { kind: 'chunk' | 'item-chunk' }>;
 
@@ -95,6 +96,14 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     return nodes;
   }
 
+  /** A ribbon word's token as nodes, with its first letter or digit wrapped in `span.sr-w-first` (the middle row's red letter). */
+  function markedNodes(token: Token): Child[] {
+    const at = firstLetter(token.text);
+    const text = token.text;
+    const nodes: Child[] = at ? [text.slice(0, at[0]), h('span', { class: 'sr-w-first' }, text.slice(at[0], at[1])), text.slice(at[1])].filter((n) => n !== '') : [text];
+    return token.kind === 'atom' ? [h('span', { class: 'sr-atom' }, ...nodes)] : nodes;
+  }
+
   function setDisplay(kind: string, ...children: Child[]) {
     display.dataset.kind = kind;
     delete display.dataset.wrap;
@@ -128,7 +137,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     window: RunWindow;
     /** Step indices of the words, in line order, and the middle line's span for each. */
     order: number[];
-    words: Map<number, { el: HTMLElement; tokens: Token[] }>;
+    words: Map<number, { el: HTMLElement }>;
     spans: WordSpan[];
     /** Width of a row, measured with the spans. */
     row: number;
@@ -140,28 +149,32 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     index: number;
     hidden: boolean;
     lit: number | null;
+    /** The bracket on the middle row (screen x and width), and the step indices of the words marked inside it. */
+    bracket: { x: number; w: number };
+    marked: Set<number>;
   }
   let ribbon: Ribbon | null = null;
 
   function buildRibbon(run: RunRange, win: RunWindow): Ribbon {
     const steps = ctx.timeline.steps;
     const order: number[] = [];
-    const pieces: ({ step: number; tokens: Token[] } | null)[] = [];
+    // A flow step is one token: flow mode chunks one word per step.
+    const pieces: ({ step: number; token: Token } | null)[] = [];
     for (let i = win.from; i <= win.to; i++) {
       const step = steps[i];
       if (isChunk(step)) {
         order.push(i);
-        pieces.push({ step: i, tokens: step.chunk.tokens });
+        pieces.push({ step: i, token: step.chunk.tokens[0] });
       } else if (step.kind === 'item-gap' && pieces.length > 0 && i < win.to && isChunk(steps[i + 1])) pieces.push(null);
     }
-    const words = new Map<number, { el: HTMLElement; tokens: Token[] }>();
+    const words = new Map<number, { el: HTMLElement }>();
     const line = (position: 'top' | 'middle' | 'bottom') => {
       const children: Child[] = [];
       pieces.forEach((piece, n) => {
         if (n > 0) children.push(' ');
         if (!piece) return children.push(h('span', { class: 'sr-ribbon-sep' }, '•'));
-        const el = h('span', { class: 'sr-w' }, ...tokenNodes(piece.tokens));
-        if (position === 'middle') words.set(piece.step, { el, tokens: piece.tokens });
+        const el = h('span', { class: 'sr-w' }, ...(position === 'middle' ? markedNodes(piece.token) : tokenNodes([piece.token])));
+        if (position === 'middle') words.set(piece.step, { el });
         children.push(el);
       });
       return h('div', { class: 'sr-ribbon-line' }, ...children);
@@ -176,7 +189,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     );
     const probe = h('span', { class: 'sr-ribbon-probe', 'aria-hidden': 'true' }, PROBE_TEXT);
     const el = h('div', { class: 'sr-ribbon' }, ...rows, target, probe);
-    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], row: 0, probe, charWidth: 0, x: null, index: -1, hidden: false, lit: null };
+    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], row: 0, probe, charWidth: 0, x: null, index: -1, hidden: false, lit: null, bracket: { x: 0, w: 0 }, marked: new Set() };
   }
 
   const widthOf = (el: Element) => (typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect().width : 0);
@@ -230,22 +243,31 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
 
   /** Put the current word's middle letter on the target: the shared offset, its glide, and the braces. */
   function placeRibbon(r: Ribbon, index: number, hidden: boolean) {
-    r.index = index;
-    r.hidden = hidden;
-    const row = r.row;
-    const at = r.order.indexOf(index);
-    const span = r.spans[at];
+    cancelSlide();
+    rest = { word: index, at: 'mid' };
+    setCurrent(r, index, hidden);
+    const span = r.spans[r.order.indexOf(index)];
     if (!span) return;
     const x = span.mid;
-    const glide = r.x === null ? 0 : glideMs({ wpm: player.settings.wpm, distance: Math.abs(x - r.x), rowWidth: row, reducedMotion: reducedMotion() });
+    const glide = r.x === null ? 0 : glideMs({ wpm: player.settings.wpm, distance: Math.abs(x - r.x), rowWidth: r.row, reducedMotion: reducedMotion() });
+    applyX(r, x, glide);
+  }
+
+  /** The step on show, and whether the braces are hidden; with them hidden no word is known yet, so none is current. */
+  function setCurrent(r: Ribbon, index: number, hidden: boolean) {
+    r.index = index;
+    r.hidden = hidden;
+    markCurrent(r, hidden ? null : index);
+  }
+
+  /** Write the shared offset with its glide, size the target and mark the bracket. */
+  function applyX(r: Ribbon, x: number, glide = 0) {
     r.x = x;
-    r.el.style.setProperty('--sr-w', String(round(row)));
+    r.el.style.setProperty('--sr-w', String(round(r.row)));
     r.el.style.setProperty('--sr-glide', `${glide}ms`);
     r.el.style.setProperty('--sr-x', String(round(x)));
     sizeTarget(r);
-    r.target.hidden = hidden;
-    // With the braces hidden no word is known yet, so none is current.
-    markCurrent(r, hidden ? null : index);
+    r.target.hidden = r.hidden;
   }
 
   /** The target: the focus span wide (never wider than the row), centred on the row, the same for every word. */
@@ -254,10 +276,162 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     const width = focusWidth({ focusChars, charWidth: r.charWidth, row: r.row });
     r.target.style.setProperty('--sr-target-x', String(round((r.row - width) / 2)));
     r.target.style.setProperty('--sr-target-w', String(round(width)));
+    r.bracket = { x: (r.row - width) / 2, w: width };
+    if (r.x !== null) markBracket(r, r.x);
   }
 
-  /** Show the ribbon around the chunk at `index`; `hidden` hides the braces (a position no one knows yet). */
-  function showFlow(index: number, hidden = false) {
+  /** Mark (`data-in`) exactly the middle-row words with any part inside the bracket for offset `x`; none while the braces are hidden. */
+  function markBracket(r: Ribbon, x: number) {
+    const now = new Set<number>();
+    if (!r.hidden) {
+      // The bracket's screen interval in line coordinates (a word sits at start - x + row / 2 on screen).
+      const lo = r.bracket.x + x - r.row / 2;
+      const [first, end] = overlapping(r.spans, lo, lo + r.bracket.w);
+      for (let at = first; at < end; at++) now.add(r.order[at]);
+    }
+    for (const step of r.marked) if (!now.has(step)) r.words.get(step)?.el.removeAttribute('data-in');
+    for (const step of now) if (!r.marked.has(step)) r.words.get(step)?.el.setAttribute('data-in', '');
+    r.marked = now;
+  }
+
+  /**
+   * Flowing motion. A slide is two anchors and a time: the ribbon's pixels are derived from the anchors on the
+   * spans as they are measured now, so a window rebuild or a resize needs no re-anchoring. With no slide live
+   * the ribbon rests at `rest` (its word's middle once placed, or the point a pause froze it at).
+   */
+  interface Slide {
+    from: Anchor;
+    to: Anchor;
+    startedAt: number;
+    durationMs: number;
+  }
+  let slide: Slide | null = null;
+  let rest: Anchor | null = null;
+  let frameHandle: unknown = null;
+  /** The step on the ribbon while playing: when it began, how long it takes and where its slide ends (for a motion switch mid-step). */
+  let stepInfo: { startedAt: number; ms: number; to: Anchor } | null = null;
+  let lastMotion = player.settings.flowMotion;
+
+  const flowing = () => player.settings.readingMode === 'flow' && player.settings.flowMotion === 'flowing' && !reducedMotion();
+  const liveRibbon = () => (ribbon && ribbon.steps === ctx.timeline.steps && ribbon.el.isConnected && display.dataset.kind === 'flow' ? ribbon : null);
+
+  function cancelSlide() {
+    slide = null;
+    if (frameHandle !== null) ctx.frame.cancel(frameHandle);
+    frameHandle = null;
+  }
+
+  /** The pixel offset of slide `s` now, on the spans as measured. */
+  const slideNowX = (r: Ribbon, s: Slide) =>
+    slideX({ fromX: anchorX(r.spans, r.order, s.from), toX: anchorX(r.spans, r.order, s.to), startedAt: s.startedAt, durationMs: s.durationMs, now: ctx.scheduler.now() });
+
+  /** Where the ribbon is now, as an anchor: the slide's progress frozen, or where it rests. */
+  function hereAnchor(): Anchor | null {
+    if (!slide) return rest;
+    const r = ribbon;
+    if (!r) return null;
+    // Re-expressed between two adjacent words, so a chain of cut-short slides (early speech boundaries) never nests.
+    return pointAnchor(r.spans, r.order, slideNowX(r, slide));
+  }
+
+  function tick() {
+    frameHandle = null;
+    const r = ribbon;
+    const s = slide;
+    if (!r || !s || !r.el.isConnected) return;
+    applyX(r, slideNowX(r, s));
+    if (ctx.scheduler.now() - s.startedAt >= s.durationMs) {
+      rest = s.to;
+      slide = null;
+      return;
+    }
+    frameHandle = ctx.frame.request(tick);
+  }
+
+  function startSlide(r: Ribbon, from: Anchor, to: Anchor, durationMs: number) {
+    cancelSlide();
+    if (!(durationMs > 0)) {
+      rest = to;
+      return applyX(r, anchorX(r.spans, r.order, to));
+    }
+    slide = { from, to, startedAt: ctx.scheduler.now(), durationMs };
+    applyX(r, anchorX(r.spans, r.order, from));
+    frameHandle = ctx.frame.request(tick);
+  }
+
+  /** A pause or stop freezes the slide where it is. */
+  function freezeSlide() {
+    const r = liveRibbon();
+    if (!slide || !r) return cancelSlide();
+    rest = hereAnchor();
+    cancelSlide();
+    applyX(r, anchorX(r.spans, r.order, rest!));
+  }
+
+  const isInlineStop = (step: Step | EndStep | undefined): step is StopStep | DwellStep => !!step && (step.kind === 'stop' || step.kind === 'dwell') && step.inlineIndex !== undefined;
+  /** The word after the one at `i`, past item gaps and inline stops; -1 at the end of the run. */
+  function nextWord(i: number): number {
+    const steps = ctx.timeline.steps;
+    let j = i + 1;
+    while (j < steps.length && (steps[j].kind === 'item-gap' || isInlineStop(steps[j]))) j++;
+    return j < steps.length && isChunk(steps[j]) ? j : -1;
+  }
+  /** Where the word's slide ends: its middle before an inline stop, the gap's edge before a gap, else the handover to the next word. */
+  function endAnchor(i: number): Anchor {
+    const next = ctx.timeline.steps[i + 1];
+    if (next?.kind === 'item-gap') return { word: i, at: 'end' };
+    if (isInlineStop(next)) return { word: i, at: 'mid' };
+    return { word: i, at: 'after' };
+  }
+
+  /** A flow-mode word step, while playing in Flowing: place or continue the slide as the step calls for. */
+  function flowWord(index: number, { ms, to }: { ms: number; to: Anchor }, spoken: boolean) {
+    const live = liveRibbon();
+    const prev = live ? live.index : -1;
+    const here = live ? hereAnchor() : null;
+    const r = showFlow(index)!;
+    setCurrent(r, index, false);
+    // A jump starts from the reached word's middle; resuming the same word starts from where it froze.
+    let from: Anchor = { word: index, at: 'mid' };
+    if (live && prev === index) from = here ?? from;
+    else if (live && nextWord(prev) === index) {
+      const before = ctx.timeline.steps[index - 1];
+      if (spoken || isInlineStop(before)) from = here ?? from;
+      else from = { word: index, at: before?.kind === 'item-gap' ? 'begin' : 'before' };
+    }
+    startSlide(r, from, to, ms);
+  }
+
+  /** The gap between two list items, in Flowing: crossed from the edge of one item to the edge of the next in the gap's time. */
+  function flowGap(index: number, ms: number) {
+    const r = liveRibbon();
+    const next = nextWord(index - 1);
+    if (!r || next < 0) return;
+    stepInfo = null;
+    // Only a ribbon resting on (or sliding off) the item's last word crosses the gap; one held elsewhere (speech
+    // without boundaries, a scrub that landed on the gap) stays put until the next word places it.
+    if (r.hidden || nextWord(r.index) !== next) return;
+    startSlide(r, hereAnchor() ?? { word: r.index, at: 'end' }, { word: next, at: 'begin' }, ms);
+  }
+
+  /** The motion setting changed: Word by word places the current word; Flowing slides on from here over the step's remaining time. */
+  function syncMotion() {
+    const motion = player.settings.flowMotion;
+    if (motion === lastMotion) return;
+    lastMotion = motion;
+    const r = liveRibbon();
+    if (!r) return;
+    if (!flowing()) {
+      cancelSlide();
+      if (!r.hidden) placeRibbon(r, r.index, r.hidden);
+    } else if (player.state === 'playing' && stepInfo && !r.hidden) {
+      const left = Math.max(16, stepInfo.ms - (ctx.scheduler.now() - stepInfo.startedAt));
+      startSlide(r, hereAnchor() ?? { word: r.index, at: 'mid' }, stepInfo.to, left);
+    }
+  }
+
+  /** The ribbon around the chunk at `index`, built (or rebuilt for a new window) and on show; the caller positions it. */
+  function showFlow(index: number): Ribbon | undefined {
     const steps = ctx.timeline.steps;
     const run = runBounds(steps, index);
     if (!run) return;
@@ -267,32 +441,46 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       replaceChildren(details);
       details.hidden = true;
     }
-    const live = ribbon && ribbon.steps === steps && ribbon.el.isConnected && display.dataset.kind === 'flow' && ribbon.run.first === run.first && ribbon.run.last === run.last;
-    const win = runWindow(run, index, live ? ribbon!.window : null);
-    if (!live || ribbon!.window !== win) {
-      const prev = live ? ribbon : null;
-      ribbon = buildRibbon(run, win);
-      setDisplay('flow', ribbon.el);
-      measureRibbon(ribbon);
-      // A new window glides on like any step: start from where the old one stood, then move.
-      if (prev && ribbon.order.includes(prev.index)) {
-        placeRibbon(ribbon, prev.index, prev.hidden);
-        void ribbon.el.offsetWidth;
-      }
+    const lr = liveRibbon();
+    const live = lr && lr.run.first === run.first && lr.run.last === run.last ? lr : null;
+    if (!live) {
+      cancelSlide();
+      rest = null;
     }
-    placeRibbon(ribbon!, index, hidden);
+    const win = runWindow(run, index, live ? live.window : null);
+    if (live && live.window === win) return live;
+    ribbon = buildRibbon(run, win);
+    setDisplay('flow', ribbon.el);
+    measureRibbon(ribbon);
+    // A new window glides on like any step: it starts from where the old one stood. (A slide starts afresh from its anchors.)
+    if (live && ribbon.order.includes(live.index)) {
+      placeRibbon(ribbon, live.index, live.hidden);
+      void ribbon.el.offsetWidth;
+    }
+    return ribbon;
+  }
+
+  /** Show the ribbon around the chunk at `index` with that word on the target; `hidden` hides the braces (a position no one knows yet). */
+  function placeFlow(index: number, hidden = false) {
+    const r = showFlow(index);
+    if (r) placeRibbon(r, index, hidden);
   }
 
   /** Measure and place the ribbon again: after a resize, or a settings change that moves the text. */
   function relayoutRibbon() {
     if (!ribbon || !ribbon.el.isConnected) return;
     measureRibbon(ribbon);
-    ribbon.x = null;
-    placeRibbon(ribbon, ribbon.index, ribbon.hidden);
+    const here = hereAnchor();
+    if (!here) {
+      ribbon.x = null;
+      return placeRibbon(ribbon, ribbon.index, ribbon.hidden);
+    }
+    // The anchors are words, not pixels: the same place, on the spans just measured.
+    applyX(ribbon, slide ? slideNowX(ribbon, slide) : anchorX(ribbon.spans, ribbon.order, here));
   }
 
-  function showChunk(step: ChunkStep, index: number) {
-    if (player.settings.readingMode === 'flow') return showFlow(index);
+  function showChunk(step: ChunkStep, index: number, durationMs: number | null) {
+    if (player.settings.readingMode === 'flow') return showFlowStep(index, durationMs);
     const tokens = step.chunk.tokens;
     const text = joinTokens(tokens);
     let split = orp(text);
@@ -402,7 +590,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
    * prompt shows beside it (the details panel), or in the status line on a reader without one.
    */
   function showInlineStop(step: StopStep | DwellStep, index: number) {
-    showFlow(index - 1);
+    placeFlow(index - 1);
     if (details) {
       replaceChildren(details, step.kind === 'stop' ? stopCard(step) : dwellCard(step));
       details.hidden = false;
@@ -415,11 +603,25 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     return ctx.timeline.steps.filter((s) => s.sectionId === sectionId);
   }
 
-  function showStep(step: Step | EndStep, index: number) {
-    if (step.kind === 'item-gap') return;
+  /** A flow-mode word step: Flowing slides over the step's time while playing; everything else places the word. */
+  function showFlowStep(index: number, durationMs: number | null) {
+    const playing = player.state === 'playing';
+    // A spoken step has no duration of its own: the voice times it, and the slide takes one estimated spoken word.
+    const spoken = playing && durationMs === null && player.settings.tts.enabled;
+    const ms = spoken ? spokenWordMs(player.settings.wpm) : durationMs;
+    stepInfo = playing && ms !== null ? { startedAt: ctx.scheduler.now(), ms, to: endAnchor(index) } : null;
+    if (!flowing() || !stepInfo) return placeFlow(index);
+    flowWord(index, stepInfo, spoken);
+  }
+
+  function showStep(step: Step | EndStep, index: number, durationMs: number | null = null) {
+    if (step.kind === 'item-gap') {
+      if (flowing() && player.state === 'playing' && durationMs !== null) flowGap(index, durationMs);
+      return;
+    }
     inlinePrompt = null;
-    if (step.kind === 'chunk' || step.kind === 'item-chunk') return showChunk(step, index);
-    if ((step.kind === 'stop' || step.kind === 'dwell') && step.inlineIndex !== undefined && player.settings.readingMode === 'flow') return showInlineStop(step, index);
+    if (step.kind === 'chunk' || step.kind === 'item-chunk') return showChunk(step, index, durationMs);
+    if (isInlineStop(step) && player.settings.readingMode === 'flow') return showInlineStop(step, index);
     replaceChildren(sentence);
     switch (step.kind) {
       case 'chapter': {
@@ -562,7 +764,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     if (details && player.settings.readingMode !== 'flow') return; // Keep browser chunk semantics outside flow mode.
     inlinePrompt = null;
     // Flow: the ribbon holds at the sentence's first word, with the braces hidden, until a word is known.
-    if (player.settings.readingMode === 'flow' && isChunk(ctx.timeline.steps[from])) return showFlow(from, true);
+    if (player.settings.readingMode === 'flow' && isChunk(ctx.timeline.steps[from])) return placeFlow(from, true);
     const tokens = ctx.timeline.steps.slice(from, to + 1).flatMap((s) => (isChunk(s) ? s.chunk.tokens : []));
     aligned = null;
     setDisplay('whole', h('div', { class: 'sr-chunk sr-chunk-whole' }, ...tokenNodes(tokens)));
@@ -577,11 +779,17 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     player.on('step', (e: StepEvent) => {
       shown = true;
       if (ctx.timeline.steps.length === 0) showEmpty();
-      else showStep(e.step, e.index);
+      else showStep(e.step, e.index, e.durationMs);
       renderStatus();
     }),
-    player.on('state', renderStatus),
-    player.on('settings', renderStatus),
+    player.on('state', (state) => {
+      if (state !== 'playing') freezeSlide();
+      renderStatus();
+    }),
+    player.on('settings', () => {
+      renderStatus();
+      syncMotion();
+    }),
     ctx.speech.onVoices(renderStatus),
   ];
   /**
@@ -634,7 +842,11 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     refresh() {
       syncInset();
       // A ribbon of the old timeline is stale; one the rebuild's step event just laid out is the live one (a resize still re-places it).
-      if (ribbon && ribbon.steps !== ctx.timeline.steps) ribbon = null;
+      if (ribbon && ribbon.steps !== ctx.timeline.steps) {
+        ribbon = null;
+        cancelSlide();
+        rest = null;
+      }
       // A changed focus span re-sizes the bracket of the ribbon on show, whatever the player is doing.
       else if (ribbon && ribbon.el.isConnected) sizeTarget(ribbon);
       if (!shown) showReady();
@@ -642,6 +854,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     },
     destroy() {
       for (const o of off) o();
+      cancelSlide();
       dial.destroy();
       resize?.disconnect();
       drawer?.disconnect();

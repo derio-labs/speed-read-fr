@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Token } from './model';
 import { fakeClock } from './testing/clock';
 import { fakeSpeech, voice } from './testing/speech';
-import { BOUNDARY_WAIT_MS, createSpeechDriver, speechBlockedReason, speechRate, VOICES_WAIT_MS } from './tts';
+import { BOUNDARY_WAIT_MS, createSpeechDriver, speechBlockedReason, speechRate, spokenWordMs, VOICES_WAIT_MS } from './tts';
 
 const w = (text: string): Token => ({ kind: 'word', text });
 const math = (text: string): Token => ({ kind: 'atom', atom: 'math', text });
@@ -423,5 +423,17 @@ describe('speech driver: Gecko on macOS is blocked (debug 2026-11-22-tts-firefox
   it('an unblocked driver has no reason', () => {
     expect(setup().driver.unavailableReason).toBeNull();
     expect(createSpeechDriver(undefined).unavailableReason).toBeNull();
+  });
+});
+
+describe('spokenWordMs', () => {
+  it('is the estimated time of one spoken word at the speech rate of the speed', () => {
+    expect(spokenWordMs(300)).toBeCloseTo(200, 2);
+    expect(spokenWordMs(180)).toBeCloseTo(333.33, 2);
+  });
+  it('follows the clamped speech rate at both ends', () => {
+    // 60 wpm is below rate 0.5 and 1000 wpm above rate 3: the voice cannot go slower or faster.
+    expect(spokenWordMs(60)).toBeCloseTo(666.67, 2);
+    expect(spokenWordMs(1000)).toBeCloseTo(111.11, 2);
   });
 });

@@ -1,0 +1,97 @@
+# Acceptance rows owned by one feature (spec 2026-11-04-repo-feature-settings R16).
+# The effective matrix is a fold over every fragment in this directory
+# (`fr acceptance status`); it is never stored. Write rows with
+# `fr acceptance add` / `set-status`, never by hand. Keep `rows:` before
+# `amendments:`.
+schema_version: 2
+feature: 2026-11-22-flow-first-letter-and-flowing
+repo: derio-labs/speed-read-fr
+rows:
+  - id: reader-flow-first-letter
+    capability: reader-ui
+    acceptance: In three-row flow mode every middle-row word any part of which is inside
+      the red brackets shows its first letter in red, from the moment its leading edge
+      enters until its trailing edge leaves; no other flow letter is red.
+    origin:
+    - spec:2026-11-22-flow-first-letter-and-flowing#R1
+    - spec:2026-11-22-flow-first-letter-and-flowing#R2
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/ui/ribbon-geometry.test.ts
+      - speed-read-fr:packages/core/src/ui/stage.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: First-letter rule and bracket marks in both motions verified by ribbon-geometry
+      and stage unit tests and Playwright on the bottom-stage demo; CI runs npm test
+      and the e2e suite.
+    verify: none
+    visual:
+      states:
+      - word-by-word flow playing with several words inside the bracket, each with a
+        red first letter
+      - flowing motion mid-word with one word entering and one leaving the bracket
+      - top and bottom rows with no red letters
+      - a word starting with punctuation or a digit
+      - focus span at 6 and at 40
+      interactions:
+      - play in both motions and watch letters turn red on entering and clear on leaving
+      - pause in flowing with a word half inside the bracket
+  - id: reader-flowing-motion
+    capability: reader-ui
+    acceptance: Flow mode offers a persisted Flow motion choice, Word by word or Flowing
+      (the default); in Flowing the ribbon moves continuously at the set speed without
+      holding on each word, freezes on pause and resumes from there, scrubs word by
+      word, keeps flowing with speech on, and falls back to word steps under reduced
+      motion.
+    origin:
+    - spec:2026-11-22-flow-first-letter-and-flowing#R3
+    - spec:2026-11-22-flow-first-letter-and-flowing#R4
+    - spec:2026-11-22-flow-first-letter-and-flowing#R5
+    - spec:2026-11-22-flow-first-letter-and-flowing#R6
+    - spec:2026-11-22-flow-first-letter-and-flowing#R7
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/ui/ribbon-geometry.test.ts
+      - speed-read-fr:packages/core/src/ui/stage.test.ts
+      - speed-read-fr:packages/core/src/settings.test.ts
+      - speed-read-fr:packages/core/src/ui/settings-panel.test.ts
+      - speed-read-fr:packages/vscode-extension/src/manifest.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Flowing slide, gap, inline stop, pause, jump, scrub, speech, window rebuild,
+      reduced motion and the live setting verified by unit tests with a fake clock and
+      frames, and Playwright sampling the ribbon's motion; CI runs npm test and the
+      e2e suite.
+    verify: none
+    visual:
+      states:
+      - Settings showing Flow motion = Flowing by default, hidden in chunk mode
+      - flowing ribbon at two moments within one word's time, visibly moved
+      - word-by-word ribbon holding on a word
+      - paused mid-slide
+      interactions:
+      - switch Flow motion in Settings while reading and see it apply at once
+      - play, pause, resume in flowing
+      - turn the wheel or dial in flowing (word-by-word scrub)
+      - reopen the reader and confirm the choice persisted
+amendments:
+  - row: reader-focus-span
+    op: reword
+    base: 0
+    acceptance: In flow mode the red brackets have one fixed width, a configurable focus
+      span in characters (default 20, 6-40), centred on the target and the same for
+      every word; the only red letters are the first letters of words inside the brackets.
+    why: The first letter of words inside the bracket is now red (spec 2026-11-22-flow-first-letter-and-flowing
+      R1, R2).
+  - row: reader-snake-flow
+    op: reword
+    base: 2
+    acceptance: In flow mode the reader shows three rows of one continuous text ribbon
+      in a near-full-width window; words flow continuously, or one at a time with a
+      glide, through a fixed-width bracketed target at the middle row's centre, the
+      ribbon wrapping upward bottom to middle to top; the wheel moves it backward or
+      forward word by word, and cards and stops behave as in chunk mode.
+    why: Flow mode gains a Flowing motion, the default, beside the word-by-word glide
+      (spec 2026-11-22-flow-first-letter-and-flowing R3, R4).

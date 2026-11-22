@@ -112,7 +112,9 @@ function defaultFrame(win: Window): FrameSource {
   return { request: (fn) => win.setTimeout(() => fn(win.performance?.now() ?? Date.now()), 16), cancel: (handle) => win.clearTimeout(handle as number) };
 }
 
-const sameExceptSpeed = (a: Settings, b: Settings) => JSON.stringify({ ...a, wpm: 0 }) === JSON.stringify({ ...b, wpm: 0 });
+/** Equal apart from the settings the player applies to the run it has (speed, flow motion): neither changes the timeline. */
+const sameExceptLive = (a: Settings, b: Settings) =>
+  JSON.stringify({ ...a, wpm: 0, flowMotion: 'word' }) === JSON.stringify({ ...b, wpm: 0, flowMotion: 'word' });
 
 /** Build the reader inside `root` (spec section 6). */
 export function mountReader(root: Element | ShadowRoot, doc: Doc, options: MountOptions): ReaderHandle {
@@ -225,7 +227,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     player.on('position', (e) => host.onPosition(e.source)),
     // The player only changes the speed; its settings carry the effective limits, which are not saved.
     player.on('settings', (next) => {
-      settings = { ...settings, wpm: next.wpm };
+      settings = { ...settings, wpm: next.wpm, flowMotion: next.flowMotion };
       if (saving) saveSettings(settings);
     }),
     player.on('state', (state) => {
@@ -237,10 +239,11 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   /** Apply new settings at once: speed alone goes to the player, anything else rebuilds the timeline. */
   function applySettings(next: Settings, save = true) {
     next = normalizeSettings(next);
-    if (sameExceptSpeed(next, settings)) {
+    if (sameExceptLive(next, settings)) {
       saving = save;
       try {
         if (next.wpm !== settings.wpm) player.setSpeed(next.wpm);
+        if (next.flowMotion !== settings.flowMotion) player.setFlowMotion(next.flowMotion);
       } finally {
         saving = true;
       }

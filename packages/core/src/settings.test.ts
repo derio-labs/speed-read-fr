@@ -18,6 +18,15 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.tts).toEqual({ enabled: false, voiceURI: null });
     expect(DEFAULT_SETTINGS.readingMode).toBe('flow');
     expect(DEFAULT_SETTINGS.focusChars).toBe(20);
+    expect(DEFAULT_SETTINGS.flowMotion).toBe('flowing');
+  });
+});
+
+describe('normalizeSettings flowMotion', () => {
+  it('defaults to flowing, keeps word, and reads an unknown value as flowing', () => {
+    expect(normalizeSettings({}).flowMotion).toBe('flowing');
+    expect(normalizeSettings({ flowMotion: 'word' }).flowMotion).toBe('word');
+    expect(normalizeSettings({ flowMotion: 'sideways' as never }).flowMotion).toBe('flowing');
   });
 });
 

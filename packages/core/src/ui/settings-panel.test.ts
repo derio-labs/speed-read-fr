@@ -231,3 +231,38 @@ describe('focus inside a shadow root (the browser extension; l-tests-r1)', () =>
     handle.destroy();
   });
 });
+
+describe('flow motion field', () => {
+  const wrapper = (panel: Element) => panel.querySelector('[name="flowMotion"]')!.closest('.sr-field') as HTMLElement;
+
+  it('is hidden while Reading mode is chunk and shown after switching to flow', () => {
+    const t = mountHarness(ARTICLE, { settings: chunkSettings });
+    const { panel, set } = open(t);
+    expect(wrapper(panel).hidden).toBe(true);
+    set('readingMode', 'flow');
+    expect(wrapper(panel).hidden).toBe(false);
+    set('readingMode', 'chunk');
+    expect(wrapper(panel).hidden).toBe(true);
+  });
+
+  it('is shown in flow, populated with the stored value, and applies what is picked', () => {
+    const t = mountHarness(ARTICLE, { settings: { readingMode: 'flow', flowMotion: 'word' } });
+    const { panel, field, set } = open(t);
+    expect(wrapper(panel).hidden).toBe(false);
+    expect(field('flowMotion').value).toBe('word');
+    expect([...field('flowMotion').options].map((o) => o.textContent)).toEqual(['Word by word', 'Flowing']);
+    set('flowMotion', 'flowing');
+    expect(t.handle.player.settings.flowMotion).toBe('flowing');
+  });
+
+  it('keeps the stored value while the field is hidden', () => {
+    const t = mountHarness(ARTICLE, { settings: { readingMode: 'flow', flowMotion: 'word' } });
+    const { field, set } = open(t);
+    set('readingMode', 'chunk');
+    expect(t.handle.player.settings.flowMotion).toBe('word');
+    expect(t.handle.player.settings.readingMode).toBe('chunk');
+    field('flowMotion').value = 'flowing'; // not applied: hidden fields are not read
+    set('wpm', '350');
+    expect(t.handle.player.settings.flowMotion).toBe('word');
+  });
+});

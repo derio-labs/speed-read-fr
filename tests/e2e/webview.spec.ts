@@ -76,7 +76,7 @@ test('the webview Settings panel has a Focus span field and no Reader (overlay /
 });
 
 test('flow mode in the webview reads a three-row ribbon across the panel with the middle letter on the target', async ({ page }) => {
-  await open(page, { ...FAST, readingMode: 'flow', wpm: 300 });
+  await open(page, { ...FAST, readingMode: 'flow', flowMotion: 'word', wpm: 300 });
   await page.keyboard.press('Space');
   await expect(page.locator('.sr-ribbon-row')).toHaveCount(3, { timeout: 20_000 });
   await expect(page.locator('.sr-w[data-current]')).toHaveCount(1);

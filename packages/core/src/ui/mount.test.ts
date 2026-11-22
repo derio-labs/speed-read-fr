@@ -224,3 +224,28 @@ describe('a store that refuses a save (l-errors-r3)', () => {
     expect(note(t)).toBeNull();
   });
 });
+
+describe('flow motion is a live setting', () => {
+  it('changes without rebuilding the timeline, moving the position, or restarting the sentence, and is saved', async () => {
+    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta eta theta.</p>', { settings: { readingMode: 'flow', flowMotion: 'flowing', chunkWords: 1 } });
+    await t.settle();
+    t.handle.player.toggle();
+    t.clock.advance(t.clock.nextIn()!);
+    t.clock.advance(t.clock.nextIn()!);
+    const player = t.handle.player;
+    const at = player.index;
+    expect(at).toBeGreaterThan(1);
+    const seen: unknown[] = [];
+    player.on('settings', (s) => seen.push(s.flowMotion));
+    t.store.save.mockClear();
+    t.q<HTMLButtonElement>('.sr-settings-button')!.click();
+    const select = t.q<HTMLSelectElement>('.sr-settings [name="flowMotion"]')!;
+    select.value = 'word';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(player.index).toBe(at);
+    expect(player.state).toBe('playing');
+    expect(seen).toEqual(['word']);
+    expect(player.settings.flowMotion).toBe('word');
+    expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ flowMotion: 'word' }));
+  });
+});

@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { orp } from '../text/orp';
 import { ARTICLE, mountHarness, chunkSettings } from '../testing/reader';
+import { fakeSpeech, voice } from '../testing/speech';
+import { createSpeechDriver } from '../tts';
 import { formatDuration } from './format';
 
 afterEach(() => {
@@ -81,11 +83,15 @@ function stubRibbonLayout() {
   });
   (Range.prototype as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = function (this: Range) {
     const word = this.startContainer.parentElement!.closest('.sr-w')!;
-    return rect(left(word) + this.startOffset * 10, (this.endOffset - this.startOffset) * 10);
+    // The offset of the range's start in the word's text, across the text nodes the first-letter span splits it into.
+    const walker = document.createTreeWalker(word, 4 /* SHOW_TEXT */);
+    let before = 0;
+    for (let node = walker.nextNode(); node && node !== this.startContainer; node = walker.nextNode()) before += (node as Text).data.length;
+    return rect(left(word) + (before + this.startOffset) * 10, (this.endOffset - this.startOffset) * 10);
   };
 }
 
-const flowOpts = { readingMode: 'flow' as const };
+const flowOpts = { readingMode: 'flow' as const, flowMotion: 'word' as const };
 /** The word on the ribbon's target. */
 const current = (t: ReturnType<typeof mountHarness>) => text(t.q('.sr-ribbon-row[data-position="middle"] .sr-w[data-current]'));
 const rowText = (t: ReturnType<typeof mountHarness>, position: string) => text(t.q(`.sr-ribbon-row[data-position="${position}"]`));
@@ -107,7 +113,8 @@ describe('flow mode ribbon', () => {
     expect(t.q('.sr-flow-row')).toBeNull();
   });
 
-  it('colours no letter of the current word, marking the word itself with data-current', () => {
+  it('marks the current word with data-current and colours only the first letter of in-bracket words', () => {
+    stubRibbonLayout();
     const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
     t.handle.player.toggle();
     expect(t.q('.sr-flow-mid')).toBeNull();
@@ -115,10 +122,94 @@ describe('flow mode ribbon', () => {
     expect(t.qa('.sr-w[data-current]')).toHaveLength(1);
     expect(t.q('.sr-w[data-current]')!.closest('.sr-ribbon-row')!.getAttribute('data-position')).toBe('middle');
     t.clock.advance(t.clock.nextIn()!);
-    expect(t.q('.sr-flow-mid')).toBeNull();
     expect(current(t)).toBe('beta');
     expect(t.qa('.sr-w[data-current]')).toHaveLength(1);
     expect(rowText(t, 'middle')).toBe('alpha beta gamma.');
+  });
+
+  describe('red first letter in the bracket', () => {
+    const inMarked = (t: ReturnType<typeof mountHarness>) => t.qa('.sr-ribbon-row[data-position="middle"] .sr-w[data-in]').map((w) => text(w));
+
+    it('wraps the first letter of each middle-row word, and only there', () => {
+      stubRibbonLayout();
+      const t = mountHarness('<p>alpha (Beta) 42nd.</p>', { settings: flowOpts });
+      t.handle.player.toggle();
+      expect(t.qa('.sr-ribbon-row[data-position="middle"] .sr-w-first').map((e) => e.textContent)).toEqual(['a', 'B', '4']);
+      expect(t.qa('.sr-ribbon-row:not([data-position="middle"]) .sr-w-first')).toHaveLength(0);
+      expect(t.qa('.sr-w-first').every((e) => e.closest('.sr-w'))).toBe(true);
+      expect(rowText(t, 'middle')).toBe('alpha (Beta) 42nd.');
+    });
+
+    it('leaves a word with no letter unwrapped', () => {
+      stubRibbonLayout();
+      const t = mountHarness('<p>alpha \u2014 beta.</p>', { settings: flowOpts });
+      t.handle.player.toggle();
+      expect(t.qa('.sr-ribbon-row[data-position="middle"] .sr-w-first').map((e) => e.textContent)).toEqual(['a', 'b']);
+    });
+
+    it('marks exactly the middle-row words overlapping the bracket after a step, never top or bottom', () => {
+      stubRibbonLayout();
+      const t = mountHarness('<p>alpha beta gamma delta.</p>', { settings: flowOpts });
+      t.handle.player.toggle();
+      // x = 25: bracket [100, 300); alpha [175,225), beta [235,275), gamma [285,345) overlap, delta [345,..) does not.
+      expect(inMarked(t)).toEqual(['alpha', 'beta', 'gamma']);
+      t.clock.advance(t.clock.nextIn()!);
+      // x = 75: alpha [125,175), beta .., gamma [235,..), delta [295,..) overlap.
+      expect(inMarked(t)).toEqual(['alpha', 'beta', 'gamma', 'delta.']);
+      expect(t.qa('.sr-ribbon-row:not([data-position="middle"]) [data-in]')).toHaveLength(0);
+    });
+
+    it('re-marks when the focus span changes while paused', () => {
+      stubRibbonLayout();
+      const t = mountHarness('<p>alpha beta gamma delta.</p>', { settings: flowOpts });
+      t.handle.player.toggle();
+      t.handle.player.toggle();
+      expect(inMarked(t)).toEqual(['alpha', 'beta', 'gamma']);
+      t.handle.applySettings({ ...t.handle.player.settings, focusChars: 6 });
+      // bracket [170, 230): only alpha [175,225)
+      expect(inMarked(t)).toEqual(['alpha']);
+    });
+
+    it('re-marks when the stage is laid out again (resize)', () => {
+      const observers: { cb: () => void }[] = [];
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(public cb: () => void) {
+            observers.push(this);
+          }
+          observe() {}
+          disconnect() {}
+        },
+      );
+      stubRibbonLayout();
+      const t = mountHarness('<p>alpha beta gamma delta.</p>', { settings: flowOpts });
+      t.handle.player.toggle();
+      t.handle.player.toggle();
+      expect(inMarked(t)).toEqual(['alpha', 'beta', 'gamma']);
+      // The row gets narrower, 100px: the bracket is clamped to it, [0,100), and the line sits at left = start - 25 + 50.
+      vi.restoreAllMocks();
+      const rect = (x: number, width: number, height = 0) => ({ width, height, top: 0, left: x, right: x + width, bottom: height, x, y: 0, toJSON() {} }) as DOMRect;
+      const left = (el: Element) => {
+        let x = 0;
+        for (const sibling of Array.from(el.parentElement?.childNodes ?? [])) {
+          if (sibling === el) break;
+          x += (sibling.textContent ?? '').length * 10;
+        }
+        return x;
+      };
+      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+        if (this.classList.contains('sr-ribbon-row')) return rect(0, 100, 40);
+        if (this.classList.contains('sr-ribbon-probe')) return rect(0, (this.textContent ?? '').length * 10);
+        if (this.classList.contains('sr-ribbon-line')) return rect(0, (this.textContent ?? '').length * 10);
+        if (this.classList.contains('sr-w')) return rect(left(this), (this.textContent ?? '').length * 10);
+        return rect(0, 0);
+      });
+      for (const o of observers) o.cb();
+      // alpha [25,75) and beta [85,135) overlap [0,100); gamma [145,..) does not.
+      expect(inMarked(t)).toEqual(['alpha', 'beta']);
+      expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-w')).toBe('100');
+    });
   });
 
   it('gives the braced target one fixed width, the focus span in measured characters, for every word and step', () => {
@@ -301,12 +392,12 @@ describe('flow mode ribbon', () => {
     const t = mountHarness('<p>Run <code>npm ci</code> now.</p>', { settings: flowOpts });
     t.handle.player.toggle();
     expect(t.qa('.sr-ribbon-row[data-position="middle"] .sr-atom').map((a) => a.textContent)).toEqual(['npm ci']);
-    // Reaching the atom keeps it one box, marked as the current word, with nothing coloured inside.
+    // Reaching the atom keeps it one box, marked as the current word, with only its first letter set apart inside.
     t.clock.advance(t.clock.nextIn()!);
     const atoms = t.qa('.sr-ribbon-row[data-position="middle"] .sr-atom');
     expect(atoms).toHaveLength(1);
     expect(current(t)).toBe('npm ci');
-    expect(atoms[0].children).toHaveLength(0);
+    expect([...atoms[0].children].map((c) => c.className)).toEqual(['sr-w-first']);
   });
 });
 
@@ -676,5 +767,383 @@ describe('WPM stepper', () => {
     expect(document.activeElement).toBe(t.reader);
     t.key(' ');
     expect(t.handle.player.state).toBe('paused');
+  });
+});
+
+describe('flowing motion', () => {
+  const flowing = { readingMode: 'flow' as const, flowMotion: 'flowing' as const, chunkWords: 1 };
+  type Harness = ReturnType<typeof mountHarness>;
+  const xOf = (t: Harness) => Number(ribbonVar(t, '--sr-x'));
+  /** Run `frames` frames of 16 ms, returning `--sr-x` and the player's index after each. */
+  const sample = (t: Harness, frames: number) => {
+    const out: { x: number; index: number; marked: string[] }[] = [];
+    for (let i = 0; i < frames; i++) {
+      t.runFrames(16);
+      out.push({ x: xOf(t), index: t.handle.player.index, marked: t.qa('.sr-ribbon-row[data-position="middle"] .sr-w[data-in]').map((w) => text(w)) });
+    }
+    return out;
+  };
+
+  afterEach(() => {
+    delete (Range.prototype as unknown as { getBoundingClientRect?: unknown }).getBoundingClientRect;
+    delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+  });
+
+  it('moves --sr-x up on every frame, within a step and across steps, with no glide', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta eta theta iota kappa.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    const frames = sample(t, 60);
+    expect(new Set(frames.map((f) => f.index)).size).toBeGreaterThan(3);
+    frames.forEach((f, i) => {
+      if (i > 0) expect(f.x).toBeGreaterThan(frames[i - 1].x);
+    });
+    expect(ribbonVar(t, '--sr-glide')).toBe('0ms');
+  });
+
+  it('marks the words whose edge is inside the bracket on every frame', () => {
+    stubRibbonLayout();
+    const words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa.'];
+    const t = mountHarness(`<p>${words.join(' ')}</p>`, { settings: flowing });
+    t.handle.player.toggle();
+    // Words sit at start = sum of (length + 1) x 10; the bracket is [100, 300) on a 400px row.
+    let start = 0;
+    const boxes = words.map((w) => {
+      const box = { w, start, width: w.length * 10 };
+      start += (w.length + 1) * 10;
+      return box;
+    });
+    const seen = new Set<string>();
+    for (const f of sample(t, 90)) {
+      const left = (b: { start: number }) => b.start - f.x + 200;
+      const expected = boxes.filter((b) => left(b) < 300 && left(b) + b.width > 100).map((b) => b.w);
+      expect(f.marked).toEqual(expected);
+      seen.add(expected.join());
+    }
+    expect(seen.size).toBeGreaterThan(2);
+  });
+
+  it('crosses an item gap in its own time, without holding', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<ul><li>first list item that is rather long indeed</li><li>second list item that is also long</li></ul>', { settings: flowing });
+    t.handle.player.toggle();
+    const frames = sample(t, 160);
+    // The first item's eight words are steps 0-7, the gap is step 8.
+    const inGap = frames.filter((f) => f.index === 8);
+    expect(inGap.length).toBeGreaterThan(1);
+    frames.forEach((f, i) => {
+      if (i > 0) expect(f.x).toBeGreaterThan(frames[i - 1].x);
+    });
+    // The line reads "first list item that is rather long indeed • second ...": 'indeed' ends at 420 and
+    // 'second' begins at 450. The gap starts from the one edge, and the next item from the other.
+    const nextItem = sample(t, 10).find((f) => f.index === 9)!;
+    expect(inGap[0].x).toBeGreaterThanOrEqual(420 - 1e-6);
+    expect(inGap[0].x).toBeLessThan(420 + 5);
+    expect(inGap.at(-1)!.x).toBeLessThanOrEqual(450 + 1e-6);
+    expect(nextItem.x).toBeGreaterThanOrEqual(450 - 1e-6);
+    expect(nextItem.x).toBeLessThan(450 + 3);
+  });
+
+  it('ends the word before an inline stop on its middle and holds there, with no back-glide', () => {
+    stubRibbonLayout();
+    const html = '<p>Call <code>x_long_identifier_name_ok</code> then go on.</p>';
+    // The middle of the chip, from the same text in Word by word.
+    const w = mountHarness(html, { settings: { ...flowing, flowMotion: 'word' } });
+    w.handle.player.toggle();
+    for (let i = 0; i < 10 && w.handle.player.state !== 'stopped'; i++) w.clock.advance(w.clock.nextIn()!);
+    expect(w.handle.player.state).toBe('stopped');
+    const chipMid = xOf(w);
+    stubRibbonLayout();
+    const t = mountHarness(html, { settings: flowing });
+    t.handle.player.toggle();
+    const frames: ReturnType<typeof sample> = [];
+    for (let i = 0; i < 100 && t.handle.player.state !== 'stopped'; i++) frames.push(...sample(t, 1));
+    expect(t.handle.player.state).toBe('stopped');
+    frames.push(...sample(t, 10));
+    for (const f of frames.slice(-10)) expect(f.x).toBeCloseTo(chipMid, 5);
+    frames.forEach((f, i) => {
+      if (i > 0) expect(f.x).toBeGreaterThanOrEqual(frames[i - 1].x - 1e-9);
+    });
+  });
+
+  it('freezes on pause and resumes from the frozen point to the same end', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta epsilon.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    sample(t, 4);
+    const frozen = xOf(t);
+    expect(t.handle.player.index).toBe(0);
+    t.handle.player.toggle();
+    expect(t.handle.player.state).toBe('paused');
+    for (const f of sample(t, 10)) expect(f.x).toBe(frozen);
+    t.handle.player.toggle();
+    const after = sample(t, 40);
+    expect(after[0].x).toBeGreaterThanOrEqual(frozen);
+    expect(after[0].x - frozen).toBeLessThan(15);
+    // alpha's middle is 25, beta's 75: the handover that ends alpha's step is 50, which the next step starts from.
+    const firstOfNext = after.find((f) => f.index === 1)!;
+    expect(firstOfNext.x).toBeGreaterThanOrEqual(50 - 1e-6);
+    expect(firstOfNext.x).toBeLessThan(50 + 15);
+    for (const f of after.filter((f) => f.index === 0)) expect(f.x).toBeLessThanOrEqual(50 + 1e-6);
+  });
+
+  it('keeps pausing and resuming monotonic and never nests deeper', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    let last = -Infinity;
+    for (let n = 0; n < 4; n++) {
+      for (const f of sample(t, 2)) {
+        expect(f.x).toBeGreaterThanOrEqual(last);
+        last = f.x;
+      }
+      t.handle.player.toggle();
+      expect(xOf(t)).toBeCloseTo(last, 5);
+      t.handle.player.toggle();
+    }
+  });
+
+  it('glides a scrub word by word, as before', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    sample(t, 2);
+    t.handle.player.scrub(2);
+    expect(current(t)).toBe('gamma');
+    expect(xOf(t)).toBe(110 + 20 + 5);
+    expect(Number.parseFloat(ribbonVar(t, '--sr-glide'))).toBeGreaterThan(0);
+    for (const f of sample(t, 3)) expect(f.x).toBe(135);
+  });
+
+  it('places the reached word at once on a jump while playing, then flows on from it', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta. Gamma delta epsilon.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    sample(t, 2);
+    t.handle.player.sentence(1);
+    expect(current(t)).toBe('Gamma');
+    // Gamma starts after "alpha beta. " (12 characters): its middle is 120 + 25.
+    expect(xOf(t)).toBe(145);
+    expect(ribbonVar(t, '--sr-glide')).toBe('0ms');
+    const frames = sample(t, 8);
+    expect(frames[0].x).toBeGreaterThanOrEqual(145);
+    expect(frames.at(-1)!.x).toBeGreaterThan(145);
+  });
+
+  it('crosses a window rebuild past RUN_EDGE without a backward step', () => {
+    stubRibbonLayout();
+    const words = Array.from({ length: 1000 }, (_, i) => `w${i}`);
+    const t = mountHarness(`<p>${words.join(' ')}.</p>`, { settings: { ...flowing, wpm: 1000 } });
+    t.handle.player.toggle();
+    // Start 5 words short of the window's edge (the ribbon is laid out again at word 300).
+    t.handle.player.scrub(295);
+    t.runFrames(700);
+    const startOf = (i: number) => words.slice(0, i).reduce((n, w) => n + (w.length + 1) * 10, 0);
+    const first = () => Number(t.q('.sr-ribbon-row[data-position="middle"] .sr-w')!.textContent!.slice(1));
+    let last = -Infinity;
+    let rebuilt = false;
+    for (let i = 0; i < 200 && !rebuilt; i++) {
+      t.runFrames(16);
+      const absolute = xOf(t) + startOf(first());
+      expect(absolute).toBeGreaterThanOrEqual(last - 1e-6);
+      last = absolute;
+      rebuilt = first() > 0;
+    }
+    expect(rebuilt).toBe(true);
+    for (const f of sample(t, 20)) {
+      const absolute = f.x + startOf(first());
+      expect(absolute).toBeGreaterThanOrEqual(last - 1e-6);
+      last = absolute;
+    }
+  });
+
+  it('places without a slide under reduced motion', () => {
+    stubRibbonLayout();
+    (window as unknown as { matchMedia: unknown }).matchMedia = (query: string) => ({ matches: query.includes('reduce'), media: query });
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    expect(xOf(t)).toBe(25);
+    const frames = sample(t, 3);
+    for (const f of frames) expect(f.x).toBe(25);
+    expect(ribbonVar(t, '--sr-glide')).toBe('0ms');
+  });
+
+  it('switches motion at once while playing, both ways', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    sample(t, 3);
+    const before = xOf(t);
+    t.handle.applySettings({ ...t.handle.player.settings, flowMotion: 'word' });
+    // The current word is placed on the target: alpha's middle.
+    expect(xOf(t)).toBe(25);
+    expect(before).toBeGreaterThan(25);
+    for (const f of sample(t, 2)) {
+      expect(f.index).toBe(0);
+      expect(f.x).toBe(25);
+    }
+    t.handle.applySettings({ ...t.handle.player.settings, flowMotion: 'flowing' });
+    const frames = sample(t, 5);
+    expect(frames[0].x).toBeGreaterThan(25);
+    expect(frames.at(-1)!.x).toBeGreaterThan(frames[0].x);
+  });
+
+  it("switched back to Flowing mid-step, reaches the step's handover in the step's remaining time", () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    sample(t, 3);
+    t.handle.applySettings({ ...t.handle.player.settings, flowMotion: 'word' });
+    sample(t, 2);
+    t.handle.applySettings({ ...t.handle.player.settings, flowMotion: 'flowing' });
+    const frames = sample(t, 40);
+    const inAlpha = frames.filter((f) => f.index === 0);
+    expect(inAlpha.length).toBeGreaterThan(2);
+    // alpha's middle is 25 and beta's 75: alpha's step ends on the handover, 50, by the time beta begins, never past it.
+    for (const f of inAlpha) expect(f.x).toBeLessThanOrEqual(50 + 1e-6);
+    expect(inAlpha.at(-1)!.x).toBeGreaterThan(50 - 4);
+  });
+
+  it('switching motion while paused moves nothing until playback resumes', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    sample(t, 3);
+    t.handle.player.toggle();
+    expect(t.handle.player.state).toBe('paused');
+    t.handle.applySettings({ ...t.handle.player.settings, flowMotion: 'word' });
+    // Word by word places the current word on the target: alpha's middle.
+    expect(xOf(t)).toBe(25);
+    t.handle.applySettings({ ...t.handle.player.settings, flowMotion: 'flowing' });
+    for (const f of sample(t, 10)) expect(f.x).toBe(25);
+    t.handle.player.toggle();
+    expect(sample(t, 5).at(-1)!.x).toBeGreaterThan(25);
+  });
+
+  describe('with speech', () => {
+    const TEXT = '<p>The first sentence is here. A second one follows.</p>';
+    const spoken = async (html = TEXT, estimate = false) => {
+      stubRibbonLayout();
+      const speech = fakeSpeech([voice('Alice', 'en-US', true)]);
+      const t = mountHarness(html, {
+        settings: { ...flowing, tts: { enabled: true, voiceURI: null } },
+        speech: (clock) => createSpeechDriver(speech.synth, { Utterance: speech.Utterance, scheduler: clock, lang: 'en', estimateBoundaries: estimate }),
+      });
+      await t.settle();
+      t.handle.player.toggle();
+      return { t, speech };
+    };
+
+    it("slides the sentence's first word over one spoken word's time, then holds at its end until a boundary", async () => {
+      const { t } = await spoken();
+      // 300 wpm: 200 ms per spoken word. 'The' has its middle at 15; 'first' (starts at 40) at 65; the handover is 40.
+      expect(current(t)).toBe('The');
+      expect(xOf(t)).toBe(15);
+      t.runFrames(96);
+      expect(xOf(t)).toBeCloseTo(15 + 25 * (96 / 200), 0);
+      t.runFrames(112);
+      expect(xOf(t)).toBeCloseTo(40, 5);
+      const held = [xOf(t)];
+      t.runFrames(160);
+      held.push(xOf(t));
+      expect(held[1]).toBe(held[0]);
+    });
+
+    it('starts a slide of one spoken word at each boundary, from where the ribbon is', async () => {
+      const { t, speech } = await spoken();
+      t.runFrames(320);
+      const atFirst = xOf(t);
+      speech.spoken[0].boundary(4); // 'first'
+      expect(current(t)).toBe('first');
+      expect(xOf(t)).toBeGreaterThanOrEqual(atFirst);
+      t.runFrames(96);
+      const mid = xOf(t);
+      expect(mid).toBeGreaterThan(atFirst);
+      t.runFrames(160);
+      const end = xOf(t);
+      expect(end).toBeGreaterThan(mid);
+      t.runFrames(160);
+      expect(xOf(t)).toBe(end);
+    });
+
+    it('flows on without holding through estimated boundaries, one spoken word per word', async () => {
+      const { t, speech } = await spoken(TEXT, true);
+      speech.spoken[0].start();
+      const frames = sample(t, 60);
+      // 60 frames at 200 ms per spoken word cross several estimated boundaries.
+      expect(new Set(frames.map((f) => f.index)).size).toBeGreaterThan(3);
+      frames.forEach((f, i) => {
+        if (i > 0) expect(f.x).toBeGreaterThanOrEqual(frames[i - 1].x - 1e-6);
+      });
+      const still = frames.filter((f, i) => i > 0 && f.x <= frames[i - 1].x + 1e-6);
+      expect(still.length).toBeLessThanOrEqual(1);
+    });
+
+    it('retargets an early boundary from the current position, without a jump', async () => {
+      const { t, speech } = await spoken();
+      t.runFrames(320);
+      speech.spoken[0].boundary(4);
+      t.runFrames(48);
+      const before = xOf(t);
+      speech.spoken[0].boundary(10); // 'sentence' arrives early
+      expect(current(t)).toBe('sentence');
+      expect(xOf(t)).toBeCloseTo(before, 5);
+      t.runFrames(48);
+      expect(xOf(t)).toBeGreaterThan(before);
+    });
+
+    it('stays continuous and forward through a long run of early boundaries', async () => {
+      const { t, speech } = await spoken();
+      t.runFrames(16);
+      let last = xOf(t);
+      // Every boundary of the first sentence arrives a third of a word early: each one cuts the slide short.
+      for (const at of [4, 10, 19, 22]) {
+        t.runFrames(64);
+        const before = xOf(t);
+        expect(before).toBeGreaterThanOrEqual(last - 1e-6);
+        speech.spoken[0].boundary(at);
+        expect(xOf(t)).toBeCloseTo(before, 5);
+        last = before;
+      }
+      t.runFrames(400);
+      expect(xOf(t)).toBeGreaterThan(last);
+    });
+
+    it('keeps a ribbon held without boundaries in place across an item gap', async () => {
+      const { t, speech } = await spoken('<ul><li>first list item that is rather long indeed</li><li>second list item that is also long</li></ul>');
+      // No boundary ever came: the ribbon still rests on the item's first word when the voice ends.
+      speech.spoken[0].end();
+      expect(current(t)).toBe('first');
+      // The first item's eight words are steps 0-7; the gap (step 8) is timed and must not sweep the ribbon across the item.
+      for (let i = 0; i < 50 && t.handle.player.index < 8; i++) t.runFrames(16);
+      expect(t.handle.player.index).toBe(8);
+      const inGap = sample(t, 30).filter((f) => f.index === 8);
+      expect(inGap.length).toBeGreaterThan(1);
+      // 'first' has its middle at 25 and 'list' at 80: the ribbon may finish first's own slide, never sweep past it.
+      for (const f of inGap) expect(f.x).toBeLessThanOrEqual(52.5 + 1e-6);
+    });
+
+    it('treats a jump while speaking as a jump: the reached word is placed at once', async () => {
+      const { t } = await spoken();
+      t.runFrames(100);
+      t.handle.player.sentence(1);
+      expect(current(t)).toBe('A');
+      // 'A' starts after "The first sentence is here. " (28 characters), 10px wide.
+      expect(xOf(t)).toBe(285);
+      expect(ribbonVar(t, '--sr-glide')).toBe('0ms');
+      t.runFrames(100);
+      expect(xOf(t)).toBeGreaterThan(285);
+    });
+
+    it('holds the ribbon with the braces hidden and nothing marked when the voice gives no boundaries', async () => {
+      const { t, speech } = await spoken();
+      speech.spoken[0].end();
+      t.clock.advance(1000);
+      expect(t.q('.sr-flow-target')!.hidden).toBe(true);
+      expect(t.qa('.sr-w[data-in]')).toHaveLength(0);
+      const x = xOf(t);
+      t.runFrames(160);
+      expect(xOf(t)).toBe(x);
+    });
   });
 });
