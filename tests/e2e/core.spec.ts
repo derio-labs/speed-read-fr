@@ -319,6 +319,22 @@ async function expectRedFirstLetters(page: Page) {
   return { red, words: c.words, rowColour: c.rowColour };
 }
 
+/**
+ * A screenshot for the PR, taken once the layout's CSS transitions (the flow window widening) have finished.
+ * Headless Chromium on CI can fail `Page.captureScreenshot` while a large layer is still animating; the shot
+ * is an artifact, not an assertion, so one retry after the page settles is enough.
+ */
+async function snapshot(page: Page, path: string) {
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))));
+  try {
+    await page.screenshot({ path });
+  } catch (error) {
+    if (!String(error).includes('Unable to capture screenshot')) throw error;
+    await page.waitForTimeout(250);
+    await page.screenshot({ path });
+  }
+}
+
 async function pauseFlow(page: Page) {
   await page.keyboard.press('Space');
   await expect(state(page)).toHaveText('Paused');
@@ -392,7 +408,7 @@ for (const layout of ['floating', 'panel'] as const) {
       const flow = await ribbonSample(page);
       expect(flow.stage).toBeGreaterThan(1000);
       expect(flow.stage).toBeLessThanOrEqual(layout === 'floating' ? 1200 : 1440);
-      await page.screenshot({ path: `${SHOTS}/${layout}-flow-wide.png` });
+      await snapshot(page, `${SHOTS}/${layout}-flow-wide.png`);
       await page.keyboard.press(',');
       await page.locator('.sr-settings [name="readingMode"]').selectOption('chunk');
       await page.keyboard.press('Escape');
