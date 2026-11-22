@@ -3,7 +3,7 @@ run: 2026-11-22-feat-flow-first-letter-and-flowing-mode
 workflow: fr-goal@1
 branch: feat/flow-first-letter-and-flowing-mode
 started: '2026-11-22T16:17:31+00:00'
-cursor: spec-review
+cursor: plan
 steps:
   brainstorm:
     state: done
@@ -12,17 +12,25 @@ steps:
     emitted:
       spec: docs/superpowers/specs/2026-11-22-flow-first-letter-and-flowing-design.md
   spec-review:
-    state: running
-    at: '2026-11-22T16:23:12+00:00'
+    state: done
+    at: '2026-11-22T16:30:30+00:00'
     units:
       step/spec-review:
         attempts:
         - dispatched: '2026-11-22T16:23:12+00:00'
+          agent: a16bba414bbcf428e
           agent_type: super-fr:fr-spec-reviewer
           harness: claude-code
+          model: claude-opus-5-5
           tier: hard
           bound: claude-opus-5-5
           session: e5d9083a-87da-472c-aaf7-3850919c84c7
+          returned: '2026-11-22T16:30:30+00:00'
+          outcome: done
+        evidence:
+          review: spec-review
+          reviewer: a16bba414bbcf428e
+          findings: s1,s2,s3,s4,s5,s6,s7,s8,s9,s10
   plan:
     state: pending
   plan-review:
