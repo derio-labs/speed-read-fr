@@ -99,6 +99,33 @@ describe('speech settings (spec section 9)', () => {
   });
 });
 
+describe('Gecko on macOS (debug 2026-11-22-tts-firefox-noise)', () => {
+  it('the default driver never speaks, even with speech saved on, and the panel says why', async () => {
+    const speech = fakeSpeech([voice('Daniel', 'en-GB', true)]);
+    const win = window as unknown as Record<string, unknown>;
+    const saved = { speechSynthesis: win.speechSynthesis, SpeechSynthesisUtterance: win.SpeechSynthesisUtterance };
+    win.speechSynthesis = speech.synth;
+    win.SpeechSynthesisUtterance = speech.Utterance;
+    const ua = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(navigator), 'userAgent')!;
+    Object.defineProperty(navigator, 'userAgent', { value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:133.0) Gecko/20100101 Firefox/133.0', configurable: true });
+    try {
+      const t = mountHarness(TEXT, { settings: { tts: { enabled: true, voiceURI: null } } as never });
+      await t.settle();
+      t.key(' ');
+      t.clock.advance(10_000);
+      expect(speech.synth.speak).not.toHaveBeenCalled();
+      const { field, notes } = openPanel(t);
+      expect(field('tts').disabled).toBe(true);
+      expect(notes().some((n) => /Firefox on macOS/.test(n ?? ''))).toBe(true);
+    } finally {
+      delete (navigator as unknown as Record<string, unknown>).userAgent;
+      Object.defineProperty(Object.getPrototypeOf(navigator), 'userAgent', ua);
+      win.speechSynthesis = saved.speechSynthesis;
+      win.SpeechSynthesisUtterance = saved.SpeechSynthesisUtterance;
+    }
+  });
+});
+
 describe('speech on the stage', () => {
   it('chunks follow the voice boundaries, and a voice without boundaries shows the whole sentence', async () => {
     const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], { saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1 } });

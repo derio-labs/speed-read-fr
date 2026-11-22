@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Token } from './model';
 import { fakeClock } from './testing/clock';
 import { fakeSpeech, voice } from './testing/speech';
-import { BOUNDARY_WAIT_MS, createSpeechDriver, speechRate, VOICES_WAIT_MS } from './tts';
+import { BOUNDARY_WAIT_MS, createSpeechDriver, speechBlockedReason, speechRate, VOICES_WAIT_MS } from './tts';
 
 const w = (text: string): Token => ({ kind: 'word', text });
 const math = (text: string): Token => ({ kind: 'atom', atom: 'math', text });
@@ -389,5 +389,39 @@ describe('speech driver: chips', () => {
     const chip = (atom: 'code' | 'math', n: number, full: string): Token => ({ kind: 'atom', atom, text: `⟨${atom} ${n}⟩`, full });
     driver.speak([{ tokens: [w('Call')] }, { tokens: [chip('code', 1, 'a'.repeat(30))] }, { tokens: [chip('math', 1, '\\frac{1}{2}'.repeat(3))] }], 300, handlers);
     expect(speech.spoken[0].text).toBe('Call code formula');
+  });
+});
+
+describe('speech driver: Gecko on macOS is blocked (debug 2026-11-22-tts-firefox-noise)', () => {
+  const FIREFOX_MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0';
+  const ZEN_MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:133.0) Gecko/20100101 Firefox/133.0 Zen/1.0';
+  const FIREFOX_LINUX = 'Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0';
+  const FIREFOX_WINDOWS = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0';
+  const CHROME_MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+  const VSCODE_MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.96.0 Chrome/128.0.6613.186 Electron/32.2.6 Safari/537.36';
+
+  it('names a reason for Firefox and Zen on macOS, and none elsewhere', () => {
+    expect(speechBlockedReason(FIREFOX_MAC)).toMatch(/Firefox on macOS/);
+    expect(speechBlockedReason(ZEN_MAC)).toMatch(/Firefox on macOS/);
+    for (const ua of [FIREFOX_LINUX, FIREFOX_WINDOWS, CHROME_MAC, VSCODE_MAC, '', undefined]) expect(speechBlockedReason(ua)).toBeNull();
+  });
+
+  it('a blocked driver is unavailable, never touches the engine, and says why', () => {
+    const { speech } = setup();
+    const driver = createSpeechDriver(speech.synth, { Utterance: speech.Utterance, blockedReason: 'blocked here' });
+    expect(driver.available).toBe(false);
+    expect(driver.unavailableReason).toBe('blocked here');
+    expect(driver.voices()).toEqual([]);
+    driver.speak([{ tokens: [w('Hello')] }], 300, { onChunk() {}, onEnd() {}, onWholeSentence() {} });
+    driver.cancel();
+    driver.destroy();
+    expect(speech.synth.speak).not.toHaveBeenCalled();
+    expect(speech.synth.cancel).not.toHaveBeenCalled();
+    expect(speech.spoken).toEqual([]);
+  });
+
+  it('an unblocked driver has no reason', () => {
+    expect(setup().driver.unavailableReason).toBeNull();
+    expect(createSpeechDriver(undefined).unavailableReason).toBeNull();
   });
 });
