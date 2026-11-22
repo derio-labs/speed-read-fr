@@ -1,0 +1,61 @@
+schema_version: 2
+run: 2026-11-22-feat-three-row-default-ux
+captures:
+- host: h-7b1aec43
+  harness: claude-code
+  mode: devcontainer
+  captured_at: '2026-11-22T08:22:55+00:00'
+  at:
+  - resolve:brainstorm
+  sessions:
+  - session: 8a2f0730-88d1-420d-a108-6aa8f9973976
+    role: main
+    models:
+      claude-opus-5-5:
+        input: 50
+        cache_write: 108797
+        cache_read: 2467750
+        output: 16770
+        usd: null
+        usd_source: none
+    activity:
+      implementation:
+        usd: null
+        turns: 4
+      other:
+        usd: null
+        turns: 5
+      paperwork:
+        usd: null
+        turns: 14
+    steps:
+      (outside run):
+        usd: null
+        turns: 3
+        input: 8
+        cache_write: 55173
+        cache_read: 179399
+        output: 913
+      brainstorm:
+        usd: null
+        turns: 20
+        input: 42
+        cache_write: 53624
+        cache_read: 2288351
+        output: 15857
+    steps_by_role:
+      main:
+        (outside run):
+          usd: null
+          turns: 3
+          input: 8
+          cache_write: 55173
+          cache_read: 179399
+          output: 913
+        brainstorm:
+          usd: null
+          turns: 20
+          input: 42
+          cache_write: 53624
+          cache_read: 2288351
+          output: 15857
