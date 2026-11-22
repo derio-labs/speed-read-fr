@@ -10,7 +10,6 @@ evidence:
   walk: none
 visual:
   - row: reader-focus-span
-    script: tests/e2e/core.spec.ts
     shots:
       - path: /Users/idermitzakis/.cache/fr/worktrees/speed-read-fr/feat__three-row-default-ux/.visual/2026-11-22-flow-default-ux/flow-20-short-word.png
         shows: ["flow mode playing with the bracket at the default 20-character span, on a short and on a long word"]
@@ -31,7 +30,6 @@ visual:
       - path: /Users/idermitzakis/.cache/fr/worktrees/speed-read-fr/feat__three-row-default-ux/.visual/2026-11-22-flow-default-ux/focus-span-settings-open.png
         shows: ["change Focus span in Settings and see the bracket resize at once"]
   - row: reader-wpm-stepper
-    script: tests/e2e/core.spec.ts
     shots:
       - path: /Users/idermitzakis/.cache/fr/worktrees/speed-read-fr/feat__three-row-default-ux/.visual/2026-11-22-flow-default-ux/wpm-chunk-buttons.png
         shows: ["− and + beside the WPM readout in chunk mode"]
