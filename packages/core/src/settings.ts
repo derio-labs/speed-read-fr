@@ -7,6 +7,8 @@ export interface ExhibitBehaviour {
 
 export type DisplayMode = 'overlay' | 'dock';
 export type ReadingMode = 'chunk' | 'flow';
+/** Flow mode's motion: one glide-then-hold per word, or a continuous slide that never holds. */
+export type FlowMotion = 'word' | 'flowing';
 
 export interface TtsSettings {
   enabled: boolean;
@@ -26,6 +28,8 @@ export interface Settings {
   readingMode: ReadingMode;
   /** Flow mode: the width of the focus bracket, in characters of the ribbon font, 6-40. */
   focusChars: number;
+  /** Flow mode: how the ribbon moves. A render-only setting: changing it never rebuilds the timeline. */
+  flowMotion: FlowMotion;
   tts: TtsSettings;
   /** Strength of the page behind the browser's floating reader, 0.10-0.80 (R29); other hosts ignore it. */
   pageFade: number;
@@ -43,6 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
   display: 'overlay',
   readingMode: 'flow',
   focusChars: 20,
+  flowMotion: 'flowing',
   tts: { enabled: false, voiceURI: null },
   pageFade: 0.32,
 };
@@ -55,6 +60,7 @@ export interface SettingsStore {
 const EXHIBIT_MODES: readonly ExhibitMode[] = ['stop', 'skip', 'dwell'];
 const DISPLAY_MODES: readonly DisplayMode[] = ['overlay', 'dock'];
 const READING_MODES: readonly ReadingMode[] = ['chunk', 'flow'];
+const FLOW_MOTIONS: readonly FlowMotion[] = ['word', 'flowing'];
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
@@ -106,6 +112,7 @@ export function normalizeSettings(partial: Partial<Settings>): Settings {
     display: oneOf(p.display, DISPLAY_MODES, d.display),
     readingMode: oneOf(p.readingMode, READING_MODES, d.readingMode),
     focusChars: clampNumber(p.focusChars, 6, 40, d.focusChars),
+    flowMotion: oneOf(p.flowMotion, FLOW_MOTIONS, d.flowMotion),
     tts: normalizeTts(p.tts),
     pageFade: clampNumber(p.pageFade, 0.1, 0.8, d.pageFade),
   };

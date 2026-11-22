@@ -56,6 +56,8 @@ export interface Player {
   jumpToBlock(ref: SourceRef): void;
   speed(delta: number): void;
   setSpeed(wpm: number): void;
+  /** Change flow mode's motion; render-only, so the timeline and position stay. Emits `settings`. */
+  setFlowMotion(motion: Settings['flowMotion']): void;
   toggleReading(): void;
   expand(): void;
   close(): void;
@@ -407,6 +409,12 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
     emit('settings', settings);
   }
 
+  function setFlowMotion(motion: Settings['flowMotion']) {
+    if (state === 'closed' || motion === settings.flowMotion) return;
+    settings = { ...settings, flowMotion: motion };
+    emit('settings', settings);
+  }
+
   return {
     get state() {
       return state;
@@ -464,6 +472,7 @@ export function createPlayer(initialTimeline: Timeline, initialSettings: Setting
       setSpeed(settings.wpm + delta);
     },
     setSpeed,
+    setFlowMotion,
     toggleReading() {
       if (state === 'closed') return;
       if (state === 'reading') {

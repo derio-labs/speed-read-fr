@@ -76,6 +76,8 @@ describe('VS Code extension manifest', () => {
   });
 
   it('contributes the focus span, 6-40 characters, default 20', () => {
+    const flowMotion = pkg.contributes.configuration.properties['speedRead.flowMotion'];
+    expect(flowMotion).toMatchObject({ type: 'string', enum: ['word', 'flowing'], default: 'flowing' });
     expect(pkg.contributes.configuration.properties['speedRead.focusChars']).toMatchObject({ type: 'number', minimum: 6, maximum: 40, default: 20 });
   });
 

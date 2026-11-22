@@ -42,6 +42,9 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
   const select = (name: string, options: [string, string][], label?: string) =>
     h('select', { name, 'aria-label': label }, ...options.map(([value, text]) => h('option', { value }, text)));
 
+  /** Flow motion applies to flow mode only: this field shows while Reading mode is Three-row flow. */
+  const flowMotionField = field('Flow motion', null, select('flowMotion', [['word', 'Word by word'], ['flowing', 'Flowing']], 'Flow motion'));
+
   const levels = h(
     'div',
     { class: 'sr-levels', role: 'group', 'aria-label': 'Heading levels that stop' },
@@ -83,6 +86,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       h('legend', {}, 'Display'),
       field('Reading mode', null, select('readingMode', [['chunk', 'Chunk-by-chunk'], ['flow', 'Three-row flow']], 'Reading mode')),
       field('Focus span', 'characters, 6-40', number('focusChars', 6, 40, 1)),
+      flowMotionField,
       field('Images and diagrams', 'seconds shown', number('imageDwellSeconds', 1, 60, 1)),
       ctx.hostSettings.includes('display') ? field('Reader', 'in the browser', select('display', [['overlay', 'Overlay'], ['dock', 'Side panel']])) : null,
       ctx.hostSettings.includes('pageFade')
@@ -121,6 +125,8 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     control('imageDwellSeconds').value = String(s.imageDwellSeconds);
     control('readingMode').value = s.readingMode;
     control('focusChars').value = String(s.focusChars);
+    control('flowMotion').value = s.flowMotion;
+    showMotionField();
     if (control('display')) control('display').value = s.display;
     if (control('pageFade')) control('pageFade').value = String(Math.round(s.pageFade * 100));
     control('tts').checked = s.tts.enabled;
@@ -171,6 +177,11 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     ttsNotes.replaceChildren(...lines.map(([line, kind]) => h('p', { class: 'sr-tts-note sr-field-hint', 'data-kind': kind }, line)));
   }
 
+  /** The Flow motion field follows the Reading mode select; hiding it keeps the stored value. */
+  function showMotionField() {
+    flowMotionField.hidden = control('readingMode').value !== 'flow';
+  }
+
   function enableSeconds() {
     for (const [kind] of EXHIBIT_TYPES) control(`${kind}-seconds`).disabled = control(`${kind}-mode`).value !== 'dwell';
   }
@@ -198,6 +209,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       imageDwellSeconds: num('imageDwellSeconds', current.imageDwellSeconds),
       readingMode: control('readingMode').value as Settings['readingMode'],
       focusChars: num('focusChars', current.focusChars),
+      flowMotion: flowMotionField.hidden ? current.flowMotion : (control('flowMotion').value as Settings['flowMotion']),
       display: control('display') ? (control('display').value as Settings['display']) : current.display,
       pageFade: control('pageFade') ? num('pageFade', current.pageFade * 100) / 100 : current.pageFade,
       tts: { enabled: ttsToggle.checked, voiceURI: voiceSelect.value || (missingVoice ? current.tts.voiceURI : null) },
@@ -207,6 +219,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
   let applying = false;
   function apply(commit: boolean) {
     enableSeconds();
+    showMotionField();
     applying = true;
     try {
       onChange(read());
