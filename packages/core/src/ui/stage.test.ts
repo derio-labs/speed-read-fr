@@ -74,6 +74,7 @@ function stubRibbonLayout() {
   const rect = (x: number, width: number, height = 0) => ({ width, height, top: 0, left: x, right: x + width, bottom: height, x, y: 0, toJSON() {} }) as DOMRect;
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
     if (this.classList.contains('sr-ribbon-row')) return rect(0, 400, 40);
+    if (this.classList.contains('sr-ribbon-probe')) return rect(0, 100);
     if (this.classList.contains('sr-ribbon-line')) return rect(0, (this.textContent ?? '').length * 10);
     if (this.classList.contains('sr-w')) return rect(left(this), (this.textContent ?? '').length * 10);
     return rect(0, 0);
@@ -85,6 +86,8 @@ function stubRibbonLayout() {
 }
 
 const flowOpts = { readingMode: 'flow' as const };
+/** The word on the ribbon's target. */
+const current = (t: ReturnType<typeof mountHarness>) => text(t.q('.sr-ribbon-row[data-position="middle"] .sr-w[data-current]'));
 const rowText = (t: ReturnType<typeof mountHarness>, position: string) => text(t.q(`.sr-ribbon-row[data-position="${position}"]`));
 const ribbonVar = (t: ReturnType<typeof mountHarness>, name: string) => t.q('.sr-ribbon')!.style.getPropertyValue(name);
 
@@ -104,30 +107,46 @@ describe('flow mode ribbon', () => {
     expect(t.q('.sr-flow-row')).toBeNull();
   });
 
-  it('sets the middle letter of the current word in the accent class, once', () => {
+  it('colours no letter of the current word, marking the word itself with data-current', () => {
     const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
     t.handle.player.toggle();
-    expect(t.qa('.sr-flow-mid').map((e) => e.textContent)).toEqual(['p']);
-    expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('alpha');
-    expect(t.q('.sr-flow-mid')!.closest('.sr-ribbon-row')!.getAttribute('data-position')).toBe('middle');
+    expect(t.q('.sr-flow-mid')).toBeNull();
+    expect(current(t)).toBe('alpha');
+    expect(t.qa('.sr-w[data-current]')).toHaveLength(1);
+    expect(t.q('.sr-w[data-current]')!.closest('.sr-ribbon-row')!.getAttribute('data-position')).toBe('middle');
     t.clock.advance(t.clock.nextIn()!);
-    expect(t.qa('.sr-flow-mid').map((e) => e.textContent)).toEqual(['e']);
+    expect(t.q('.sr-flow-mid')).toBeNull();
+    expect(current(t)).toBe('beta');
+    expect(t.qa('.sr-w[data-current]')).toHaveLength(1);
     expect(rowText(t, 'middle')).toBe('alpha beta gamma.');
   });
 
-  it('sizes the braced target to the current word plus 8px and keeps top and bottom braces', () => {
+  it('gives the braced target one fixed width, the focus span in measured characters, for every word and step', () => {
     stubRibbonLayout();
-    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
+    const t = mountHarness('<p>a extraordinarily alpha beta gamma.</p>', { settings: flowOpts });
     t.handle.player.toggle();
     const target = t.q('.sr-flow-target')!;
     expect(target.querySelector('.sr-flow-brace[data-side="top"]')).not.toBeNull();
     expect(target.querySelector('.sr-flow-brace[data-side="bottom"]')).not.toBeNull();
     expect(target.hidden).toBe(false);
-    expect(target.style.getPropertyValue('--sr-target-w')).toBe('58'); // alpha: 5 chars
-    t.clock.advance(t.clock.nextIn()!);
-    expect(target.style.getPropertyValue('--sr-target-w')).toBe('48'); // beta
-    t.clock.advance(t.clock.nextIn()!);
-    expect(target.style.getPropertyValue('--sr-target-w')).toBe('68'); // gamma.
+    for (let i = 0; i < 4; i++) {
+      expect(target.style.getPropertyValue('--sr-target-w')).toBe('200'); // 20 characters x 10px
+      expect(target.style.getPropertyValue('--sr-target-x')).toBe('100'); // centred on the 400px row
+      t.clock.advance(t.clock.nextIn()!);
+    }
+  });
+
+  it('resizes the live bracket when the focus span changes, without a resize event, and clamps it to the row', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
+    t.handle.player.toggle();
+    const target = () => t.q('.sr-flow-target')!;
+    t.handle.applySettings({ ...t.handle.player.settings, focusChars: 6 });
+    expect(target().style.getPropertyValue('--sr-target-w')).toBe('60');
+    expect(target().style.getPropertyValue('--sr-target-x')).toBe('170');
+    t.handle.applySettings({ ...t.handle.player.settings, focusChars: 40 });
+    expect(target().style.getPropertyValue('--sr-target-w')).toBe('400'); // 40 x 10px = the row
+    expect(target().style.getPropertyValue('--sr-target-x')).toBe('0');
   });
 
   it('puts the middle letter on the shared offset and the target left of it by the letters before', () => {
@@ -137,11 +156,11 @@ describe('flow mode ribbon', () => {
     // alpha 0..50, middle 'p' centre 25; the row is 400 wide so its centre is 200.
     expect(ribbonVar(t, '--sr-x')).toBe('25');
     expect(ribbonVar(t, '--sr-w')).toBe('400');
-    expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-x')).toBe(String(200 - 25 - 4));
+    expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-x')).toBe('100');
     t.clock.advance(t.clock.nextIn()!);
     // beta starts at 60; its middle 'e' is the second letter, centre 60 + 15
     expect(ribbonVar(t, '--sr-x')).toBe('75');
-    expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-x')).toBe(String(200 - 15 - 4));
+    expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-x')).toBe('100');
   });
 
   it('glides for a third of a word, snaps on the first layout, and snaps for a move over a row width', () => {
@@ -176,10 +195,10 @@ describe('flow mode ribbon', () => {
     const t = mountHarness('<p>alpha beta gamma delta.</p>', { settings: flowOpts });
     t.handle.player.toggle();
     t.handle.player.scrub(2);
-    expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('gamma');
+    expect(current(t)).toBe('gamma');
     expect(ribbonVar(t, '--sr-x')).toBe(String(110 + 20 + 5));
     t.handle.player.scrub(-1);
-    expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('beta');
+    expect(current(t)).toBe('beta');
     expect(ribbonVar(t, '--sr-x')).toBe('75');
   });
 
@@ -196,7 +215,7 @@ describe('flow mode ribbon', () => {
     t.handle.player.scrub(49);
     expect(ids()[0]).toBe('w0');
     t.handle.player.scrub(1);
-    expect(t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent).toBe('w300');
+    expect(current(t)).toBe('w300');
     expect(ids()[0]).toBe('w100');
     // The re-centring step glides like any other.
     expect(Number.parseFloat(t.q('.sr-ribbon')!.style.getPropertyValue('--sr-glide'))).toBeGreaterThan(0);
@@ -264,11 +283,12 @@ describe('flow mode ribbon', () => {
     const t = mountHarness('<p>Run <code>npm ci</code> now.</p>', { settings: flowOpts });
     t.handle.player.toggle();
     expect(t.qa('.sr-ribbon-row[data-position="middle"] .sr-atom').map((a) => a.textContent)).toEqual(['npm ci']);
-    // Reaching the atom keeps it one box with the lit letter inside, so nothing shifts.
+    // Reaching the atom keeps it one box, marked as the current word, with nothing coloured inside.
     t.clock.advance(t.clock.nextIn()!);
     const atoms = t.qa('.sr-ribbon-row[data-position="middle"] .sr-atom');
     expect(atoms).toHaveLength(1);
-    expect(atoms[0].querySelector('.sr-flow-mid')!.textContent).toBe('m');
+    expect(current(t)).toBe('npm ci');
+    expect(atoms[0].children).toHaveLength(0);
   });
 });
 
@@ -475,7 +495,7 @@ describe('inline exhibit stops in flow mode', () => {
     expect(t.handle.player.state).toBe('stopped');
     expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
     expect(t.q('.sr-ribbon')).not.toBeNull();
-    expect(text(t.q('.sr-flow-mid')!.closest('.sr-w'))).toBe('⟨code 1⟩');
+    expect(current(t)).toBe('⟨code 1⟩');
     const details = t.q('.sr-stage-details')!;
     expect(details.hidden).toBe(false);
     expect(details.querySelector('.sr-card-stop')).not.toBeNull();
@@ -483,7 +503,7 @@ describe('inline exhibit stops in flow mode', () => {
     t.handle.player.continue();
     expect(details.hidden).toBe(true);
     expect(details.childNodes).toHaveLength(0);
-    expect(text(t.q('.sr-flow-mid')!.closest('.sr-w'))).toBe('then');
+    expect(current(t)).toBe('then');
   });
 
   it('titles the stop card with the chip number', () => {

@@ -125,7 +125,7 @@ describe('speech on the stage', () => {
     });
     await t.settle();
     t.handle.player.toggle();
-    const word = () => t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent;
+    const word = () => t.q('.sr-w[data-current]')!.textContent;
     expect(t.qa('.sr-ribbon-row')).toHaveLength(3);
     expect(word()).toBe('The');
     speech.spoken[0].boundary(4);
@@ -134,7 +134,7 @@ describe('speech on the stage', () => {
     speech.spoken[0].end();
     t.clock.advance(1000);
     expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
-    expect(t.q('.sr-flow-mid')).toBeNull();
+    expect(t.q('.sr-w[data-current]')).toBeNull();
     expect(t.q('.sr-flow-target')!.hidden).toBe(true);
     expect(t.q('.sr-ribbon-row[data-position="middle"]')!.textContent).toContain('A second one follows.');
     speech.spoken[1].end();
@@ -151,7 +151,7 @@ describe('speech on the stage', () => {
     await t.settle();
     t.handle.player.toggle();
     speech.spoken[0].start();
-    const word = () => t.q('.sr-flow-mid')!.closest('.sr-w')!.textContent;
+    const word = () => t.q('.sr-w[data-current]')!.textContent;
     expect(word()).toBe('The');
     t.clock.advance(1500);
     expect(word()).not.toBe('The');
@@ -172,7 +172,7 @@ describe('flow whole-sentence fallback', () => {
       t.clock.advance(1000);
       expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
       expect(t.qa('.sr-ribbon-row')).toHaveLength(3);
-      expect(t.q('.sr-flow-mid')).toBeNull();
+      expect(t.q('.sr-w[data-current]')).toBeNull();
       expect(t.q('.sr-flow-target')!.hidden).toBe(true);
       expect(t.q('.sr-flow-whole')).toBeNull();
       expect(t.q('.sr-ribbon-row[data-position="top"]')!.textContent).toContain('A second one follows.');

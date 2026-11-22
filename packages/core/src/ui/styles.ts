@@ -206,7 +206,7 @@ export const READER_CSS = `
   transform: translateX(calc(var(--sr-x, 0) * -1px + var(--sr-shift, 0px))); transition: transform var(--sr-glide) ease-out;
 }
 .sr-ribbon-sep { color: var(--sr-faint); }
-.sr-flow-mid { color: var(--sr-accent); font-weight: inherit; }
+.sr-ribbon-probe { position: absolute; left: 0; top: 0; visibility: hidden; white-space: pre; pointer-events: none; }
 .sr-flow-target {
   grid-row: 2; grid-column: 1; position: relative; z-index: 1; align-self: stretch; justify-self: start; pointer-events: none;
   margin-left: calc(var(--sr-target-x, 0) * 1px); width: calc(var(--sr-target-w, 0) * 1px);

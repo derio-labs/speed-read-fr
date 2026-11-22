@@ -9,7 +9,7 @@ import type { ReaderContext, Zone } from './context';
 import { createDialStrip, type DialStrip } from './dial-strip';
 import { replaceChildren, type Child } from './dom';
 import { chipLabel, EXHIBIT_LABELS, formatDuration, plural } from './format';
-import { glideMs, runBounds, runWindow, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
+import { focusWidth, glideMs, runBounds, runWindow, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
 
 type ChunkStep = Extract<Step, { kind: 'chunk' | 'item-chunk' }>;
 
@@ -29,6 +29,9 @@ const EDGE_PX = 12;
 const DEPTH_PX = 28;
 /** Below this scale a chunk wraps inside the stage instead of shrinking further. */
 const MIN_SCALE = 0.5;
+
+/** Characters in the sample whose width is divided down to one character's. */
+const PROBE_CHARS = 10;
 
 const isChunk = (step: Step): step is ChunkStep => step.kind === 'chunk' || step.kind === 'item-chunk';
 const sameSentence = (a: ChunkStep, b: Step) =>
@@ -122,6 +125,11 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     spans: WordSpan[];
     /** Width of a row, measured with the spans. */
     row: number;
+    /** An off-screen 10-character sample in the ribbon font, and the width of one character measured from it. */
+    probe: HTMLElement;
+    charWidth: number;
+    /** The focus span (characters) the target was last sized for. */
+    focus: number | null;
     /** The shared offset last applied (null before the first placement), the step on show, and the lit word. */
     x: number | null;
     index: number;
@@ -129,8 +137,6 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     lit: number | null;
   }
   let ribbon: Ribbon | null = null;
-
-  const TARGET_PAD = 4;
 
   function buildRibbon(run: RunRange, win: RunWindow): Ribbon {
     const steps = ctx.timeline.steps;
@@ -163,8 +169,9 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       h('span', { class: 'sr-flow-brace', 'data-side': 'top' }),
       h('span', { class: 'sr-flow-brace', 'data-side': 'bottom' }),
     );
-    const el = h('div', { class: 'sr-ribbon' }, ...rows, target);
-    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], row: 0, x: null, index: -1, hidden: false, lit: null };
+    const probe = h('span', { class: 'sr-ribbon-probe', 'aria-hidden': 'true' }, '0'.repeat(PROBE_CHARS));
+    const el = h('div', { class: 'sr-ribbon' }, ...rows, target, probe);
+    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], row: 0, probe, charWidth: 0, focus: null, x: null, index: -1, hidden: false, lit: null };
   }
 
   const widthOf = (el: Element) => (typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect().width : 0);
@@ -195,6 +202,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   /** Measure the word spans once per layout, and the row width. */
   function measureRibbon(r: Ribbon) {
     r.row = widthOf(r.el.querySelector('.sr-ribbon-row[data-position="middle"]')!);
+    r.charWidth = widthOf(r.probe) / PROBE_CHARS;
     const origin = r.middle.getBoundingClientRect().left;
     r.spans = r.order.map((step) => {
       const { el } = r.words.get(step)!;
@@ -204,21 +212,12 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     });
   }
 
-  function lightMiddle(r: Ribbon, step: number | null) {
-    if (r.lit !== null && r.lit !== step) {
-      const prev = r.words.get(r.lit);
-      if (prev) replaceChildren(prev.el, ...tokenNodes(prev.tokens));
-    }
+  /** Mark the word on the target with `data-current` (unstyled: no letter is coloured), or none. */
+  function markCurrent(r: Ribbon, step: number | null) {
+    if (r.lit !== null && r.lit !== step) r.words.get(r.lit)?.el.removeAttribute('data-current');
     r.lit = step;
     const word = step === null ? undefined : r.words.get(step);
-    if (!word) return;
-    const text = joinTokens(word.tokens);
-    const [at, end] = middleLetter(text);
-    const mid = (...children: Child[]) => h('span', { class: 'sr-flow-mid' }, ...children);
-    // An atom keeps one box around the whole word, so lighting a letter never moves the others.
-    if (word.tokens.length === 1 && word.tokens[0].kind === 'atom')
-      return replaceChildren(word.el, h('span', { class: 'sr-atom' }, text.slice(0, at), mid(text.slice(at, end)), text.slice(end)));
-    replaceChildren(word.el, ...tokenNodes(word.tokens, 0, at), mid(...tokenNodes(word.tokens, at, end)), ...tokenNodes(word.tokens, end));
+    word?.el.setAttribute('data-current', '');
   }
 
   const reducedMotion = () => !!ctx.document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
@@ -238,11 +237,19 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     r.el.style.setProperty('--sr-w', String(round(row)));
     r.el.style.setProperty('--sr-glide', `${glide}ms`);
     r.el.style.setProperty('--sr-x', String(round(x)));
-    r.target.style.setProperty('--sr-target-x', String(round(row / 2 - (span.mid - span.start) - TARGET_PAD)));
-    r.target.style.setProperty('--sr-target-w', String(round(span.width + 2 * TARGET_PAD)));
+    sizeTarget(r);
     r.target.hidden = hidden;
-    // With the braces hidden no word is known yet, so none is lit.
-    lightMiddle(r, hidden ? null : index);
+    // With the braces hidden no word is known yet, so none is current.
+    markCurrent(r, hidden ? null : index);
+  }
+
+  /** The target: the focus span wide (never wider than the row), centred on the row, the same for every word. */
+  function sizeTarget(r: Ribbon) {
+    const focusChars = player.settings.focusChars;
+    const width = focusWidth({ focusChars, charWidth: r.charWidth, row: r.row });
+    r.focus = focusChars;
+    r.target.style.setProperty('--sr-target-x', String(round((r.row - width) / 2)));
+    r.target.style.setProperty('--sr-target-w', String(round(width)));
   }
 
   /** Show the ribbon around the chunk at `index`; `hidden` hides the braces (a position no one knows yet). */
@@ -529,7 +536,10 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       renderStatus();
     }),
     player.on('state', renderStatus),
-    player.on('settings', renderStatus),
+    player.on('settings', () => {
+      renderStatus();
+      if (ribbon && ribbon.el.isConnected && ribbon.focus !== player.settings.focusChars) sizeTarget(ribbon);
+    }),
     ctx.speech.onVoices(renderStatus),
   ];
   /**
