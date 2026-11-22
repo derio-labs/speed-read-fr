@@ -30,3 +30,8 @@ speechBlockedReason(userAgent) in packages/core/src/tts.ts recognises Gecko (tok
 ### d356c826e49f · review · Self-review of the fix diff: no findings
 
 Checked: the Firefox reader frame (moz-extension) carries the browser UA, so the block applies there; Chrome and VS Code's Electron UA say only 'like Gecko' and stay unblocked (unit-tested); Firefox on iOS is WebKit without a Gecko/ token; a blocked driver registers no voiceschanged listener and destroy() removes none. Accepted limit, recorded on row speech-off-gecko-macos: a Gecko UA spoofed to another OS is not caught. E2E (Playwright) not run locally: the dev container lacks Chromium's system libraries; CI runs it on the PR.
+
+<!-- fr:journal kind=finding scope=debug id=545b5c284b41 created=2026-11-22T08:10:59+00:00 state=fixed -->
+### 545b5c284b41 · finding [fixed] · Scope confirmed: the bang is Firefox-only; Chrome and VS Code speak cleanly
+
+Operator, 2026-11-22, at low volume: Chrome's bare engine speaks a 9-word sentence at rate 1 in 2904 ms (a normal speed, unlike Firefox) with no bang; the VS Code reader with speech on works, understandable at 400 WPM and barely at 500. So the block stays limited to Gecko on macOS and TTS stays a feature elsewhere. The Chrome reader walk with speech on is still owed.
