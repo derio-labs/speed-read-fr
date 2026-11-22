@@ -57,6 +57,8 @@ export interface SpeechHandlers {
 
 export interface SpeechDriver {
   readonly available: boolean;
+  /** Why speech is off on this browser although the API exists (see `speechBlockedReason`); else null. */
+  readonly unavailableReason: string | null;
   voices(): VoiceInfo[];
   /** True once `voiceschanged` fired or 2 s passed with no local voice listed. */
   readonly noLocalVoice: boolean;
@@ -87,6 +89,22 @@ export interface SpeechDriverOptions {
   lang?: string;
   /** Keep displaying chunks with estimated timing when the voice does not send word boundaries. */
   estimateBoundaries?: boolean;
+  /** Turn speech off on this browser, for this reason: the engine is never touched (`speechBlockedReason`). */
+  blockedReason?: string | null;
+}
+
+/**
+ * Why speech must stay off in the browser with this user agent, or null when it may run.
+ *
+ * Gecko on macOS (Firefox, and forks such as Zen) is blocked. In an operator walk on 2026-11-22 its speech
+ * engine ended every utterance with a loud bang, played a given rate about twice as fast as Chrome, and after
+ * one `cancel()` mid-utterance never spoke again until the browser restarted. The reader cancels on every
+ * speed change, scrub and jump, and none of this can be worked around from page script, so speech is off.
+ * Gecko's own token is `Gecko/<date>`; Chromium only says `like Gecko`.
+ */
+export function speechBlockedReason(userAgent: string | undefined): string | null {
+  if (!userAgent || !/\bGecko\/\d/.test(userAgent) || !/Macintosh|Mac OS X/.test(userAgent)) return null;
+  return 'Text-to-speech is off in Firefox on macOS: its speech engine is unreliable and can play loud noise';
 }
 
 /** Wait for a first boundary before showing the whole sentence. */
@@ -121,7 +139,8 @@ export function createSpeechDriver(
 ): SpeechDriver {
   const Utterance = options.Utterance ?? (globalThis as { SpeechSynthesisUtterance?: new (text: string) => UtteranceLike }).SpeechSynthesisUtterance;
   const timers = options.scheduler ?? { setTimeout: (fn: () => void, ms: number) => setTimeout(fn, ms), clearTimeout: (h: unknown) => clearTimeout(h as number) };
-  const available = !!synth && !!Utterance;
+  const unavailableReason = options.blockedReason ?? null;
+  const available = !unavailableReason && !!synth && !!Utterance;
   const listeners = new Set<() => void>();
   let raw: SpeechVoiceLike[] = [];
   let settled = false;
@@ -192,6 +211,7 @@ export function createSpeechDriver(
   }
   return {
     available,
+    unavailableReason,
     voices: () => raw.map(info),
     get noLocalVoice() {
       return settled && !raw.some((v) => v.localService);
@@ -388,7 +408,7 @@ export function createSpeechDriver(
     destroy() {
       cancel();
       if (settleTimer !== null) timers.clearTimeout(settleTimer);
-      synth?.removeEventListener?.('voiceschanged', onChanged);
+      if (available) synth?.removeEventListener?.('voiceschanged', onChanged);
       listeners.clear();
     },
   };

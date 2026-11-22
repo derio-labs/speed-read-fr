@@ -430,6 +430,25 @@ rows:
       - speed-read-fr:tests/package.test.ts
     status: ci
     notes: Verified by the automated suite, which CI runs on every pull request
+  - id: speech-off-gecko-macos
+    capability: Text-to-speech safety in Firefox on macOS
+    acceptance: In Firefox and its forks (Zen) on macOS the reader never calls the speech
+      engine, even with speech saved on; Settings disables the toggle and says why.
+      Other browsers and VS Code are unaffected.
+    origin:
+    - spec:2026-11-17-structure-aware-speed-reader#R22
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/tts.test.ts#names a reason for Firefox and Zen
+        on macOS, and none elsewhere
+      - speed-read-fr:packages/core/src/tts.test.ts#a blocked driver is unavailable,
+        never touches the engine, and says why
+      - speed-read-fr:packages/core/src/ui/tts-panel.test.ts#the default driver never
+        speaks, even with speech saved on, and the panel says why
+    status: ci
+    notes: 'Debug 2026-11-22-tts-firefox-noise: Gecko''s macOS speech engine bangs at
+      every utterance end, plays about 2x the asked rate, and jams for good after one
+      cancel; blocked by user agent (a Gecko UA spoofed to another OS is not caught).'
 amendments:
   - row: vscode-cursor-follows
     op: reword
@@ -445,3 +464,119 @@ amendments:
       page, and page elements fixed to the right edge are moved out from under it.
     why: 'D10: the overlay is no longer a full-page panel over a dimmed page; this row
       keeps the dock, the floating overlay has its own row'
+  - row: browser-floating-overlay-on-sites
+    op: set-status
+    base: 0
+    status: walked
+    notes: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5:
+      structure-aware Test Plan 0 confirmed (faded page, full-strength block, follow,
+      wheel and dial strip)'
+    walk:
+      strategy: live
+      harness: chrome
+      model: operator
+      outcome: pass
+      at: '2026-11-22T00:00:00Z'
+      evidence: 'operator walk: structure-aware Test Plan 0 confirmed (faded page, full-strength
+        block, follow, wheel and dial strip)'
+    why: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5: structure-aware
+      Test Plan 0 confirmed (faded page, full-strength block, follow, wheel and dial
+      strip)'
+  - row: chat-site-adapters
+    op: set-status
+    base: 0
+    status: walked
+    notes: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5:
+      structure-aware Test Plan 1 confirmed on claude.ai, ChatGPT and Gemini'
+    walk:
+      strategy: live
+      harness: chrome
+      model: operator
+      outcome: pass
+      at: '2026-11-22T00:00:00Z'
+      evidence: 'operator walk: structure-aware Test Plan 1 confirmed on claude.ai,
+        ChatGPT and Gemini'
+    why: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5: structure-aware
+      Test Plan 1 confirmed on claude.ai, ChatGPT and Gemini'
+  - row: firefox-extension-runs
+    op: set-status
+    base: 0
+    status: walked
+    notes: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5:
+      structure-aware Test Plan 3 confirmed: entry points, Alt-hover, settings persist'
+    walk:
+      strategy: live
+      harness: firefox (Zen Browser)
+      model: operator
+      outcome: pass
+      at: '2026-11-22T00:00:00Z'
+      evidence: 'operator walk: structure-aware Test Plan 3 confirmed: entry points,
+        Alt-hover, settings persist'
+    why: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5: structure-aware
+      Test Plan 3 confirmed: entry points, Alt-hover, settings persist'
+  - row: vscode-extension-in-host
+    op: set-status
+    base: 0
+    status: walked
+    notes: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5:
+      structure-aware Test Plan 4 confirmed: commands, CodeLens, hover, math and Mermaid,
+      cursor follow'
+    walk:
+      strategy: live
+      harness: vscode
+      model: operator
+      outcome: pass
+      at: '2026-11-22T00:00:00Z'
+      evidence: 'operator walk: structure-aware Test Plan 4 confirmed: commands, CodeLens,
+        hover, math and Mermaid, cursor follow'
+    why: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5: structure-aware
+      Test Plan 4 confirmed: commands, CodeLens, hover, math and Mermaid, cursor follow'
+  - row: tts-speaks-in-sync
+    op: set-status
+    base: 0
+    status: failing
+    notes: 'walk 2026-11-22 in Firefox (Zen Browser): with TTS on, speech is incomprehensible,
+      a loud noise follows after ~1 s, and playback no longer advances while TTS stays
+      enabled. Fixing on fix/tts-firefox-noise'
+    walk:
+      strategy: live
+      harness: firefox (Zen Browser)
+      model: operator
+      outcome: fail
+      at: '2026-11-22T00:00:00Z'
+      evidence: 'operator walk: garbled speech, loud noise after ~1 s, playback stalls
+        with TTS on'
+    why: 'walk 2026-11-22 in Firefox (Zen Browser): with TTS on, speech is incomprehensible,
+      a loud noise follows after ~1 s, and playback no longer advances while TTS stays
+      enabled. Fixing on fix/tts-firefox-noise'
+  - row: tts-speaks-in-sync
+    op: set-status
+    base: 1
+    status: walk-owed
+    notes: 'Firefox/Zen on macOS: speech is now off by design (row speech-off-gecko-macos).
+      Still owed: a walk in Chrome and in VS Code with a local voice. Start at LOW volume:
+      the Firefox walk produced loud bangs from the engine.'
+    why: 'Firefox/Zen on macOS: speech is now off by design (row speech-off-gecko-macos).
+      Still owed: a walk in Chrome and in VS Code with a local voice. Start at LOW volume:
+      the Firefox walk produced loud bangs from the engine.'
+  - row: tts-speaks-in-sync
+    op: set-status
+    base: 2
+    status: walk-owed
+    notes: '2026-11-22 operator: VS Code reader with speech on works (understandable
+      at 400 WPM, barely at 500); Chrome''s bare engine is clean (9-word sentence at
+      rate 1 in 2904 ms, no bang). The bang is Firefox-only, blocked by row speech-off-gecko-macos.
+      Still owed: the reader with speech on in Chrome, the offline local voice and the
+      network-voice warning (spec Test Plan 5).'
+    walk:
+      strategy: live
+      harness: vscode
+      model: operator
+      outcome: pass
+      at: '2026-11-22T00:00:00Z'
+      evidence: 'operator walk: VS Code reader with TTS on follows the voice'
+    why: '2026-11-22 operator: VS Code reader with speech on works (understandable at
+      400 WPM, barely at 500); Chrome''s bare engine is clean (9-word sentence at rate
+      1 in 2904 ms, no bang). The bang is Firefox-only, blocked by row speech-off-gecko-macos.
+      Still owed: the reader with speech on in Chrome, the offline local voice and the
+      network-voice warning (spec Test Plan 5).'

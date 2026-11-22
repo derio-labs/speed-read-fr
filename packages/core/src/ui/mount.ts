@@ -2,7 +2,7 @@ import type { Doc } from '../model';
 import { createPlayer, type Player, type Scheduler } from '../player';
 import { normalizeSettings, type Settings, type SettingsStore } from '../settings';
 import { buildTimeline, type Timeline } from '../timeline';
-import { createSpeechDriver, type SpeechDriver, type SpeechSynth, type UtteranceLike } from '../tts';
+import { createSpeechDriver, speechBlockedReason, type SpeechDriver, type SpeechSynth, type UtteranceLike } from '../tts';
 import type { FrameSource, HostSetting, ReaderContext, Zone } from './context';
 import { chunkFit, FIT_MAX, PROBE_TEXT } from './chunk-fit';
 import { builder, icon, ICONS } from './dom';
@@ -137,6 +137,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       Utterance: speechWin.SpeechSynthesisUtterance,
       lang: ownerDocument.documentElement.lang || win.navigator?.language,
       estimateBoundaries: options.bottomStage,
+      blockedReason: speechBlockedReason(win.navigator?.userAgent),
     });
   speech.setVoice(settings.tts.voiceURI);
   const player = createPlayer(timeline, effective(settings), scheduler, speech);

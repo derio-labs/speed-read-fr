@@ -158,7 +158,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     voiceBadge.textContent = voice ? (voice.local ? 'local' : 'network') : '';
     voiceBadge.dataset.kind = voice?.local ? 'local' : 'network';
     const lines: [string, 'warning' | 'info'][] = [];
-    if (!speech.available) lines.push(['Text-to-speech is not available here', 'warning']);
+    if (!speech.available) lines.push([speech.unavailableReason ?? 'Text-to-speech is not available here', 'warning']);
     else if (speech.failed) lines.push(['Speech failed: showing text only', 'warning']);
     if (speech.available && speech.noLocalVoice && !picked) lines.push(['No offline voice installed', 'warning']);
     if (missingVoice && !picked) lines.push(['Saved voice not found; using Automatic', 'info']);
