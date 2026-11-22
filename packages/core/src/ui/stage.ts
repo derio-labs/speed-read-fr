@@ -2,7 +2,7 @@ import type { Token } from '../model';
 import { baseMs, sectionEstimate } from '../pacing';
 import type { EndStep, PlayerState, StepEvent } from '../player';
 import { joinTokens } from '../text/chunks';
-import { middleLetter } from '../text/middle';
+import { firstLetter, middleLetter } from '../text/middle';
 import { orp } from '../text/orp';
 import type { Step } from '../timeline';
 import { spokenWordMs } from '../tts';
@@ -11,7 +11,7 @@ import { PROBE_TEXT } from './chunk-fit';
 import { createDialStrip, wheelDelta, type DialStrip } from './dial-strip';
 import { append, replaceChildren, type Child } from './dom';
 import { chipLabel, EXHIBIT_LABELS, formatDuration, plural } from './format';
-import { anchorX, firstLetter, focusWidth, glideMs, overlapping, pointAnchor, runBounds, runWindow, slideX, type Anchor, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
+import { anchorX, focusWidth, glideMs, overlapping, pointAnchor, runBounds, runWindow, slideX, type Anchor, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
 
 type ChunkStep = Extract<Step, { kind: 'chunk' | 'item-chunk' }>;
 

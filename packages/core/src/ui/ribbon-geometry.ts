@@ -1,5 +1,4 @@
 import { baseMs } from '../pacing';
-import { ALNUM } from '../text/orp';
 
 /** Pure geometry of the flow-mode ribbon: no DOM, so the renderer only measures and applies it. */
 
@@ -77,16 +76,6 @@ export const GLIDE_MAX_MS = 100;
 export function glideMs({ wpm, distance, rowWidth, reducedMotion }: { wpm: number; distance: number; rowWidth: number; reducedMotion: boolean }): number {
   if (reducedMotion || distance > rowWidth) return 0;
   return Math.min(GLIDE_MAX_MS, baseMs({ wpm }) / 3);
-}
-
-/** Offsets `[start, end)` of the first letter or digit of `text`, as a whole code point; null when it has none. */
-export function firstLetter(text: string): [number, number] | null {
-  let offset = 0;
-  for (const ch of text) {
-    if (ALNUM.test(ch)) return [offset, offset + ch.length];
-    offset += ch.length;
-  }
-  return null;
 }
 
 /**

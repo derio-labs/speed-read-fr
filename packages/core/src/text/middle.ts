@@ -14,3 +14,10 @@ export function middleLetter(word: string): [number, number] {
           .join('').length;
   return [start, start + (Array.from(word.slice(start))[0]?.length ?? 0)];
 }
+
+/** `[start, end)` offsets, in `text`, of its first letter or digit, as a whole code point; null when it has none. */
+export function firstLetter(text: string): [number, number] | null {
+  const start = alnumOffsets(text)[0];
+  if (start === undefined) return null;
+  return [start, start + (text.codePointAt(start)! > 0xffff ? 2 : 1)];
+}

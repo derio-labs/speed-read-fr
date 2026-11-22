@@ -8,7 +8,6 @@ import {
   type Anchor,
   RUN_EDGE,
   RUN_WINDOW,
-  firstLetter,
   focusWidth,
   glideMs,
   runBounds,
@@ -123,23 +122,6 @@ describe('focusWidth', () => {
 
   it('is zero without a measure', () => {
     expect(focusWidth({ focusChars: 20, charWidth: 0, row: 1000 })).toBe(0);
-  });
-});
-
-describe('firstLetter', () => {
-  it('finds the first letter or digit as offsets', () => {
-    expect(firstLetter('hello')).toEqual([0, 1]);
-    expect(firstLetter('(Über')).toEqual([1, 2]);
-    expect(firstLetter('42nd')).toEqual([0, 1]);
-    expect(firstLetter('\u27e8code 1\u27e9')).toEqual([1, 2]);
-  });
-  it('is null for a word without a letter or digit', () => {
-    expect(firstLetter('\u2014')).toBeNull();
-    expect(firstLetter('')).toBeNull();
-  });
-  it('returns a whole code point for a surrogate pair', () => {
-    expect(firstLetter('\u{1d4d0}b')).toEqual([0, 2]);
-    expect(firstLetter('"\u{1d4d0}b')).toEqual([1, 3]);
   });
 });
 
