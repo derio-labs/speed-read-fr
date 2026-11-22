@@ -68,7 +68,6 @@ evidence:
   review: p1-review-1
   reviewer: aa63542b204ec3e07
   model: claude-opus-5-5
-  tests: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/8a2f0730-88d1-420d-a108-6aa8f9973976/scratchpad/review-fix-suite.log
 visual:
   - row: reader-focus-span
     shots:
