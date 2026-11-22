@@ -75,20 +75,9 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   const title = (text: string) => h('div', { class: 'sr-card-title' }, text);
   const hint = (...parts: Child[]) => h('div', { class: 'sr-card-hint' }, ...parts);
 
-  /**
-   * Token text as nodes, atoms wrapped in a monospace span; `from`/`to` are offsets in the joined text. With
-   * `marked`, the first letter or digit of the whole text is wrapped in `span.sr-w-first` (the ribbon's red letter).
-   */
-  function tokenNodes(tokens: Token[], from = 0, to = Infinity, marked = false): Child[] {
+  /** Token text as nodes, atoms wrapped in a monospace span; `from`/`to` are offsets in the joined text. */
+  function tokenNodes(tokens: Token[], from = 0, to = Infinity): Child[] {
     const nodes: Child[] = [];
-    const first = marked ? firstLetter(tokens.map((t) => t.text).join(' ')) : null;
-    /** `text`, which starts at joined offset `offset`, with the first letter wrapped when it falls inside. */
-    const mark = (text: string, offset: number): Child[] => {
-      const a = first ? Math.max(first[0], offset) : 0;
-      const b = first ? Math.min(first[1], offset + text.length) : 0;
-      if (!first || a >= b) return [text];
-      return [text.slice(0, a - offset), h('span', { class: 'sr-w-first' }, text.slice(a - offset, b - offset)), text.slice(b - offset)].filter((n) => n !== '');
-    };
     let at = 0;
     tokens.forEach((token, i) => {
       const piece = (i > 0 ? ' ' : '') + token.text;
@@ -99,12 +88,20 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       if (lo >= hi) return;
       const lead = i > 0 ? 1 : 0;
       const slice = piece.slice(lo - start, hi - start);
-      if (token.kind !== 'atom') return nodes.push(...mark(slice, lo));
+      if (token.kind !== 'atom') return nodes.push(slice);
       // The joining space stays outside the atom's box.
       const space = lo - start < lead ? ' ' : '';
-      nodes.push(space, h('span', { class: 'sr-atom' }, ...mark(space ? slice.slice(1) : slice, lo + space.length)));
+      nodes.push(space, h('span', { class: 'sr-atom' }, space ? slice.slice(1) : slice));
     });
     return nodes;
+  }
+
+  /** A ribbon word's token as nodes, with its first letter or digit wrapped in `span.sr-w-first` (the middle row's red letter). */
+  function markedNodes(token: Token): Child[] {
+    const at = firstLetter(token.text);
+    const text = token.text;
+    const nodes: Child[] = at ? [text.slice(0, at[0]), h('span', { class: 'sr-w-first' }, text.slice(at[0], at[1])), text.slice(at[1])].filter((n) => n !== '') : [text];
+    return token.kind === 'atom' ? [h('span', { class: 'sr-atom' }, ...nodes)] : nodes;
   }
 
   function setDisplay(kind: string, ...children: Child[]) {
@@ -140,7 +137,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     window: RunWindow;
     /** Step indices of the words, in line order, and the middle line's span for each. */
     order: number[];
-    words: Map<number, { el: HTMLElement; tokens: Token[] }>;
+    words: Map<number, { el: HTMLElement }>;
     spans: WordSpan[];
     /** Width of a row, measured with the spans. */
     row: number;
@@ -161,22 +158,23 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   function buildRibbon(run: RunRange, win: RunWindow): Ribbon {
     const steps = ctx.timeline.steps;
     const order: number[] = [];
-    const pieces: ({ step: number; tokens: Token[] } | null)[] = [];
+    // A flow step is one token: flow mode chunks one word per step.
+    const pieces: ({ step: number; token: Token } | null)[] = [];
     for (let i = win.from; i <= win.to; i++) {
       const step = steps[i];
       if (isChunk(step)) {
         order.push(i);
-        pieces.push({ step: i, tokens: step.chunk.tokens });
+        pieces.push({ step: i, token: step.chunk.tokens[0] });
       } else if (step.kind === 'item-gap' && pieces.length > 0 && i < win.to && isChunk(steps[i + 1])) pieces.push(null);
     }
-    const words = new Map<number, { el: HTMLElement; tokens: Token[] }>();
+    const words = new Map<number, { el: HTMLElement }>();
     const line = (position: 'top' | 'middle' | 'bottom') => {
       const children: Child[] = [];
       pieces.forEach((piece, n) => {
         if (n > 0) children.push(' ');
         if (!piece) return children.push(h('span', { class: 'sr-ribbon-sep' }, '•'));
-        const el = h('span', { class: 'sr-w' }, ...tokenNodes(piece.tokens, 0, Infinity, position === 'middle'));
-        if (position === 'middle') words.set(piece.step, { el, tokens: piece.tokens });
+        const el = h('span', { class: 'sr-w' }, ...(position === 'middle' ? markedNodes(piece.token) : tokenNodes([piece.token])));
+        if (position === 'middle') words.set(piece.step, { el });
         children.push(el);
       });
       return h('div', { class: 'sr-ribbon-line' }, ...children);
