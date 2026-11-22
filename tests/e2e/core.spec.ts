@@ -1362,6 +1362,12 @@ for (const mode of ['chunk', 'flow'] as const) {
     await expect(wpmText(page)).toHaveText('250 WPM');
     await page.screenshot({ path: `${UX_SHOTS}/wpm-${mode}-wheel-down.png` });
     // The ribbon / stage wheel is not the stepper's: over the stage it scrubs, the speed stays.
+    const at = () => page.evaluate(() => (window as unknown as { __reader: { player: { index: number } } }).__reader.player.index);
+    const positionBefore = await at();
+    await page.locator('.sr-display').hover();
+    await page.mouse.wheel(0, 400);
+    await expect.poll(at).not.toBe(positionBefore);
+    await expect(wpmText(page)).toHaveText('250 WPM');
     // Limits.
     for (let i = 0; i < 8; i++) await slower.click();
     await expect(wpmText(page)).toHaveText('100 WPM');
