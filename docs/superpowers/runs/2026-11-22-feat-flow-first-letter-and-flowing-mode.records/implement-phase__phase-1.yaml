@@ -23,17 +23,28 @@ visual:
     script: tests/e2e/core.spec.ts
     shots:
       - {path: .visual/2026-11-22-flow-first-letter-and-flowing/word-by-word-first-letters.png, shows: ["word-by-word flow playing with several words inside the bracket, each with a red first letter", "top and bottom rows with no red letters"]}
-      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/word-by-word-after-leaving.png, shows: ["letters clear on leaving the bracket", "top and bottom rows with no red letters"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/word-by-word-after-leaving.png, shows: ["top and bottom rows with no red letters", "play in both motions and watch letters turn red on entering and clear on leaving"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/play-word-0.png, shows: ["play in both motions and watch letters turn red on entering and clear on leaving"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/play-word-2.png, shows: ["play in both motions and watch letters turn red on entering and clear on leaving"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/play-flowing-0.png, shows: ["flowing motion mid-word with one word entering and one leaving the bracket", "play in both motions and watch letters turn red on entering and clear on leaving"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/play-flowing-2.png, shows: ["flowing motion mid-word with one word entering and one leaving the bracket", "play in both motions and watch letters turn red on entering and clear on leaving"]}
       - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-t0.png, shows: ["flowing motion mid-word with one word entering and one leaving the bracket"]}
       - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-paused-mid-slide.png, shows: ["pause in flowing with a word half inside the bracket"]}
-      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/focus-span-6.png, shows: ["focus span at 6"]}
-      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/focus-span-40.png, shows: ["focus span at 40"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/punct-digit-word.png, shows: ["a word starting with punctuation or a digit"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/focus-span-6.png, shows: ["focus span at 6 and at 40"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/focus-span-40.png, shows: ["focus span at 6 and at 40"]}
   - row: reader-flowing-motion
     script: tests/e2e/core.spec.ts
     shots:
-      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/settings-flow-motion.png, shows: ["Settings showing Flow motion = Flowing by default"]}
-      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/settings-chunk-no-flow-motion.png, shows: ["Flow motion hidden in chunk mode"]}
-      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-t0.png, shows: ["flowing ribbon at two moments within one word's time, visibly moved (first moment)"]}
-      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-t1.png, shows: ["flowing ribbon at two moments within one word's time, visibly moved (second moment)"]}
-      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-paused-mid-slide.png, shows: ["paused mid-slide", "play, pause, resume in flowing"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/settings-default-flowing.png, shows: ["Settings showing Flow motion = Flowing by default, hidden in chunk mode"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/settings-chunk-hidden.png, shows: ["Settings showing Flow motion = Flowing by default, hidden in chunk mode"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-t0.png, shows: ["flowing ribbon at two moments within one word's time, visibly moved"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-t1.png, shows: ["flowing ribbon at two moments within one word's time, visibly moved"]}
       - {path: .visual/2026-11-22-flow-first-letter-and-flowing/word-by-word-holding.png, shows: ["word-by-word ribbon holding on a word", "switch Flow motion in Settings while reading and see it apply at once"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-pause.png, shows: ["paused mid-slide", "play, pause, resume in flowing"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-paused-mid-slide.png, shows: ["paused mid-slide"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-play.png, shows: ["play, pause, resume in flowing"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-resume.png, shows: ["play, pause, resume in flowing"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-wheel-scrub.png, shows: ["turn the wheel or dial in flowing (word-by-word scrub)"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/flowing-wheel-scrub-2.png, shows: ["turn the wheel or dial in flowing (word-by-word scrub)"]}
+      - {path: .visual/2026-11-22-flow-first-letter-and-flowing/settings-reopened-persisted.png, shows: ["reopen the reader and confirm the choice persisted"]}
