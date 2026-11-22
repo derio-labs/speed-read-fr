@@ -637,7 +637,8 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     },
     refresh() {
       syncInset();
-      ribbon = null;
+      // A ribbon of the old timeline is stale; one the rebuild's step event just laid out is the live one (a resize still re-places it).
+      if (ribbon && ribbon.steps !== ctx.timeline.steps) ribbon = null;
       if (!shown) showReady();
       renderStatus();
     },

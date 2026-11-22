@@ -7,6 +7,7 @@ import { chromium, expect, test, type BrowserContext, type Page, type Worker } f
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { installMiddleBox } from './mid';
 
 // The extension API inside `worker.evaluate` (the service worker's global).
 declare const chrome: any; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -127,6 +128,7 @@ test('the reader opens on the main content only', async () => {
 });
 
 test('with a selection it reads the selection', async () => {
+  await saveSettings({ readingMode: 'chunk' });
   const page = await openPage(ARTICLE);
   await page.evaluate(() => {
     const p = document.querySelectorAll('#content > p')[1];
@@ -856,14 +858,15 @@ for (const display of ['dock', 'overlay']) {
       await page.keyboard.press('Space');
       await expect(host(page).locator('.sr-status-state')).toHaveText('Paused');
       await page.waitForTimeout(250);
+      await installMiddleBox(page);
       const lit = await inReader(page, (root) => {
         const row = root.querySelector('.sr-ribbon-row[data-position="middle"]')!.getBoundingClientRect();
-        const mid = root.querySelector('.sr-flow-mid')!.getBoundingClientRect();
+        const mid = window.__middleBox(root.querySelector('.sr-w[data-current]')!);
         const rows = ['top', 'middle', 'bottom'].map((p) => {
           const box = root.querySelector(`.sr-ribbon-row[data-position="${p}"]`)!.getBoundingClientRect();
           return !!root.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)?.closest(`.sr-ribbon-row[data-position="${p}"]`);
         });
-        const hitMid = !!root.elementFromPoint(mid.left + mid.width / 2, mid.top + mid.height / 2)?.closest('.sr-flow-mid');
+        const hitMid = !!root.elementFromPoint(mid.left + mid.width / 2, mid.top + mid.height / 2)?.closest('.sr-w[data-current]');
         return { off: Math.abs(mid.left + mid.width / 2 - (row.left + row.width / 2)), rows, hitMid };
       });
       expect(lit.off).toBeLessThan(1);

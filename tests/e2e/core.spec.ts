@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { installMiddleBox } from './mid';
 
 const DEMO = '/tests/demo/index.html';
 const STORE_KEY = 'speed-read-demo:settings';
@@ -48,7 +49,7 @@ test('the demo mounts the bottom-stage reader with ?bottomStage', async ({ page 
 });
 
 test('Space starts, the chapter card stops, Space continues and chunks advance', async ({ page }) => {
-  await openDemo(page);
+  await openDemo(page, { readingMode: 'chunk' });
   await expect(page.locator('.sr-card-ready')).toBeVisible();
   await page.keyboard.press('Space');
   await expect(page.locator('.sr-card-chapter .sr-card-title')).toHaveText('Reading structured answers quickly');
@@ -62,7 +63,7 @@ test('Space starts, the chapter card stops, Space continues and chunks advance',
 });
 
 test('the code stop shows its prompt and only then reveals the code in the pane', async ({ page }) => {
-  await openDemo(page, { wpm: 600 });
+  await openDemo(page, { readingMode: 'chunk', wpm: 600 });
   await page.keyboard.press('Space');
   // Sections: prose, lists, short lists (H3), code.
   for (let i = 0; i < 4; i++) await page.keyboard.press('n');
@@ -91,7 +92,7 @@ test('the code stop shows its prompt and only then reveals the code in the pane'
 });
 
 test('arrows move by sentence and change the speed', async ({ page }) => {
-  await openDemo(page);
+  await openDemo(page, { readingMode: 'chunk' });
   await page.keyboard.press('Space');
   await page.keyboard.press('Space');
   await page.keyboard.press('Space');
@@ -121,7 +122,7 @@ test('N and P move by section', async ({ page }) => {
 });
 
 test('clicking an outline row jumps to that section', async ({ page }) => {
-  await openDemo(page);
+  await openDemo(page, { readingMode: 'chunk' });
   await page.locator('.sr-outline-row', { hasText: 'Pictures and diagrams' }).click();
   await expect(page.locator('.sr-card-chapter .sr-card-title')).toHaveText('Pictures and diagrams');
   await expect(page.locator('.sr-outline-row[aria-current="true"] .sr-row-title')).toHaveText('Pictures and diagrams');
@@ -131,7 +132,7 @@ test('clicking an outline row jumps to that section', async ({ page }) => {
 });
 
 test('Tab shows normal reading at the current block and returns paused', async ({ page }) => {
-  await openDemo(page);
+  await openDemo(page, { readingMode: 'chunk' });
   await page.keyboard.press('n');
   await page.keyboard.press('Space');
   await expect(display(page)).toHaveAttribute('data-kind', 'chunk');
@@ -173,7 +174,7 @@ test('the exhibit pane sits right of the stage when wide; narrow, the outline is
 });
 
 test('words per chunk 1 and 8 change the chunk, and a reload keeps the saved setting', async ({ page }) => {
-  await openDemo(page);
+  await openDemo(page, { readingMode: 'chunk' });
   await page.keyboard.press('Space');
   await page.keyboard.press('Space');
   await page.keyboard.press('Space');
@@ -218,6 +219,7 @@ async function startFlow(page: Page) {
 
 /** What the ribbon shows now: per-row visible word index ranges, the lit word, and the target geometry. */
 async function ribbonSample(page: Page) {
+  await installMiddleBox(page);
   return page.evaluate(() => {
     const rows = [...document.querySelectorAll<HTMLElement>('.sr-ribbon-row')];
     const visible = rows.map((row) => {
@@ -229,10 +231,9 @@ async function ribbonSample(page: Page) {
       });
       return { lo: seen[0] ?? -1, hi: seen[seen.length - 1] ?? -1, box: { x: box.x, y: box.y, width: box.width, height: box.height }, count: seen.length };
     });
-    const mid = document.querySelector<HTMLElement>('.sr-flow-mid');
-    const word = mid?.closest<HTMLElement>('.sr-w') ?? null;
+    const word = document.querySelector<HTMLElement>('.sr-ribbon-row[data-position="middle"] .sr-w[data-current]');
     const middleWords = [...document.querySelectorAll('.sr-ribbon-row[data-position="middle"] .sr-w')];
-    const m = mid?.getBoundingClientRect();
+    const m = word ? window.__middleBox(word) : undefined;
     const w = word?.getBoundingClientRect();
     const target = document.querySelector('.sr-flow-target')!.getBoundingClientRect();
     const braces = [...document.querySelectorAll('.sr-flow-brace')].map((b) => b.getBoundingClientRect());
@@ -246,7 +247,14 @@ async function ribbonSample(page: Page) {
       word: w ? { x: w.x, width: w.width, top: w.y, bottom: w.y + w.height } : null,
       target: { x: target.x, width: target.width, top: target.y, bottom: target.y + target.height },
       braces: braces.map((b) => ({ top: b.y, bottom: b.y + b.height, x: b.x, width: b.width })),
-      mid: { weight: mid ? getComputedStyle(mid).fontWeight : '', parentWeight: word ? getComputedStyle(word).fontWeight : '', color: mid ? getComputedStyle(mid).color : '' },
+      /** No letter is coloured: the current word has the row's colour and weight, and nothing inside it is styled apart. */
+      word_style: {
+        weight: word ? getComputedStyle(word).fontWeight : '',
+        color: word ? getComputedStyle(word).color : '',
+        inner: word ? [...word.querySelectorAll('*')].map((e) => getComputedStyle(e).color) : [],
+        coloured: document.querySelectorAll('.sr-flow-mid').length,
+      },
+      charWidth: document.querySelector('.sr-ribbon-probe')!.getBoundingClientRect().width / 10,
       stage: document.querySelector('.sr-stage')!.getBoundingClientRect().width,
     };
   });
@@ -263,7 +271,7 @@ async function pauseFlow(page: Page) {
 
 for (const layout of ['floating', 'panel'] as const) {
   test.describe(`snake flow, bottom stage, ${layout} layout`, () => {
-    test('three rows of consecutive text, the middle letter on the target, braces as wide as the word + 8px', async ({ page }) => {
+    test('three rows of consecutive text, the middle letter on the target, a fixed-width bracket and no red letter', async ({ page }) => {
       // Far enough into the text that the top row is full; then back, a word at a time.
       await openFlow(page, layout, { wpm: 600 });
       await startFlow(page);
@@ -274,6 +282,7 @@ for (const layout of ['floating', 'panel'] as const) {
       await page.evaluate((delta) => (window as unknown as { __reader: { player: { scrub(n: number): number } } }).__reader.player.scrub(delta), 54 - parked);
       await settleGlide(page);
       await page.screenshot({ path: `${SHOTS}/${layout}-flow-paused.png` });
+      const widths = new Set<number>();
       for (let i = 0; i < 6; i++) {
         const sample = await ribbonSample(page);
         const [top, middle, bottom] = sample.visible;
@@ -292,20 +301,25 @@ for (const layout of ['floating', 'panel'] as const) {
         expect(middle.box.y).toBeLessThan(bottom.box.y);
         // The middle letter's centre is the target's fixed point, the middle of the row.
         expect(Math.abs(sample.midCentre - sample.rowCentre), `middle letter of "${sample.text}"`).toBeLessThan(1);
-        // The braces span the word, plus 4px each side, and stay outside its line box.
-        expect(Math.abs(sample.target.width - (sample.word!.width + 8))).toBeLessThan(1);
-        expect(Math.abs(sample.target.x - (sample.word!.x - 4))).toBeLessThan(1);
+        // The brackets are one fixed width, the 20-character focus span, centred on the row whatever the word, and outside its line box.
+        expect(Math.abs(sample.target.width - Math.min(middle.box.width, 20 * sample.charWidth))).toBeLessThan(1);
+        expect(Math.abs(sample.target.x + sample.target.width / 2 - sample.rowCentre)).toBeLessThan(1);
+        widths.add(Math.round(sample.target.width * 10));
         expect(sample.braces).toHaveLength(2);
         expect(sample.braces[0].bottom).toBeLessThanOrEqual(sample.word!.top + 1);
         expect(sample.braces[1].top).toBeGreaterThanOrEqual(sample.word!.bottom - 1);
-        // Red and not bold.
-        expect(sample.mid.weight).toBe(sample.mid.parentWeight);
-        expect(sample.mid.color).not.toBe(await page.locator('.sr-ribbon-row[data-position="middle"]').evaluate((e) => getComputedStyle(e).color));
+        // No red letter: the word keeps the row's colour and weight.
+        const rowStyle = await page.locator('.sr-ribbon-row[data-position="middle"]').evaluate((e) => ({ color: getComputedStyle(e).color, weight: getComputedStyle(e).fontWeight }));
+        expect(sample.word_style.color).toBe(rowStyle.color);
+        expect(sample.word_style.weight).toBe(rowStyle.weight);
+        expect(sample.word_style.inner.every((c) => c === rowStyle.color)).toBe(true);
+        expect(sample.word_style.coloured).toBe(0);
         await page.locator('.sr-stage').hover();
         await page.mouse.wheel(0, -120);
         await settleGlide(page);
         await page.waitForTimeout(400);
       }
+      expect(widths.size, 'the bracket keeps one width across words').toBe(1);
       // A narrower window: the ribbon follows the stage's width and keeps three rows.
       await page.setViewportSize({ width: 900, height: 900 });
       await settleGlide(page);
@@ -335,10 +349,11 @@ for (const layout of ['floating', 'panel'] as const) {
         await startFlow(page);
         await expect.poll(async () => (await ribbonSample(page)).index, { timeout: 20_000 }).toBeGreaterThan(5);
         await pauseFlow(page);
+        await installMiddleBox(page);
         const g = await page.evaluate(() => {
           const outline = document.querySelector('.sr-outline')!.getBoundingClientRect();
           const row = document.querySelector('.sr-ribbon-row[data-position="middle"]')!.getBoundingClientRect();
-          const mid = document.querySelector('.sr-flow-mid')!.getBoundingClientRect();
+          const mid = window.__middleBox(document.querySelector('.sr-w[data-current]')!);
           return { outlineRight: outline.right, outlineWidth: outline.width, rowLeft: row.left, rowRight: row.right, midCentre: mid.x + mid.width / 2, win: innerWidth };
         });
         expect(g.outlineWidth).toBeGreaterThan(100);
@@ -396,20 +411,23 @@ for (const layout of ['floating', 'panel'] as const) {
   });
 }
 
-test('the three-row flow setting persists and flow keeps its settings through a reload', async ({ page }) => {
+test('the reader opens in three-row flow, and a chosen chunk mode persists through a reload', async ({ page }) => {
   await openDemo(page);
   await page.keyboard.press(',');
-  await expect(page.locator('.sr-settings [name="readingMode"]')).toHaveValue('chunk');
-  await page.locator('.sr-settings [name="readingMode"]').selectOption('flow');
+  await expect(page.locator('.sr-settings [name="readingMode"]')).toHaveValue('flow');
   await page.keyboard.press('Escape');
   await page.keyboard.press('Space');
   await page.keyboard.press('Space');
   await expect(display(page)).toHaveAttribute('data-kind', 'flow');
   await expect(page.locator('.sr-ribbon-row')).toHaveCount(3);
+  await page.keyboard.press(',');
+  await page.locator('.sr-settings [name="readingMode"]').selectOption('chunk');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.sr-ribbon')).toHaveCount(0);
   await page.reload();
   await expect(page.locator('.sr-reader')).toBeFocused();
   await page.keyboard.press(',');
-  await expect(page.locator('.sr-settings [name="readingMode"]')).toHaveValue('flow');
+  await expect(page.locator('.sr-settings [name="readingMode"]')).toHaveValue('chunk');
 });
 
 /** The element's box lies inside the stage's box (1 px tolerance). */
@@ -423,7 +441,7 @@ test.describe('at 360 px', () => {
   test.use({ viewport: { width: 360, height: 800 } });
 
   test('a very long word and its sentence stay inside the stage', async ({ page }) => {
-    await openDemo(page);
+    await openDemo(page, { readingMode: 'chunk' });
     await page.keyboard.press('n');
     await expect(page.locator('.sr-card-chapter .sr-card-title')).toHaveText('How prose is paced');
     for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowRight');
@@ -448,7 +466,7 @@ test.describe('at 360 px', () => {
   });
 
   test('a nested list item stays inside the stage', async ({ page }) => {
-    await openDemo(page);
+    await openDemo(page, { readingMode: 'chunk' });
     await page.keyboard.press('n');
     await page.keyboard.press('n');
     await expect(page.locator('.sr-card-chapter .sr-card-title')).toHaveText('Lists are read item by item');
@@ -460,7 +478,7 @@ test.describe('at 360 px', () => {
 });
 
 test('a paused chunk stays inside the stage after resizing from wide to 360 px', async ({ page }) => {
-  await openDemo(page);
+  await openDemo(page, { readingMode: 'chunk' });
   await page.keyboard.press('n');
   for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowRight');
   await expect(chunk(page)).toContainText('Pneumonoultramicroscopic');
@@ -747,7 +765,7 @@ test.describe('text-to-speech with an injected speechSynthesis (R22)', () => {
   });
 
   test('voices are labelled local or network, a network voice is warned about, and chunks follow the boundaries', async ({ page }) => {
-    await openDemo(page, { chunkWords: 1 });
+    await openDemo(page, { readingMode: 'chunk', chunkWords: 1 });
     await page.locator('.sr-settings-button').click();
     const select = page.locator('.sr-settings [name="tts-voice"]');
     await expect(select.locator('option')).toContainText(['Automatic: Local Voice', 'Local Voice (en-US) · local', 'Cloud Voice (en-GB) · network']);
@@ -877,9 +895,10 @@ for (const layout of ['floating', 'panel'] as const) {
     await expect(page.locator('.sr-display')).toHaveAttribute('data-kind', 'flow');
     await expect(page.locator('.sr-ribbon')).toBeVisible();
     await settleGlide(page);
+    await installMiddleBox(page);
     const lit = await page.evaluate(() => {
-      const mid = document.querySelector<HTMLElement>('.sr-flow-mid')!;
-      const word = mid.closest('.sr-w')!;
+      const word = document.querySelector<HTMLElement>('.sr-w[data-current]')!;
+      const mid = { getBoundingClientRect: () => window.__middleBox(word) };
       const row = document.querySelector('.sr-ribbon-row[data-position="middle"]')!.getBoundingClientRect();
       const m = mid.getBoundingClientRect();
       return { word: word.textContent, off: Math.abs(m.left + m.width / 2 - (row.left + row.width / 2)) };
@@ -1016,6 +1035,7 @@ test.describe('chunk limits in the bottom-stage layouts', () => {
 
 /** elementFromPoint at the centre of each ribbon row and of the lit letter: what the user would hit there. */
 async function hitRibbon(page: Page) {
+  await installMiddleBox(page);
   return page.evaluate(() => {
     const centre = (el: Element) => {
       const b = el.getBoundingClientRect();
@@ -1026,8 +1046,11 @@ async function hitRibbon(page: Page) {
       const [x, y] = centre(row);
       return document.elementFromPoint(x, y)?.closest('.sr-ribbon-row')?.getAttribute('data-position') === p;
     });
-    const [mx, my] = centre(document.querySelector('.sr-flow-mid')!);
-    return { rows, mid: !!document.elementFromPoint(mx, my)?.closest('.sr-flow-mid') };
+    // The middle letter's box: what is at its centre belongs to the current word.
+    const word = document.querySelector('.sr-w[data-current]')!;
+    const box = window.__middleBox(word);
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    return { rows, mid: !!hit?.closest('.sr-w[data-current]') };
   });
 }
 
@@ -1166,3 +1189,193 @@ test.describe('the chunk fit on the bottom stage', () => {
     });
   }
 });
+
+// ---- Flow by default: the fixed focus bracket, no red letter, and the WPM stepper (2026-11-22-flow-default-ux).
+
+const UX_SHOTS = '.visual/2026-11-22-flow-default-ux';
+const wpmText = (page: Page) => page.locator('.sr-status-wpm');
+const wpmValue = async (page: Page) => Number.parseInt((await wpmText(page).textContent()) ?? '', 10);
+
+/** The bottom-stage demo with nothing saved (what a new user sees), or with the given saved settings. */
+async function openFresh(page: Page, saved?: Record<string, unknown>) {
+  if (saved)
+    await page.addInitScript(
+      ([key, value]) => {
+        if (!sessionStorage.getItem('seeded')) {
+          localStorage.setItem(key, value);
+          sessionStorage.setItem('seeded', '1');
+        }
+      },
+      [STORE_KEY, JSON.stringify(saved)] as const,
+    );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${DEMO}?bottomStage&layout=floating`);
+  await expect(page.locator('.sr-reader')).toBeFocused();
+}
+
+/** The bracket's box and centre, the middle row's, and one character's width in the ribbon font, measured on the page. */
+async function bracket(page: Page) {
+  return page.evaluate(() => {
+    const target = document.querySelector('.sr-flow-target')!.getBoundingClientRect();
+    const row = document.querySelector('.sr-ribbon-row[data-position="middle"]')!.getBoundingClientRect();
+    const charWidth = document.querySelector('.sr-ribbon-probe')!.getBoundingClientRect().width / 10;
+    return { width: target.width, centre: target.x + target.width / 2, rowCentre: row.x + row.width / 2, row: row.width, charWidth };
+  });
+}
+
+test('flow is the default on first open, with one fixed-width bracket across words, and no red letter', async ({ page }) => {
+  await openFresh(page);
+  await page.keyboard.press(',');
+  await expect(page.locator('.sr-settings [name="readingMode"]')).toHaveValue('flow');
+  await expect(page.locator('.sr-settings [name="focusChars"]')).toHaveValue('20');
+  await page.keyboard.press('Escape');
+  await startFlow(page);
+  await expect(display(page)).toHaveAttribute('data-kind', 'flow');
+  const before = await bracket(page);
+  expect(Math.abs(before.width - Math.min(before.row, 20 * before.charWidth))).toBeLessThan(1);
+  expect(Math.abs(before.centre - before.rowCentre)).toBeLessThan(1);
+  // Pause and step on a short word, a long one, and a few between: the bracket never changes.
+  await page.keyboard.press('Space');
+  await expect(state(page)).toHaveText('Paused');
+  const lengths = await page.evaluate(() => [...document.querySelectorAll('.sr-ribbon-row[data-position="middle"] .sr-w')].map((w) => w.textContent!.length));
+  const here = await page.evaluate(() => [...document.querySelectorAll('.sr-ribbon-row[data-position="middle"] .sr-w')].findIndex((w) => w.hasAttribute('data-current')));
+  const shortAt = lengths.findIndex((n, i) => i > here && n <= 3);
+  const longAt = lengths.indexOf(Math.max(...lengths));
+  expect(shortAt).toBeGreaterThan(-1);
+  expect(longAt).toBeGreaterThan(-1);
+  let on = here;
+  const scrubTo = async (at: number) => {
+    await page.evaluate((delta) => (window as unknown as { __reader: { player: { scrub(n: number): number } } }).__reader.player.scrub(delta), at - on);
+    on = at;
+  };
+  const word = () => page.locator('.sr-ribbon-row[data-position="middle"] .sr-w[data-current]').textContent();
+  await scrubTo(shortAt);
+  await settleGlide(page);
+  const short = await bracket(page);
+  await page.screenshot({ path: `${UX_SHOTS}/flow-20-short-word.png` });
+  await scrubTo(longAt);
+  await settleGlide(page);
+  const long = await bracket(page);
+  await page.screenshot({ path: `${UX_SHOTS}/flow-20-long-word.png` });
+  expect((await word())!.length).toBeGreaterThanOrEqual(9);
+  expect(Math.abs(short.width - before.width)).toBeLessThan(0.5);
+  expect(Math.abs(long.width - before.width)).toBeLessThan(0.5);
+  expect(Math.abs(long.centre - before.centre)).toBeLessThan(0.5);
+  // Stepping word by word keeps it too: each step lands on another word under the same bracket.
+  const seen = new Set<string>([(await word())!]);
+  for (let i = 0; i < 3; i++) {
+    await scrubTo(on + 1);
+    await settleGlide(page);
+    seen.add((await word())!);
+    expect(Math.abs((await bracket(page)).width - before.width)).toBeLessThan(0.5);
+    await page.screenshot({ path: `${UX_SHOTS}/flow-step-${i + 1}.png` });
+  }
+  expect(seen.size).toBe(4);
+  // No letter is red: the current word has the row's colour, and no span is coloured inside it.
+  const colours = await page.evaluate(() => {
+    const row = getComputedStyle(document.querySelector('.sr-ribbon-row[data-position="middle"]')!).color;
+    const word = document.querySelector('.sr-w[data-current]')!;
+    return { row, word: getComputedStyle(word).color, inner: [...word.querySelectorAll('*')].map((e) => getComputedStyle(e).color), mid: document.querySelectorAll('.sr-flow-mid').length };
+  });
+  expect(colours.word).toBe(colours.row);
+  expect(colours.inner.every((c) => c === colours.row)).toBe(true);
+  expect(colours.mid).toBe(0);
+  await page.locator('.sr-display').screenshot({ path: `${UX_SHOTS}/flow-no-red-letter.png` });
+});
+
+test('the Focus span setting resizes the bracket at once, from 6 to 40 characters (clamped to the row)', async ({ page }) => {
+  await openFresh(page);
+  await startFlow(page);
+  await page.keyboard.press('Space');
+  await expect(state(page)).toHaveText('Paused');
+  await settleGlide(page);
+  const at20 = await bracket(page);
+  await page.keyboard.press(',');
+  await page.screenshot({ path: `${UX_SHOTS}/focus-span-settings-open.png` });
+  const field = page.locator('.sr-settings [name="focusChars"]');
+  await field.fill('6');
+  await settleGlide(page);
+  const at6 = await bracket(page);
+  expect(Math.abs(at6.width - 6 * at6.charWidth)).toBeLessThan(1);
+  expect(at6.width).toBeLessThan(at20.width);
+  expect(Math.abs(at6.centre - at6.rowCentre)).toBeLessThan(1);
+  await page.screenshot({ path: `${UX_SHOTS}/focus-span-6.png` });
+  await field.fill('40');
+  await settleGlide(page);
+  const at40 = await bracket(page);
+  expect(Math.abs(at40.width - Math.min(at40.row, 40 * at40.charWidth))).toBeLessThan(1);
+  expect(at40.width).toBeGreaterThan(at20.width);
+  expect(at40.width).toBeLessThanOrEqual(at40.row + 0.5);
+  await page.screenshot({ path: `${UX_SHOTS}/focus-span-40.png` });
+  // On a narrow stage 40 characters are wider than the row: the bracket stops at the row.
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 520, height: 900 });
+  await settleGlide(page);
+  const narrow = await bracket(page);
+  expect(narrow.row).toBeLessThan(40 * narrow.charWidth);
+  expect(Math.abs(narrow.width - narrow.row)).toBeLessThan(1);
+  await page.screenshot({ path: `${UX_SHOTS}/focus-span-40-clamped.png` });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.keyboard.press(',');
+  // Beyond the limits the field is clamped.
+  await field.fill('99');
+  await field.dispatchEvent('change');
+  await expect(field).toHaveValue('40');
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await expect(page.locator('.sr-reader')).toBeFocused();
+  await page.keyboard.press(',');
+  await expect(page.locator('.sr-settings [name="focusChars"]')).toHaveValue('40');
+});
+
+for (const mode of ['chunk', 'flow'] as const) {
+  test(`the WPM readout has − and + buttons and a wheel stepper, 25 WPM a step, limits 100 and 1000, in ${mode} mode`, async ({ page }) => {
+    await openFresh(page, { readingMode: mode, wpm: 300 });
+    const faster = page.locator('.sr-wpm-step[aria-label="Faster"]');
+    const slower = page.locator('.sr-wpm-step[aria-label="Slower"]');
+    await expect(faster).toBeVisible();
+    await expect(slower).toBeVisible();
+    await expect(wpmText(page)).toHaveText('300 WPM');
+    await page.screenshot({ path: `${UX_SHOTS}/wpm-${mode}-buttons.png` });
+    // Playing: a click changes the speed without stopping it, and Space still toggles playback afterwards.
+    await page.keyboard.press('Space');
+    await expect(page.locator('.sr-card-chapter')).toBeVisible();
+    await page.keyboard.press('Space');
+    await expect(state(page)).toHaveText('Playing');
+    await faster.click();
+    await expect(wpmText(page)).toHaveText('325 WPM');
+    await expect(state(page)).toHaveText('Playing');
+    await page.screenshot({ path: `${UX_SHOTS}/wpm-${mode}-plus.png` });
+    await slower.click();
+    await slower.click();
+    await expect(wpmText(page)).toHaveText('275 WPM');
+    await page.screenshot({ path: `${UX_SHOTS}/wpm-${mode}-minus.png` });
+    await page.keyboard.press('Space');
+    await expect(state(page)).toHaveText('Paused');
+    // The wheel over the readout: up is faster, down is slower, one notch a step.
+    await wpmText(page).hover();
+    await page.mouse.wheel(0, -100);
+    await expect(wpmText(page)).toHaveText('300 WPM');
+    await page.screenshot({ path: `${UX_SHOTS}/wpm-${mode}-wheel-up.png` });
+    await page.mouse.wheel(0, 100);
+    await page.mouse.wheel(0, 100);
+    await expect(wpmText(page)).toHaveText('250 WPM');
+    await page.screenshot({ path: `${UX_SHOTS}/wpm-${mode}-wheel-down.png` });
+    // The ribbon / stage wheel is not the stepper's: over the stage it scrubs, the speed stays.
+    // Limits.
+    for (let i = 0; i < 8; i++) await slower.click();
+    await expect(wpmText(page)).toHaveText('100 WPM');
+    await slower.click();
+    await expect(wpmText(page)).toHaveText('100 WPM');
+    await page.screenshot({ path: `${UX_SHOTS}/wpm-${mode}-limit-100.png` });
+    for (let i = 0; i < 40; i++) await faster.click();
+    await expect(wpmText(page)).toHaveText('1000 WPM');
+    await faster.click();
+    await expect(wpmText(page)).toHaveText('1000 WPM');
+    await page.screenshot({ path: `${UX_SHOTS}/wpm-${mode}-limit-1000.png` });
+    // The speed is saved like the arrow keys' step.
+    await page.reload();
+    await expect(page.locator('.sr-reader')).toBeFocused();
+    await expect(wpmText(page)).toHaveText('1000 WPM');
+  });
+}
