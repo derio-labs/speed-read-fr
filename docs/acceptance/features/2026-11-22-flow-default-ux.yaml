@@ -15,9 +15,16 @@ rows:
     origin:
     - spec:2026-11-22-flow-default-ux#R1
     - spec:2026-11-22-flow-default-ux#R2
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/settings.test.ts
+      - speed-read-fr:packages/browser-extension/src/storage.test.ts
+      - speed-read-fr:packages/vscode-extension/src/config.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Flow default and both host migrations verified by unit tests and the e2e
+      'flow is the default' case; CI runs npm test and the e2e suite.
     verify: none
   - id: reader-focus-span
     capability: reader-ui
