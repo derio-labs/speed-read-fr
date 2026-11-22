@@ -8,10 +8,19 @@ const FLOW_DEFAULT = 'flow-default';
 
 /** Reader settings in `storage.local` (spec section 7 Storage). */
 export function extensionStore(area: ExtApi['storage']['local']): SettingsStore {
+  /** Ids of the migrations already applied; null when the record cannot be read. */
+  async function appliedIds(): Promise<string[] | null> {
+    try {
+      const applied = (await area.get(MIGRATIONS_KEY))?.[MIGRATIONS_KEY];
+      return Array.isArray(applied) ? (applied as string[]) : [];
+    } catch {
+      return null;
+    }
+  }
   /** The flow-default migration (spec 2026-11-22-flow-default-ux R2): once, stored settings move to flow. */
   async function migrate(stored: Partial<Settings> | null): Promise<Partial<Settings>> {
-    const applied = (await area.get(MIGRATIONS_KEY))?.[MIGRATIONS_KEY];
-    const ids = Array.isArray(applied) ? (applied as string[]) : [];
+    const ids = await appliedIds();
+    if (ids === null) return stored ?? {}; // The record is unreadable: keep the settings as stored.
     if (ids.includes(FLOW_DEFAULT)) return stored ?? {};
     const migrated = stored ? { ...stored, readingMode: 'flow' as const } : null;
     try {
@@ -34,8 +43,7 @@ export function extensionStore(area: ExtApi['storage']['local']): SettingsStore 
     async save(settings) {
       // Saving is the user's own choice: it also records the migration, so a failed migration write cannot
       // force flow again over a chunk they picked afterwards.
-      const applied = (await area.get(MIGRATIONS_KEY))?.[MIGRATIONS_KEY];
-      const ids = Array.isArray(applied) ? (applied as string[]) : [];
+      const ids = (await appliedIds()) ?? [];
       await area.set({ [SETTINGS_KEY]: settings, [MIGRATIONS_KEY]: ids.includes(FLOW_DEFAULT) ? ids : [...ids, FLOW_DEFAULT] });
     },
   };

@@ -85,6 +85,23 @@ describe('extension settings persistence', () => {
       expect((await store.load()).readingMode).toBe('chunk');
     });
 
+    it('keeps stored settings when the migrations read fails, and still saves (l-tests-r4)', async () => {
+      const state = { stored: { [SETTINGS_KEY]: { readingMode: 'chunk', wpm: 400 } } as Record<string, unknown> };
+      const area = {
+        async get(key: string) {
+          if (key === MIGRATIONS_KEY) throw new Error('storage unavailable');
+          return { [key]: state.stored[key] };
+        },
+        async set(value: Record<string, unknown>) {
+          state.stored = { ...state.stored, ...value };
+        },
+      } as never;
+      const store = extensionStore(area);
+      expect(await store.load()).toMatchObject({ wpm: 400 });
+      await store.save({ ...DEFAULT_SETTINGS, wpm: 450 });
+      expect(state.stored[SETTINGS_KEY]).toMatchObject({ wpm: 450 });
+    });
+
     it('does not touch settings once the id is recorded', async () => {
       const { area } = fakeArea({ [SETTINGS_KEY]: { readingMode: 'chunk' }, [MIGRATIONS_KEY]: ['flow-default'] });
       expect((await extensionStore(area).load()).readingMode).toBe('chunk');
