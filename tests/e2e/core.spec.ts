@@ -254,7 +254,7 @@ async function ribbonSample(page: Page) {
         inner: word ? [...word.querySelectorAll('*')].map((e) => getComputedStyle(e).color) : [],
         coloured: document.querySelectorAll('.sr-flow-mid').length,
       },
-      charWidth: document.querySelector('.sr-ribbon-probe')!.getBoundingClientRect().width / 10,
+      charWidth: (() => { const probe = document.querySelector('.sr-ribbon-probe')!; return probe.getBoundingClientRect().width / probe.textContent!.length; })(),
       stage: document.querySelector('.sr-stage')!.getBoundingClientRect().width,
     };
   });
@@ -1218,7 +1218,7 @@ async function bracket(page: Page) {
   return page.evaluate(() => {
     const target = document.querySelector('.sr-flow-target')!.getBoundingClientRect();
     const row = document.querySelector('.sr-ribbon-row[data-position="middle"]')!.getBoundingClientRect();
-    const charWidth = document.querySelector('.sr-ribbon-probe')!.getBoundingClientRect().width / 10;
+    const charWidth = (() => { const probe = document.querySelector('.sr-ribbon-probe')!; return probe.getBoundingClientRect().width / probe.textContent!.length; })();
     return { width: target.width, centre: target.x + target.width / 2, rowCentre: row.x + row.width / 2, row: row.width, charWidth };
   });
 }
@@ -1309,7 +1309,7 @@ test('the Focus span setting resizes the bracket at once, from 6 to 40 character
   await page.screenshot({ path: `${UX_SHOTS}/focus-span-40.png` });
   // On a narrow stage 40 characters are wider than the row: the bracket stops at the row.
   await page.keyboard.press('Escape');
-  await page.setViewportSize({ width: 520, height: 900 });
+  await page.setViewportSize({ width: 420, height: 900 });
   await settleGlide(page);
   const narrow = await bracket(page);
   expect(narrow.row).toBeLessThan(40 * narrow.charWidth);
@@ -1379,3 +1379,13 @@ for (const mode of ['chunk', 'flow'] as const) {
     await expect(wpmText(page)).toHaveText('1000 WPM');
   });
 }
+
+test('the + button does not move while the speed grows from 975 to 1000 WPM (p1-r6)', async ({ page }) => {
+  await openFresh(page, { readingMode: 'flow', wpm: 975 });
+  const faster = page.locator('.sr-wpm-step[aria-label="Faster"]');
+  const before = (await faster.boundingBox())!.x;
+  await faster.click();
+  await expect(wpmText(page)).toHaveText('1000 WPM');
+  expect(Math.abs((await faster.boundingBox())!.x - before)).toBeLessThan(0.5);
+  await page.setViewportSize({ width: 1440, height: 900 });
+});

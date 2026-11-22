@@ -6,6 +6,7 @@ import { middleLetter } from '../text/middle';
 import { orp } from '../text/orp';
 import type { Step } from '../timeline';
 import type { ReaderContext, Zone } from './context';
+import { PROBE_TEXT } from './chunk-fit';
 import { createDialStrip, wheelDelta, type DialStrip } from './dial-strip';
 import { append, replaceChildren, type Child } from './dom';
 import { chipLabel, EXHIBIT_LABELS, formatDuration, plural } from './format';
@@ -30,8 +31,8 @@ const DEPTH_PX = 28;
 /** Below this scale a chunk wraps inside the stage instead of shrinking further. */
 const MIN_SCALE = 0.5;
 
-/** Characters in the sample whose width is divided down to one character's. */
-const PROBE_CHARS = 10;
+/** Characters in the prose sample (the chunk fit's) whose width is divided down to one character's. */
+const PROBE_CHARS = PROBE_TEXT.length;
 
 /** WPM per press of a stepper button, or per `WHEEL_STEP_PX` of wheel turn (the ↑ / ↓ keys' step). */
 const WPM_STEP = 25;
@@ -134,8 +135,6 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     /** An off-screen 10-character sample in the ribbon font, and the width of one character measured from it. */
     probe: HTMLElement;
     charWidth: number;
-    /** The focus span (characters) the target was last sized for. */
-    focus: number | null;
     /** The shared offset last applied (null before the first placement), the step on show, and the lit word. */
     x: number | null;
     index: number;
@@ -175,9 +174,9 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       h('span', { class: 'sr-flow-brace', 'data-side': 'top' }),
       h('span', { class: 'sr-flow-brace', 'data-side': 'bottom' }),
     );
-    const probe = h('span', { class: 'sr-ribbon-probe', 'aria-hidden': 'true' }, '0'.repeat(PROBE_CHARS));
+    const probe = h('span', { class: 'sr-ribbon-probe', 'aria-hidden': 'true' }, PROBE_TEXT);
     const el = h('div', { class: 'sr-ribbon' }, ...rows, target, probe);
-    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], row: 0, probe, charWidth: 0, focus: null, x: null, index: -1, hidden: false, lit: null };
+    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], row: 0, probe, charWidth: 0, x: null, index: -1, hidden: false, lit: null };
   }
 
   const widthOf = (el: Element) => (typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect().width : 0);
@@ -253,7 +252,6 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   function sizeTarget(r: Ribbon) {
     const focusChars = player.settings.focusChars;
     const width = focusWidth({ focusChars, charWidth: r.charWidth, row: r.row });
-    r.focus = focusChars;
     r.target.style.setProperty('--sr-target-x', String(round((r.row - width) / 2)));
     r.target.style.setProperty('--sr-target-w', String(round(width)));
   }
@@ -519,7 +517,8 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     'wheel',
     (e) => {
       const event = e as WheelEvent;
-      if (!ctx.accepts(event) || event.ctrlKey || event.metaKey || event.deltaY === 0) return;
+      // Zoom, a horizontal swipe (back/forward) and a turn with no vertical part stay the browser's.
+      if (!ctx.accepts(event) || event.ctrlKey || event.metaKey || event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
       event.preventDefault();
       const now = ctx.scheduler.now();
       if (now - wheelAt > WHEEL_IDLE_MS) wheelTurn = 0;
@@ -582,10 +581,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       renderStatus();
     }),
     player.on('state', renderStatus),
-    player.on('settings', () => {
-      renderStatus();
-      if (ribbon && ribbon.el.isConnected && ribbon.focus !== player.settings.focusChars) sizeTarget(ribbon);
-    }),
+    player.on('settings', renderStatus),
     ctx.speech.onVoices(renderStatus),
   ];
   /**
@@ -639,6 +635,8 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       syncInset();
       // A ribbon of the old timeline is stale; one the rebuild's step event just laid out is the live one (a resize still re-places it).
       if (ribbon && ribbon.steps !== ctx.timeline.steps) ribbon = null;
+      // A changed focus span re-sizes the bracket of the ribbon on show, whatever the player is doing.
+      else if (ribbon && ribbon.el.isConnected) sizeTarget(ribbon);
       if (!shown) showReady();
       renderStatus();
     },

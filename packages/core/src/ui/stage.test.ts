@@ -74,7 +74,7 @@ function stubRibbonLayout() {
   const rect = (x: number, width: number, height = 0) => ({ width, height, top: 0, left: x, right: x + width, bottom: height, x, y: 0, toJSON() {} }) as DOMRect;
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
     if (this.classList.contains('sr-ribbon-row')) return rect(0, 400, 40);
-    if (this.classList.contains('sr-ribbon-probe')) return rect(0, 100);
+    if (this.classList.contains('sr-ribbon-probe')) return rect(0, (this.textContent ?? '').length * 10);
     if (this.classList.contains('sr-ribbon-line')) return rect(0, (this.textContent ?? '').length * 10);
     if (this.classList.contains('sr-w')) return rect(left(this), (this.textContent ?? '').length * 10);
     return rect(0, 0);
@@ -134,6 +134,24 @@ describe('flow mode ribbon', () => {
       expect(target.style.getPropertyValue('--sr-target-x')).toBe('100'); // centred on the 400px row
       t.clock.advance(t.clock.nextIn()!);
     }
+  });
+
+  it('measures a character as the chunk fit does: the prose sample, not digits (p1-r2)', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
+    t.handle.player.toggle();
+    const probe = t.q('.sr-ribbon-probe')!;
+    expect(probe.textContent).toBe('the quick brown fox jumps over a lazy dog');
+  });
+
+  it('re-sizes the bracket when the focus span changes while paused (p1-r4)', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
+    t.handle.player.toggle();
+    t.handle.player.toggle();
+    expect(t.handle.player.state).toBe('paused');
+    t.handle.applySettings({ ...t.handle.player.settings, focusChars: 10 });
+    expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-w')).toBe('100');
   });
 
   it('resizes the live bracket when the focus span changes, without a resize event, and clamps it to the row', () => {
@@ -600,6 +618,13 @@ describe('WPM stepper', () => {
     expect(t.handle.player.settings.wpm).toBe(325);
     for (let i = 0; i < 50; i++) wheel(readout, { deltaY: -4 });
     expect(t.handle.player.settings.wpm).toBe(375);
+  });
+
+  it('leaves a mostly horizontal swipe to the browser (p1-r3)', () => {
+    const t = mountHarness(HTML);
+    const event = wheel(t.q('.sr-wpm')!, { deltaX: 120, deltaY: 30 });
+    expect(event.defaultPrevented).toBe(false);
+    expect(t.handle.player.settings.wpm).toBe(300);
   });
 
   it('forgets a partial turn after 300 ms without wheel events', () => {
