@@ -50,9 +50,20 @@ rows:
     - spec:2026-11-22-flow-first-letter-and-flowing#R5
     - spec:2026-11-22-flow-first-letter-and-flowing#R6
     - spec:2026-11-22-flow-first-letter-and-flowing#R7
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/ui/ribbon-geometry.test.ts
+      - speed-read-fr:packages/core/src/ui/stage.test.ts
+      - speed-read-fr:packages/core/src/settings.test.ts
+      - speed-read-fr:packages/core/src/ui/settings-panel.test.ts
+      - speed-read-fr:packages/vscode-extension/src/manifest.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Flowing slide, gap, inline stop, pause, jump, scrub, speech, window rebuild,
+      reduced motion and the live setting verified by unit tests with a fake clock and
+      frames, and Playwright sampling the ribbon's motion; CI runs npm test and the
+      e2e suite.
     verify: none
     visual:
       states:
