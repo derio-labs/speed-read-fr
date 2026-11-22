@@ -73,13 +73,17 @@ header bar, a help button) move out from under the panel while it is open.
 
 Esc closes the reader and leaves the page at the block you were reading, outlined briefly.
 
-Choose **Chunk-by-chunk** or **Three-row flow** with **Reading mode** in Settings. Chunk-by-chunk
-remains the default. Flow shows the text as one continuous ribbon wrapped onto three rows of a much
+Choose **Chunk-by-chunk** or **Three-row flow** with **Reading mode** in Settings. Three-row flow is
+the default, for everyone: a reader who had Chunk-by-chunk saved before this default is moved to flow
+once, the first time the reader loads their settings, and a later choice of Chunk-by-chunk is kept.
+Flow shows the text as one continuous ribbon wrapped onto three rows of a much
 wider window (up to 1200 px in the browser overlay, the full panel in the browser dock and VS Code):
 read top left to bottom right, the rows are plain running text, with what you just read on top, the
 current line in the middle and what comes next below. Each step moves the ribbon left by one word, so
-the current word glides into a fixed braced target at the center of the middle row, between a red
-brace above and below it, with its middle letter in red. The wheel or the dial moves the ribbon
+the current word glides onto the middle letter of the middle row's center, inside a red bracket above
+and below the row. The bracket is the span your eye takes in at one glance: one fixed width, the
+**Focus span** (20 characters by default, 6-40 in Settings), the same for every word and never wider
+than the row; no letter is coloured red. The wheel or the dial moves the ribbon
 back and forward word by word with the same glide, and reading resumes from the word you reach; under
 reduced motion it moves without the glide. Both modes use the same speed, timeline, chapter and
 exhibit behavior, pause/play, sentence and section navigation, and dial controls.
@@ -92,8 +96,8 @@ Dwell hold the ribbon on screen with the chip on the target while the prompt sho
 expands the full text), and Skip only lists it. Speech reads a chip as "code" or "formula".
 
 The choice is saved
-with the browser extension's settings or the VS Code `speedRead.readingMode` setting; older saved
-settings without a mode continue in chunk mode.
+with the browser extension's settings or the VS Code `speedRead.readingMode` setting (and the Focus
+span with `speedRead.focusChars`); saved settings without a mode open in flow.
 
 ### In VS Code
 
@@ -146,6 +150,12 @@ exhibit over the whole reader in every layout.
 
 The mouse wheel and the dial strip move the position (see [The position dial](#the-position-dial)).
 
+In both reading modes the WPM readout in the status line has a **-** button before it and a **+**
+button after it; each click changes the speed by 25 WPM (100-1000), the same as Up / Down, without
+stopping playback. The mouse wheel over the readout does the same, one notch a step (wheel up is
+faster); Ctrl+wheel still zooms the page. The buttons are for the mouse: Space keeps playing and
+pausing after a click.
+
 ## Settings
 
 Open them with the gear button or `,`. The browser keeps them in the extension's storage; VS Code
@@ -154,7 +164,8 @@ keeps them in the `speedRead.*` settings.
 | Setting | Default | Range |
 | --- | --- | --- |
 | Speed | 300 WPM | 100-1000 |
-| Reading mode | Chunk-by-chunk | Chunk-by-chunk or Three-row flow |
+| Reading mode | Three-row flow | Chunk-by-chunk or Three-row flow |
+| Focus span | 20 characters | 6-40; the width of the red bracket in flow mode (`speedRead.focusChars` in VS Code) |
 | Words per chunk | 3 | 1-10 |
 | Characters per chunk | 20 (maximum) | 5-80; in the browser and VS Code the limit in force is capped by how many characters fit the chunk stage (the setting keeps your value, so a wider window gives it back) |
 | Stop at headings | H1 and H2 | any of H1-H6 |
@@ -162,7 +173,7 @@ keeps them in the `speedRead.*` settings.
 | Tables | Stop (Dwell: 5 s) | Stop, Skip, or Dwell 1-60 s |
 | Math | Stop (Dwell: 5 s) | Stop, Skip, or Dwell 1-60 s |
 | Images and diagrams | 3 s | 1-60 s |
-| Display | Overlay | Overlay or Side panel (browser only) |
+| Display | Overlay | Overlay or Side panel (browser only: VS Code always reads in a panel, so it has no Reader choice in Settings and no `speedRead.display` setting) |
 | Page fade | 32 % | 10-80 %, strength of the page behind the floating reader (browser only) |
 | Text-to-speech | Off | on or off, and the voice |
 
