@@ -1468,15 +1468,18 @@ test.describe('first letter in the bracket and flowing motion', () => {
     const before = await expectRedFirstLetters(page);
     expect(before.red).toBeGreaterThan(1);
     await page.locator('.sr-display').screenshot({ path: `${FLOW_SHOTS}/word-by-word-first-letters.png` });
+    // The leftmost word in the bracket leaves it first: step on, a word at a time, until it has left it but is still on the row.
     const leaving = before.words.find((w) => w.overlap > 0 && w.firstColour !== null)!;
-    await page.evaluate(() => (window as unknown as { __reader: { player: { scrub(n: number): number } } }).__reader.player.scrub(30));
-    await settleGlide(page);
-    const after = await expectRedFirstLetters(page);
-    const same = after.words.find((w) => w.index === leaving.index);
-    if (same) {
-      expect(same.overlap).toBeLessThan(0);
-      expect(same.firstColour).toBe(after.rowColour);
+    let after = before;
+    for (let i = 0; i < 20 && (after.words.find((w) => w.index === leaving.index)?.overlap ?? -1) >= 0; i++) {
+      await page.evaluate(() => (window as unknown as { __reader: { player: { scrub(n: number): number } } }).__reader.player.scrub(1));
+      await settleGlide(page);
+      after = await expectRedFirstLetters(page);
     }
+    const same = after.words.find((w) => w.index === leaving.index);
+    expect(same, `"${leaving.text}" is still on the middle row`).toBeDefined();
+    expect(same!.overlap).toBeLessThan(0);
+    expect(same!.firstColour).toBe(after.rowColour);
     expect(after.red).toBeGreaterThan(1);
     await page.locator('.sr-display').screenshot({ path: `${FLOW_SHOTS}/word-by-word-after-leaving.png` });
   });
