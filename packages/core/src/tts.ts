@@ -130,6 +130,9 @@ interface Part {
 /** Speech rate for a reading speed: wpm / 180, clamped to 0.5-3. */
 export const speechRate = (wpm: number) => Math.min(3, Math.max(0.5, wpm / 180));
 
+/** The estimated time of one spoken word at the speech rate of `wpm`: what the estimated boundaries step by, and the flowing ribbon slides over. */
+export const spokenWordMs = (wpm: number) => 60_000 / (180 * speechRate(wpm));
+
 const info = (v: SpeechVoiceLike): VoiceInfo => ({ uri: v.voiceURI, name: v.name, lang: v.lang, local: v.localService });
 const primary = (lang: string) => lang.toLowerCase().split(/[-_]/)[0];
 
@@ -280,7 +283,7 @@ export function createSpeechDriver(
       let voice = current();
       const key = voice?.voiceURI ?? '';
       const rate = speechRate(wpm);
-      const msPerWord = 60_000 / (180 * rate);
+      const msPerWord = spokenWordMs(wpm);
       let shown = 0;
       let whole = false;
       let heard = false;

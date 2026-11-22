@@ -148,7 +148,7 @@ describe('speech on the stage', () => {
 
   it('the ribbon follows the spoken word and holds at the first word, target hidden, without boundaries', async () => {
     const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], {
-      saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, readingMode: 'flow' },
+      saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, readingMode: 'flow', flowMotion: 'word' },
     });
     await t.settle();
     t.handle.player.toggle();
@@ -173,7 +173,7 @@ describe('speech on the stage', () => {
     const speech = fakeSpeech([voice('Alice', 'en-US', true)]);
     const t = mountHarness(TEXT, {
       bottomStage: true,
-      saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, readingMode: 'flow' },
+      saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, readingMode: 'flow', flowMotion: 'word' },
       speech: (clock) => createSpeechDriver(speech.synth, { Utterance: speech.Utterance, scheduler: clock, lang: 'en', estimateBoundaries: true }),
     });
     await t.settle();
@@ -191,7 +191,7 @@ describe('flow whole-sentence fallback', () => {
   for (const bottomStage of [false, true]) {
     it(`holds the ribbon at the sentence's first word with the target hidden (${bottomStage ? 'with' : 'without'} details)`, async () => {
       const { t, speech } = withSpeech([voice('Alice', 'en-US', true)], {
-        saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, readingMode: 'flow' },
+        saved: { tts: { enabled: true, voiceURI: null }, chunkWords: 1, readingMode: 'flow', flowMotion: 'word' },
         bottomStage,
       });
       await t.settle();
@@ -283,7 +283,7 @@ describe('speech at an inline exhibit stop', () => {
     const speech = fakeSpeech([voice('Alice', 'en-US', true)]);
     const t = mountHarness(`<p>Call <code>${'x_long_identifier_name_ok'}</code> then go on.</p>`, {
       speech: (clock) => createSpeechDriver(speech.synth, { Utterance: speech.Utterance, scheduler: clock, lang: 'en' }),
-      saved: { tts: { enabled: true, voiceURI: null }, readingMode: 'flow' },
+      saved: { tts: { enabled: true, voiceURI: null }, readingMode: 'flow', flowMotion: 'word' },
     });
     await t.settle();
     t.handle.player.toggle();

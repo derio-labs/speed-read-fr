@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { orp } from '../text/orp';
 import { ARTICLE, mountHarness, chunkSettings } from '../testing/reader';
+import { fakeSpeech, voice } from '../testing/speech';
+import { createSpeechDriver } from '../tts';
 import { formatDuration } from './format';
 
 afterEach(() => {
@@ -976,5 +978,88 @@ describe('flowing motion', () => {
     const frames = sample(t, 5);
     expect(frames[0].x).toBeGreaterThan(25);
     expect(frames.at(-1)!.x).toBeGreaterThan(frames[0].x);
+  });
+
+  describe('with speech', () => {
+    const TEXT = '<p>The first sentence is here. A second one follows.</p>';
+    const spoken = async (html = TEXT, estimate = false) => {
+      stubRibbonLayout();
+      const speech = fakeSpeech([voice('Alice', 'en-US', true)]);
+      const t = mountHarness(html, {
+        settings: { ...flowing, tts: { enabled: true, voiceURI: null } },
+        speech: (clock) => createSpeechDriver(speech.synth, { Utterance: speech.Utterance, scheduler: clock, lang: 'en', estimateBoundaries: estimate }),
+      });
+      await t.settle();
+      t.handle.player.toggle();
+      return { t, speech };
+    };
+
+    it("slides the sentence's first word over one spoken word's time, then holds at its end until a boundary", async () => {
+      const { t } = await spoken();
+      // 300 wpm: 200 ms per spoken word. 'The' has its middle at 15; 'first' (starts at 40) at 65; the handover is 40.
+      expect(current(t)).toBe('The');
+      expect(xOf(t)).toBe(15);
+      t.runFrames(96);
+      expect(xOf(t)).toBeCloseTo(15 + 25 * (96 / 200), 0);
+      t.runFrames(112);
+      expect(xOf(t)).toBeCloseTo(40, 5);
+      const held = [xOf(t)];
+      t.runFrames(160);
+      held.push(xOf(t));
+      expect(held[1]).toBe(held[0]);
+    });
+
+    it('starts a slide of one spoken word at each boundary, from where the ribbon is', async () => {
+      const { t, speech } = await spoken();
+      t.runFrames(320);
+      const atFirst = xOf(t);
+      speech.spoken[0].boundary(4); // 'first'
+      expect(current(t)).toBe('first');
+      expect(xOf(t)).toBeGreaterThanOrEqual(atFirst);
+      t.runFrames(96);
+      const mid = xOf(t);
+      expect(mid).toBeGreaterThan(atFirst);
+      t.runFrames(160);
+      const end = xOf(t);
+      expect(end).toBeGreaterThan(mid);
+      t.runFrames(160);
+      expect(xOf(t)).toBe(end);
+    });
+
+    it('retargets an early boundary from the current position, without a jump', async () => {
+      const { t, speech } = await spoken();
+      t.runFrames(320);
+      speech.spoken[0].boundary(4);
+      t.runFrames(48);
+      const before = xOf(t);
+      speech.spoken[0].boundary(10); // 'sentence' arrives early
+      expect(current(t)).toBe('sentence');
+      expect(xOf(t)).toBeCloseTo(before, 5);
+      t.runFrames(48);
+      expect(xOf(t)).toBeGreaterThan(before);
+    });
+
+    it('treats a jump while speaking as a jump: the reached word is placed at once', async () => {
+      const { t } = await spoken();
+      t.runFrames(100);
+      t.handle.player.sentence(1);
+      expect(current(t)).toBe('A');
+      // 'A' starts after "The first sentence is here. " (28 characters), 10px wide.
+      expect(xOf(t)).toBe(285);
+      expect(ribbonVar(t, '--sr-glide')).toBe('0ms');
+      t.runFrames(100);
+      expect(xOf(t)).toBeGreaterThan(285);
+    });
+
+    it('holds the ribbon with the braces hidden and nothing marked when the voice gives no boundaries', async () => {
+      const { t, speech } = await spoken();
+      speech.spoken[0].end();
+      t.clock.advance(1000);
+      expect(t.q('.sr-flow-target')!.hidden).toBe(true);
+      expect(t.qa('.sr-w[data-in]')).toHaveLength(0);
+      const x = xOf(t);
+      t.runFrames(160);
+      expect(xOf(t)).toBe(x);
+    });
   });
 });

@@ -5,6 +5,7 @@ import { joinTokens } from '../text/chunks';
 import { middleLetter } from '../text/middle';
 import { orp } from '../text/orp';
 import type { Step } from '../timeline';
+import { spokenWordMs } from '../tts';
 import type { ReaderContext, Zone } from './context';
 import { PROBE_TEXT } from './chunk-fit';
 import { createDialStrip, wheelDelta, type DialStrip } from './dial-strip';
@@ -602,13 +603,15 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   /** A flow-mode word step: Flowing slides over the step's time while playing; everything else places the word. */
   function showFlowStep(index: number, durationMs: number | null) {
     const playing = player.state === 'playing';
-    const ms = durationMs;
+    // A spoken step has no duration of its own: the voice times it, and the slide takes one estimated spoken word.
+    const spoken = playing && durationMs === null && player.settings.tts.enabled;
+    const ms = spoken ? spokenWordMs(player.settings.wpm) : durationMs;
     stepInfo = null;
     if (!flowing() || !playing || ms === null) {
       if (playing && ms !== null) stepInfo = { startedAt: ctx.scheduler.now(), ms, to: endAnchor(index) };
       return showFlow(index);
     }
-    flowWord(index, ms, false);
+    flowWord(index, ms, spoken);
   }
 
   function showStep(step: Step | EndStep, index: number, durationMs: number | null = null) {
