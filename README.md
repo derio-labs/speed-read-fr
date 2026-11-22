@@ -75,7 +75,8 @@ Esc closes the reader and leaves the page at the block you were reading, outline
 
 Choose **Chunk-by-chunk** or **Three-row flow** with **Reading mode** in Settings. Three-row flow is
 the default, for everyone: a reader who had Chunk-by-chunk saved before this default is moved to flow
-once, the first time the reader loads their settings, and a later choice of Chunk-by-chunk is kept.
+once, the first time the reader loads their settings, and a later choice of Chunk-by-chunk is kept. In
+VS Code only your user settings are moved; a workspace's `.vscode/settings.json` is never rewritten.
 Flow shows the text as one continuous ribbon wrapped onto three rows of a much
 wider window (up to 1200 px in the browser overlay, the full panel in the browser dock and VS Code):
 read top left to bottom right, the rows are plain running text, with what you just read on top, the

@@ -67,6 +67,14 @@ test('the webview renders the Markdown into the reader, offline and within its C
   await expect(page.locator('.sr-outline-row')).toHaveText([/Reading a structured answer/, /Lists/, /Math and a diagram/, /Code and a table/, /Pictures/]);
 });
 
+test('the webview Settings panel has a Focus span field and no Reader (overlay / side panel) field (R7)', async ({ page }) => {
+  await open(page);
+  await page.keyboard.press(',');
+  await expect(page.locator('.sr-settings')).toBeVisible();
+  await expect(page.locator('.sr-settings [name="focusChars"]')).toBeVisible();
+  await expect(page.locator('.sr-settings [name="display"]')).toHaveCount(0);
+});
+
 test('flow mode in the webview reads a three-row ribbon across the panel with the middle letter on the target', async ({ page }) => {
   await open(page, { ...FAST, readingMode: 'flow', wpm: 300 });
   await page.keyboard.press('Space');
