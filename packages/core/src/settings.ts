@@ -24,6 +24,8 @@ export interface Settings {
   imageDwellSeconds: number;
   display: DisplayMode;
   readingMode: ReadingMode;
+  /** Flow mode: the width of the focus bracket, in characters of the ribbon font, 6-40. */
+  focusChars: number;
   tts: TtsSettings;
   /** Strength of the page behind the browser's floating reader, 0.10-0.80 (R29); other hosts ignore it. */
   pageFade: number;
@@ -40,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   imageDwellSeconds: 3,
   display: 'overlay',
   readingMode: 'flow',
+  focusChars: 20,
   tts: { enabled: false, voiceURI: null },
   pageFade: 0.32,
 };
@@ -102,6 +105,7 @@ export function normalizeSettings(partial: Partial<Settings>): Settings {
     imageDwellSeconds: clampNumber(p.imageDwellSeconds, 1, 60, d.imageDwellSeconds),
     display: oneOf(p.display, DISPLAY_MODES, d.display),
     readingMode: oneOf(p.readingMode, READING_MODES, d.readingMode),
+    focusChars: clampNumber(p.focusChars, 6, 40, d.focusChars),
     tts: normalizeTts(p.tts),
     pageFade: clampNumber(p.pageFade, 0.1, 0.8, d.pageFade),
   };

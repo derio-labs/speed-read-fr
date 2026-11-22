@@ -3,6 +3,7 @@ import {
   GLIDE_MAX_MS,
   RUN_EDGE,
   RUN_WINDOW,
+  focusWidth,
   glideMs,
   runBounds,
   runWindow,
@@ -101,5 +102,20 @@ describe('glideMs', () => {
     expect(glideMs({ wpm: 300, distance: 401, rowWidth: 400, reducedMotion: false })).toBe(0);
     expect(glideMs({ wpm: 150, distance: 400, rowWidth: 400, reducedMotion: false })).toBe(GLIDE_MAX_MS);
     expect(glideMs({ wpm: 300, distance: 10, rowWidth: 400, reducedMotion: true })).toBe(0);
+  });
+});
+
+describe('focusWidth', () => {
+  it('is the focus span in measured characters', () => {
+    expect(focusWidth({ focusChars: 20, charWidth: 10, row: 1000 })).toBe(200);
+    expect(focusWidth({ focusChars: 6, charWidth: 8.5, row: 1000 })).toBeCloseTo(51);
+  });
+
+  it('is never wider than the row', () => {
+    expect(focusWidth({ focusChars: 40, charWidth: 10, row: 300 })).toBe(300);
+  });
+
+  it('is zero without a measure', () => {
+    expect(focusWidth({ focusChars: 20, charWidth: 0, row: 1000 })).toBe(0);
   });
 });

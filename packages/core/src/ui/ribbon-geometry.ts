@@ -10,6 +10,11 @@ export interface WordSpan {
   mid: number;
 }
 
+/** The focus bracket's width: the focus span in measured characters, never wider than the row. */
+export function focusWidth({ focusChars, charWidth, row }: { focusChars: number; charWidth: number; row: number }): number {
+  return Math.min(row, focusChars * charWidth);
+}
+
 /** The most words laid out at once. */
 export const RUN_WINDOW = 400;
 /** The window is laid out again when the position comes within this many words of one of its edges. */

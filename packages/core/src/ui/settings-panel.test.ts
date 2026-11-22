@@ -57,6 +57,19 @@ describe('settings panel', () => {
     expect(panel.querySelectorAll('select[name$="-mode"] option')).toHaveLength(9);
   });
 
+  it('has a Focus span field in characters that applies and saves at once', async () => {
+    const t = mountHarness(ARTICLE);
+    await t.settle();
+    const { field, set } = open(t);
+    expect(field('focusChars').value).toBe('20');
+    expect([field('focusChars').min, field('focusChars').max]).toEqual(['6', '40']);
+    set('focusChars', '12');
+    expect(t.handle.player.settings.focusChars).toBe(12);
+    expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ focusChars: 12 }));
+    set('focusChars', '99');
+    expect(t.handle.player.settings.focusChars).toBe(40);
+  });
+
   it('applies words per chunk at once, keeping the position, and saves it', async () => {
     const t = mountHarness('<p>a bb cc dd ee ff gg hh ii.</p>', { settings: chunkSettings });
     await t.settle();

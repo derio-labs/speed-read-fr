@@ -59,7 +59,9 @@ describe('VS Code extension manifest', () => {
 
   it('has a speedRead.* configuration property for every setting, defaulting to DEFAULT_SETTINGS', () => {
     const props = pkg.contributes.configuration.properties as Record<string, { default: unknown; description?: string; markdownDescription?: string }>;
-    const expected = flatten(DEFAULT_SETTINGS as unknown as Record<string, unknown>);
+    // `display` (overlay / side panel) is a browser choice: VS Code always reads in a panel.
+    const { display: _display, ...vscodeSettings } = DEFAULT_SETTINGS;
+    const expected = flatten(vscodeSettings as unknown as Record<string, unknown>);
     expect(Object.keys(props).sort()).toEqual(Object.keys(expected).map((k) => `speedRead.${k}`).sort());
     for (const [key, value] of Object.entries(expected)) {
       expect(props[`speedRead.${key}`].default, key).toEqual(value);
@@ -71,6 +73,14 @@ describe('VS Code extension manifest', () => {
     const readingMode = pkg.contributes.configuration.properties['speedRead.readingMode'];
     expect(readingMode).toMatchObject({ type: 'string', enum: ['chunk', 'flow'], default: 'flow' });
     expect(readingMode.description).toMatch(/reading mode/i);
+  });
+
+  it('contributes the focus span, 6-40 characters, default 20', () => {
+    expect(pkg.contributes.configuration.properties['speedRead.focusChars']).toMatchObject({ type: 'number', minimum: 6, maximum: 40, default: 20 });
+  });
+
+  it('contributes no display setting: VS Code always reads in a panel', () => {
+    expect(pkg.contributes.configuration.properties['speedRead.display']).toBeUndefined();
   });
 
   it('packages only dist, media, package.json, README.md and LICENSE', () => {

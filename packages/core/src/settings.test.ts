@@ -17,6 +17,7 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.display).toBe('overlay');
     expect(DEFAULT_SETTINGS.tts).toEqual({ enabled: false, voiceURI: null });
     expect(DEFAULT_SETTINGS.readingMode).toBe('flow');
+    expect(DEFAULT_SETTINGS.focusChars).toBe(20);
   });
 });
 
@@ -30,6 +31,14 @@ describe('normalizeSettings', () => {
     expect(normalizeSettings({ readingMode: 'flow' }).readingMode).toBe('flow');
     expect(normalizeSettings({}).readingMode).toBe('flow');
     expect(normalizeSettings({ readingMode: 'unknown' } as never).readingMode).toBe('flow');
+  });
+
+  it('clamps the focus span to 6-40 characters, defaulting a missing or unreadable one to 20', () => {
+    expect(normalizeSettings({ focusChars: 3 }).focusChars).toBe(6);
+    expect(normalizeSettings({ focusChars: 99 }).focusChars).toBe(40);
+    expect(normalizeSettings({ focusChars: 12 }).focusChars).toBe(12);
+    expect(normalizeSettings({}).focusChars).toBe(20);
+    expect(normalizeSettings({ focusChars: 'x' } as never).focusChars).toBe(20);
   });
 
   it('drops unknown keys', () => {
