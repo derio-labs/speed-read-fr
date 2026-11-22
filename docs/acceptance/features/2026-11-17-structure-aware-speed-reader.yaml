@@ -495,3 +495,20 @@ amendments:
         Alt-hover, settings persist'
     why: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5: structure-aware
       Test Plan 3 confirmed: entry points, Alt-hover, settings persist'
+  - row: vscode-extension-in-host
+    op: set-status
+    base: 0
+    status: walked
+    notes: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5:
+      structure-aware Test Plan 4 confirmed: commands, CodeLens, hover, math and Mermaid,
+      cursor follow'
+    walk:
+      strategy: live
+      harness: vscode
+      model: operator
+      outcome: pass
+      at: '2026-11-22T00:00:00Z'
+      evidence: 'operator walk: structure-aware Test Plan 4 confirmed: commands, CodeLens,
+        hover, math and Mermaid, cursor follow'
+    why: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5: structure-aware
+      Test Plan 4 confirmed: commands, CodeLens, hover, math and Mermaid, cursor follow'
