@@ -463,3 +463,19 @@ amendments:
     why: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5: structure-aware
       Test Plan 0 confirmed (faded page, full-strength block, follow, wheel and dial
       strip)'
+  - row: chat-site-adapters
+    op: set-status
+    base: 0
+    status: walked
+    notes: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5:
+      structure-aware Test Plan 1 confirmed on claude.ai, ChatGPT and Gemini'
+    walk:
+      strategy: live
+      harness: chrome
+      model: operator
+      outcome: pass
+      at: '2026-11-22T00:00:00Z'
+      evidence: 'operator walk: structure-aware Test Plan 1 confirmed on claude.ai,
+        ChatGPT and Gemini'
+    why: 'walked 2026-11-22 by the operator on builds packaged from main ec592f5: structure-aware
+      Test Plan 1 confirmed on claude.ai, ChatGPT and Gemini'
