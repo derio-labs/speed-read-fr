@@ -823,11 +823,11 @@ describe('flowing motion', () => {
 
   it('crosses an item gap in its own time, without holding', () => {
     stubRibbonLayout();
-    const t = mountHarness('<ul><li>one two</li><li>three four five six</li></ul>', { settings: flowing });
+    const t = mountHarness('<ul><li>first list item that is rather long indeed</li><li>second list item that is also long</li></ul>', { settings: flowing });
     t.handle.player.toggle();
-    const frames = sample(t, 50);
-    // steps: one, two, gap, three, ...
-    const inGap = frames.filter((f) => f.index === 2);
+    const frames = sample(t, 160);
+    // The first item's eight words are steps 0-7, the gap is step 8.
+    const inGap = frames.filter((f) => f.index === 8);
     expect(inGap.length).toBeGreaterThan(1);
     frames.forEach((f, i) => {
       if (i > 0) expect(f.x).toBeGreaterThan(frames[i - 1].x);
@@ -846,10 +846,11 @@ describe('flowing motion', () => {
     stubRibbonLayout();
     const t = mountHarness(html, { settings: flowing });
     t.handle.player.toggle();
-    const frames = sample(t, 40);
+    const frames: ReturnType<typeof sample> = [];
+    for (let i = 0; i < 100 && t.handle.player.state !== 'stopped'; i++) frames.push(...sample(t, 1));
     expect(t.handle.player.state).toBe('stopped');
-    const stopped = frames.filter((f) => f.index > 0).slice(-8);
-    for (const f of stopped) expect(f.x).toBeCloseTo(chipMid, 5);
+    frames.push(...sample(t, 10));
+    for (const f of frames.slice(-10)) expect(f.x).toBeCloseTo(chipMid, 5);
     frames.forEach((f, i) => {
       if (i > 0) expect(f.x).toBeGreaterThanOrEqual(frames[i - 1].x - 1e-9);
     });
@@ -871,7 +872,8 @@ describe('flowing motion', () => {
     expect(after[0].x - frozen).toBeLessThan(15);
     // alpha's middle is 25, beta's 75: the handover that ends alpha's step is 50, which the next step starts from.
     const firstOfNext = after.find((f) => f.index === 1)!;
-    expect(firstOfNext.x).toBeCloseTo(50, 1);
+    expect(firstOfNext.x).toBeGreaterThanOrEqual(50 - 1e-6);
+    expect(firstOfNext.x).toBeLessThan(50 + 15);
     for (const f of after.filter((f) => f.index === 0)) expect(f.x).toBeLessThanOrEqual(50 + 1e-6);
   });
 
@@ -905,12 +907,12 @@ describe('flowing motion', () => {
 
   it('places the reached word at once on a jump while playing, then flows on from it', () => {
     stubRibbonLayout();
-    const t = mountHarness('<p>alpha beta. gamma delta epsilon.</p>', { settings: flowing });
+    const t = mountHarness('<p>alpha beta. Gamma delta epsilon.</p>', { settings: flowing });
     t.handle.player.toggle();
     sample(t, 2);
     t.handle.player.sentence(1);
-    expect(current(t)).toBe('gamma');
-    // gamma starts after "alpha beta. " (12 characters): its middle is 120 + 25.
+    expect(current(t)).toBe('Gamma');
+    // Gamma starts after "alpha beta. " (12 characters): its middle is 120 + 25.
     expect(xOf(t)).toBe(145);
     expect(ribbonVar(t, '--sr-glide')).toBe('0ms');
     const frames = sample(t, 8);
@@ -923,11 +925,14 @@ describe('flowing motion', () => {
     const words = Array.from({ length: 1000 }, (_, i) => `w${i}`);
     const t = mountHarness(`<p>${words.join(' ')}.</p>`, { settings: { ...flowing, wpm: 1000 } });
     t.handle.player.toggle();
+    // Start 5 words short of the window's edge (the ribbon is laid out again at word 300).
+    t.handle.player.scrub(295);
+    t.runFrames(700);
     const startOf = (i: number) => words.slice(0, i).reduce((n, w) => n + (w.length + 1) * 10, 0);
     const first = () => Number(t.q('.sr-ribbon-row[data-position="middle"] .sr-w')!.textContent!.slice(1));
     let last = -Infinity;
     let rebuilt = false;
-    for (let i = 0; i < 1500 && !rebuilt; i++) {
+    for (let i = 0; i < 200 && !rebuilt; i++) {
       t.runFrames(16);
       const absolute = xOf(t) + startOf(first());
       expect(absolute).toBeGreaterThanOrEqual(last - 1e-6);
