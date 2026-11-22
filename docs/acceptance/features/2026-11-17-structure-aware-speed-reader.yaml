@@ -559,3 +559,24 @@ amendments:
     why: 'Firefox/Zen on macOS: speech is now off by design (row speech-off-gecko-macos).
       Still owed: a walk in Chrome and in VS Code with a local voice. Start at LOW volume:
       the Firefox walk produced loud bangs from the engine.'
+  - row: tts-speaks-in-sync
+    op: set-status
+    base: 2
+    status: walk-owed
+    notes: '2026-11-22 operator: VS Code reader with speech on works (understandable
+      at 400 WPM, barely at 500); Chrome''s bare engine is clean (9-word sentence at
+      rate 1 in 2904 ms, no bang). The bang is Firefox-only, blocked by row speech-off-gecko-macos.
+      Still owed: the reader with speech on in Chrome, the offline local voice and the
+      network-voice warning (spec Test Plan 5).'
+    walk:
+      strategy: live
+      harness: vscode
+      model: operator
+      outcome: pass
+      at: '2026-11-22T00:00:00Z'
+      evidence: 'operator walk: VS Code reader with TTS on follows the voice'
+    why: '2026-11-22 operator: VS Code reader with speech on works (understandable at
+      400 WPM, barely at 500); Chrome''s bare engine is clean (9-word sentence at rate
+      1 in 2904 ms, no bang). The bang is Firefox-only, blocked by row speech-off-gecko-macos.
+      Still owed: the reader with speech on in Chrome, the offline local voice and the
+      network-voice warning (spec Test Plan 5).'
