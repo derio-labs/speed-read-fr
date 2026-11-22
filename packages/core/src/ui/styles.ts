@@ -209,6 +209,7 @@ export const READER_CSS = `
 .sr-ribbon-row[data-position="top"] { grid-row: 1; --sr-shift: calc(var(--sr-w, 0) * 1.5px); }
 .sr-ribbon-row[data-position="middle"] { grid-row: 2; color: var(--sr-text); --sr-shift: calc(var(--sr-w, 0) * 0.5px); }
 .sr-ribbon-row[data-position="bottom"] { grid-row: 3; --sr-shift: calc(var(--sr-w, 0) * -0.5px); }
+.sr-ribbon-row[data-position="middle"] .sr-w[data-in] .sr-w-first { color: var(--sr-accent); }
 .sr-ribbon-line {
   flex: none; white-space: nowrap; will-change: transform;
   transform: translateX(calc(var(--sr-x, 0) * -1px + var(--sr-shift, 0px))); transition: transform var(--sr-glide) ease-out;

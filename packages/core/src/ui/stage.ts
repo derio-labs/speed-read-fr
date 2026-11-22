@@ -10,7 +10,7 @@ import { PROBE_TEXT } from './chunk-fit';
 import { createDialStrip, wheelDelta, type DialStrip } from './dial-strip';
 import { append, replaceChildren, type Child } from './dom';
 import { chipLabel, EXHIBIT_LABELS, formatDuration, plural } from './format';
-import { focusWidth, glideMs, runBounds, runWindow, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
+import { firstLetter, focusWidth, glideMs, inBracket, runBounds, runWindow, type RunRange, type RunWindow, type WordSpan } from './ribbon-geometry';
 
 type ChunkStep = Extract<Step, { kind: 'chunk' | 'item-chunk' }>;
 
@@ -74,9 +74,20 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
   const title = (text: string) => h('div', { class: 'sr-card-title' }, text);
   const hint = (...parts: Child[]) => h('div', { class: 'sr-card-hint' }, ...parts);
 
-  /** Token text as nodes, atoms wrapped in a monospace span; `from`/`to` are offsets in the joined text. */
-  function tokenNodes(tokens: Token[], from = 0, to = Infinity): Child[] {
+  /**
+   * Token text as nodes, atoms wrapped in a monospace span; `from`/`to` are offsets in the joined text. With
+   * `marked`, the first letter or digit of the whole text is wrapped in `span.sr-w-first` (the ribbon's red letter).
+   */
+  function tokenNodes(tokens: Token[], from = 0, to = Infinity, marked = false): Child[] {
     const nodes: Child[] = [];
+    const first = marked ? firstLetter(tokens.map((t) => t.text).join(' ')) : null;
+    /** `text`, which starts at joined offset `offset`, with the first letter wrapped when it falls inside. */
+    const mark = (text: string, offset: number): Child[] => {
+      const a = first ? Math.max(first[0], offset) : 0;
+      const b = first ? Math.min(first[1], offset + text.length) : 0;
+      if (!first || a >= b) return [text];
+      return [text.slice(0, a - offset), h('span', { class: 'sr-w-first' }, text.slice(a - offset, b - offset)), text.slice(b - offset)].filter((n) => n !== '');
+    };
     let at = 0;
     tokens.forEach((token, i) => {
       const piece = (i > 0 ? ' ' : '') + token.text;
@@ -87,10 +98,10 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       if (lo >= hi) return;
       const lead = i > 0 ? 1 : 0;
       const slice = piece.slice(lo - start, hi - start);
-      if (token.kind !== 'atom') return nodes.push(slice);
+      if (token.kind !== 'atom') return nodes.push(...mark(slice, lo));
       // The joining space stays outside the atom's box.
       const space = lo - start < lead ? ' ' : '';
-      nodes.push(space, h('span', { class: 'sr-atom' }, space ? slice.slice(1) : slice));
+      nodes.push(space, h('span', { class: 'sr-atom' }, ...mark(space ? slice.slice(1) : slice, lo + space.length)));
     });
     return nodes;
   }
@@ -140,6 +151,9 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     index: number;
     hidden: boolean;
     lit: number | null;
+    /** The bracket on the middle row (screen x and width), and the step indices of the words marked inside it. */
+    bracket: { x: number; w: number };
+    marked: Set<number>;
   }
   let ribbon: Ribbon | null = null;
 
@@ -160,7 +174,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
       pieces.forEach((piece, n) => {
         if (n > 0) children.push(' ');
         if (!piece) return children.push(h('span', { class: 'sr-ribbon-sep' }, '•'));
-        const el = h('span', { class: 'sr-w' }, ...tokenNodes(piece.tokens));
+        const el = h('span', { class: 'sr-w' }, ...tokenNodes(piece.tokens, 0, Infinity, position === 'middle'));
         if (position === 'middle') words.set(piece.step, { el, tokens: piece.tokens });
         children.push(el);
       });
@@ -176,7 +190,7 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     );
     const probe = h('span', { class: 'sr-ribbon-probe', 'aria-hidden': 'true' }, PROBE_TEXT);
     const el = h('div', { class: 'sr-ribbon' }, ...rows, target, probe);
-    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], row: 0, probe, charWidth: 0, x: null, index: -1, hidden: false, lit: null };
+    return { el, middle: lines[1], target, steps, run, window: win, order, words, spans: [], row: 0, probe, charWidth: 0, x: null, index: -1, hidden: false, lit: null, bracket: { x: 0, w: 0 }, marked: new Set() };
   }
 
   const widthOf = (el: Element) => (typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect().width : 0);
@@ -254,6 +268,21 @@ export function createStage(ctx: ReaderContext, { stage, status, overallFill, de
     const width = focusWidth({ focusChars, charWidth: r.charWidth, row: r.row });
     r.target.style.setProperty('--sr-target-x', String(round((r.row - width) / 2)));
     r.target.style.setProperty('--sr-target-w', String(round(width)));
+    r.bracket = { x: (r.row - width) / 2, w: width };
+    if (r.x !== null) markBracket(r, r.x);
+  }
+
+  /** Mark (`data-in`) exactly the middle-row words with any part inside the bracket for offset `x`; none while the braces are hidden. */
+  function markBracket(r: Ribbon, x: number) {
+    const now = new Set<number>();
+    if (!r.hidden) {
+      r.order.forEach((step, at) => {
+        if (inBracket({ span: r.spans[at], x, row: r.row, target: r.bracket })) now.add(step);
+      });
+    }
+    for (const step of r.marked) if (!now.has(step)) r.words.get(step)?.el.removeAttribute('data-in');
+    for (const step of now) if (!r.marked.has(step)) r.words.get(step)?.el.setAttribute('data-in', '');
+    r.marked = now;
   }
 
   /** Show the ribbon around the chunk at `index`; `hidden` hides the braces (a position no one knows yet). */

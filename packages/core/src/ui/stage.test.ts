@@ -81,11 +81,15 @@ function stubRibbonLayout() {
   });
   (Range.prototype as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = function (this: Range) {
     const word = this.startContainer.parentElement!.closest('.sr-w')!;
-    return rect(left(word) + this.startOffset * 10, (this.endOffset - this.startOffset) * 10);
+    // The offset of the range's start in the word's text, across the text nodes the first-letter span splits it into.
+    const walker = document.createTreeWalker(word, 4 /* SHOW_TEXT */);
+    let before = 0;
+    for (let node = walker.nextNode(); node && node !== this.startContainer; node = walker.nextNode()) before += (node as Text).data.length;
+    return rect(left(word) + (before + this.startOffset) * 10, (this.endOffset - this.startOffset) * 10);
   };
 }
 
-const flowOpts = { readingMode: 'flow' as const };
+const flowOpts = { readingMode: 'flow' as const, flowMotion: 'word' as const };
 /** The word on the ribbon's target. */
 const current = (t: ReturnType<typeof mountHarness>) => text(t.q('.sr-ribbon-row[data-position="middle"] .sr-w[data-current]'));
 const rowText = (t: ReturnType<typeof mountHarness>, position: string) => text(t.q(`.sr-ribbon-row[data-position="${position}"]`));
@@ -107,7 +111,8 @@ describe('flow mode ribbon', () => {
     expect(t.q('.sr-flow-row')).toBeNull();
   });
 
-  it('colours no letter of the current word, marking the word itself with data-current', () => {
+  it('marks the current word with data-current and colours only the first letter of in-bracket words', () => {
+    stubRibbonLayout();
     const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowOpts });
     t.handle.player.toggle();
     expect(t.q('.sr-flow-mid')).toBeNull();
@@ -115,10 +120,94 @@ describe('flow mode ribbon', () => {
     expect(t.qa('.sr-w[data-current]')).toHaveLength(1);
     expect(t.q('.sr-w[data-current]')!.closest('.sr-ribbon-row')!.getAttribute('data-position')).toBe('middle');
     t.clock.advance(t.clock.nextIn()!);
-    expect(t.q('.sr-flow-mid')).toBeNull();
     expect(current(t)).toBe('beta');
     expect(t.qa('.sr-w[data-current]')).toHaveLength(1);
     expect(rowText(t, 'middle')).toBe('alpha beta gamma.');
+  });
+
+  describe('red first letter in the bracket', () => {
+    const inMarked = (t: ReturnType<typeof mountHarness>) => t.qa('.sr-ribbon-row[data-position="middle"] .sr-w[data-in]').map((w) => text(w));
+
+    it('wraps the first letter of each middle-row word, and only there', () => {
+      stubRibbonLayout();
+      const t = mountHarness('<p>alpha (Beta) 42nd.</p>', { settings: flowOpts });
+      t.handle.player.toggle();
+      expect(t.qa('.sr-ribbon-row[data-position="middle"] .sr-w-first').map((e) => e.textContent)).toEqual(['a', 'B', '4']);
+      expect(t.qa('.sr-ribbon-row:not([data-position="middle"]) .sr-w-first')).toHaveLength(0);
+      expect(t.qa('.sr-w-first').every((e) => e.closest('.sr-w'))).toBe(true);
+      expect(rowText(t, 'middle')).toBe('alpha (Beta) 42nd.');
+    });
+
+    it('leaves a word with no letter unwrapped', () => {
+      stubRibbonLayout();
+      const t = mountHarness('<p>alpha \u2014 beta.</p>', { settings: flowOpts });
+      t.handle.player.toggle();
+      expect(t.qa('.sr-ribbon-row[data-position="middle"] .sr-w-first').map((e) => e.textContent)).toEqual(['a', 'b']);
+    });
+
+    it('marks exactly the middle-row words overlapping the bracket after a step, never top or bottom', () => {
+      stubRibbonLayout();
+      const t = mountHarness('<p>alpha beta gamma delta.</p>', { settings: flowOpts });
+      t.handle.player.toggle();
+      // x = 25: bracket [100, 300); alpha [175,225), beta [235,275), gamma [285,345) overlap, delta [345,..) does not.
+      expect(inMarked(t)).toEqual(['alpha', 'beta', 'gamma']);
+      t.clock.advance(t.clock.nextIn()!);
+      // x = 75: alpha [125,175), beta .., gamma [235,..), delta [295,..) overlap.
+      expect(inMarked(t)).toEqual(['alpha', 'beta', 'gamma', 'delta.']);
+      expect(t.qa('.sr-ribbon-row:not([data-position="middle"]) [data-in]')).toHaveLength(0);
+    });
+
+    it('re-marks when the focus span changes while paused', () => {
+      stubRibbonLayout();
+      const t = mountHarness('<p>alpha beta gamma delta.</p>', { settings: flowOpts });
+      t.handle.player.toggle();
+      t.handle.player.toggle();
+      expect(inMarked(t)).toEqual(['alpha', 'beta', 'gamma']);
+      t.handle.applySettings({ ...t.handle.player.settings, focusChars: 6 });
+      // bracket [170, 230): only alpha [175,225)
+      expect(inMarked(t)).toEqual(['alpha']);
+    });
+
+    it('re-marks when the stage is laid out again (resize)', () => {
+      const observers: { cb: () => void }[] = [];
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(public cb: () => void) {
+            observers.push(this);
+          }
+          observe() {}
+          disconnect() {}
+        },
+      );
+      stubRibbonLayout();
+      const t = mountHarness('<p>alpha beta gamma delta.</p>', { settings: flowOpts });
+      t.handle.player.toggle();
+      t.handle.player.toggle();
+      expect(inMarked(t)).toEqual(['alpha', 'beta', 'gamma']);
+      // The row gets narrower, 100px: the bracket is clamped to it, [0,100), and the line sits at left = start - 25 + 50.
+      vi.restoreAllMocks();
+      const rect = (x: number, width: number, height = 0) => ({ width, height, top: 0, left: x, right: x + width, bottom: height, x, y: 0, toJSON() {} }) as DOMRect;
+      const left = (el: Element) => {
+        let x = 0;
+        for (const sibling of Array.from(el.parentElement?.childNodes ?? [])) {
+          if (sibling === el) break;
+          x += (sibling.textContent ?? '').length * 10;
+        }
+        return x;
+      };
+      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+        if (this.classList.contains('sr-ribbon-row')) return rect(0, 100, 40);
+        if (this.classList.contains('sr-ribbon-probe')) return rect(0, (this.textContent ?? '').length * 10);
+        if (this.classList.contains('sr-ribbon-line')) return rect(0, (this.textContent ?? '').length * 10);
+        if (this.classList.contains('sr-w')) return rect(left(this), (this.textContent ?? '').length * 10);
+        return rect(0, 0);
+      });
+      for (const o of observers) o.cb();
+      // alpha [25,75) and beta [85,135) overlap [0,100); gamma [145,..) does not.
+      expect(inMarked(t)).toEqual(['alpha', 'beta']);
+      expect(t.q('.sr-flow-target')!.style.getPropertyValue('--sr-target-w')).toBe('100');
+    });
   });
 
   it('gives the braced target one fixed width, the focus span in measured characters, for every word and step', () => {
@@ -301,12 +390,12 @@ describe('flow mode ribbon', () => {
     const t = mountHarness('<p>Run <code>npm ci</code> now.</p>', { settings: flowOpts });
     t.handle.player.toggle();
     expect(t.qa('.sr-ribbon-row[data-position="middle"] .sr-atom').map((a) => a.textContent)).toEqual(['npm ci']);
-    // Reaching the atom keeps it one box, marked as the current word, with nothing coloured inside.
+    // Reaching the atom keeps it one box, marked as the current word, with only its first letter set apart inside.
     t.clock.advance(t.clock.nextIn()!);
     const atoms = t.qa('.sr-ribbon-row[data-position="middle"] .sr-atom');
     expect(atoms).toHaveLength(1);
     expect(current(t)).toBe('npm ci');
-    expect(atoms[0].children).toHaveLength(0);
+    expect([...atoms[0].children].map((c) => c.className)).toEqual(['sr-w-first']);
   });
 });
 

@@ -163,6 +163,7 @@ describe('speech on the stage', () => {
     expect(t.q('.sr-display')!.dataset.kind).toBe('flow');
     expect(t.q('.sr-w[data-current]')).toBeNull();
     expect(t.q('.sr-flow-target')!.hidden).toBe(true);
+    expect(t.qa('.sr-w[data-in]')).toHaveLength(0);
     expect(t.q('.sr-ribbon-row[data-position="middle"]')!.textContent).toContain('A second one follows.');
     speech.spoken[1].end();
     expect(t.q('.sr-card-stop')).not.toBeNull();
