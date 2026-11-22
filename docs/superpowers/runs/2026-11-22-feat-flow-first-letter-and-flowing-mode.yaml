@@ -3,7 +3,7 @@ run: 2026-11-22-feat-flow-first-letter-and-flowing-mode
 workflow: fr-goal@1
 branch: feat/flow-first-letter-and-flowing-mode
 started: '2026-11-22T16:17:31+00:00'
-cursor: implement
+cursor: journal-check
 steps:
   brainstorm:
     state: done
@@ -52,8 +52,8 @@ steps:
     stdout: |
       self-review passed
   implement:
-    state: running
-    at: '2026-11-22T16:53:16+00:00'
+    state: done
+    at: '2026-11-22T17:12:56+00:00'
     members:
     - implement-phase
     - review-phase
@@ -75,7 +75,7 @@ steps:
           tests: phase1-suite.log@f499ab185e8f;tree=bae98b3878c6ce3c0fe0ca40c4b1164259040bf90b5aa55e71d31cc45f62538e
           visual: reader-flow-first-letter:11:441dbb03d794,reader-flowing-motion:12:db74f0caa87f
       phase/1/review-phase:
-        state: running
+        state: done
         attempts:
         - dispatched: '2026-11-22T16:53:01+00:00'
           harness: claude-code
@@ -88,6 +88,13 @@ steps:
           harness: claude-code
           model: claude-opus-5-5
           session: e5d9083a-87da-472c-aaf7-3850919c84c7
+          returned: '2026-11-22T17:12:56+00:00'
+          outcome: done
+        evidence:
+          review: review-p1
+          reviewer: aa6bc17b7e82df1a5
+          visual: reader-flow-first-letter:15:dba9e6852a39,reader-flowing-motion:16:136c285994d6
+          findings: p1-r1,p1-r2,p1-r3,p1-r4
   journal-check:
     state: pending
   lens-review:
