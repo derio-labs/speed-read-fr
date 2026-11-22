@@ -767,3 +767,209 @@ describe('WPM stepper', () => {
     expect(t.handle.player.state).toBe('paused');
   });
 });
+
+describe('flowing motion', () => {
+  const flowing = { readingMode: 'flow' as const, flowMotion: 'flowing' as const, chunkWords: 1 };
+  type Harness = ReturnType<typeof mountHarness>;
+  const xOf = (t: Harness) => Number(ribbonVar(t, '--sr-x'));
+  /** Run `frames` frames of 16 ms, returning `--sr-x` and the player's index after each. */
+  const sample = (t: Harness, frames: number) => {
+    const out: { x: number; index: number; marked: string[] }[] = [];
+    for (let i = 0; i < frames; i++) {
+      t.runFrames(16);
+      out.push({ x: xOf(t), index: t.handle.player.index, marked: t.qa('.sr-ribbon-row[data-position="middle"] .sr-w[data-in]').map((w) => text(w)) });
+    }
+    return out;
+  };
+
+  afterEach(() => {
+    delete (Range.prototype as unknown as { getBoundingClientRect?: unknown }).getBoundingClientRect;
+    delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+  });
+
+  it('moves --sr-x up on every frame, within a step and across steps, with no glide', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta eta theta iota kappa.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    const frames = sample(t, 60);
+    expect(new Set(frames.map((f) => f.index)).size).toBeGreaterThan(3);
+    frames.forEach((f, i) => {
+      if (i > 0) expect(f.x).toBeGreaterThan(frames[i - 1].x);
+    });
+    expect(ribbonVar(t, '--sr-glide')).toBe('0ms');
+  });
+
+  it('marks the words whose edge is inside the bracket on every frame', () => {
+    stubRibbonLayout();
+    const words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa.'];
+    const t = mountHarness(`<p>${words.join(' ')}</p>`, { settings: flowing });
+    t.handle.player.toggle();
+    // Words sit at start = sum of (length + 1) x 10; the bracket is [100, 300) on a 400px row.
+    let start = 0;
+    const boxes = words.map((w) => {
+      const box = { w, start, width: w.length * 10 };
+      start += (w.length + 1) * 10;
+      return box;
+    });
+    const seen = new Set<string>();
+    for (const f of sample(t, 90)) {
+      const left = (b: { start: number }) => b.start - f.x + 200;
+      const expected = boxes.filter((b) => left(b) < 300 && left(b) + b.width > 100).map((b) => b.w);
+      expect(f.marked).toEqual(expected);
+      seen.add(expected.join());
+    }
+    expect(seen.size).toBeGreaterThan(2);
+  });
+
+  it('crosses an item gap in its own time, without holding', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<ul><li>one two</li><li>three four five six</li></ul>', { settings: flowing });
+    t.handle.player.toggle();
+    const frames = sample(t, 50);
+    // steps: one, two, gap, three, ...
+    const inGap = frames.filter((f) => f.index === 2);
+    expect(inGap.length).toBeGreaterThan(1);
+    frames.forEach((f, i) => {
+      if (i > 0) expect(f.x).toBeGreaterThan(frames[i - 1].x);
+    });
+  });
+
+  it('ends the word before an inline stop on its middle and holds there, with no back-glide', () => {
+    stubRibbonLayout();
+    const html = '<p>Call <code>x_long_identifier_name_ok</code> then go on.</p>';
+    // The middle of the chip, from the same text in Word by word.
+    const w = mountHarness(html, { settings: { ...flowing, flowMotion: 'word' } });
+    w.handle.player.toggle();
+    for (let i = 0; i < 10 && w.handle.player.state !== 'stopped'; i++) w.clock.advance(w.clock.nextIn()!);
+    expect(w.handle.player.state).toBe('stopped');
+    const chipMid = xOf(w);
+    stubRibbonLayout();
+    const t = mountHarness(html, { settings: flowing });
+    t.handle.player.toggle();
+    const frames = sample(t, 40);
+    expect(t.handle.player.state).toBe('stopped');
+    const stopped = frames.filter((f) => f.index > 0).slice(-8);
+    for (const f of stopped) expect(f.x).toBeCloseTo(chipMid, 5);
+    frames.forEach((f, i) => {
+      if (i > 0) expect(f.x).toBeGreaterThanOrEqual(frames[i - 1].x - 1e-9);
+    });
+  });
+
+  it('freezes on pause and resumes from the frozen point to the same end', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta epsilon.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    sample(t, 4);
+    const frozen = xOf(t);
+    expect(t.handle.player.index).toBe(0);
+    t.handle.player.toggle();
+    expect(t.handle.player.state).toBe('paused');
+    for (const f of sample(t, 10)) expect(f.x).toBe(frozen);
+    t.handle.player.toggle();
+    const after = sample(t, 40);
+    expect(after[0].x).toBeGreaterThanOrEqual(frozen);
+    expect(after[0].x - frozen).toBeLessThan(15);
+    // alpha's middle is 25, beta's 75: the handover that ends alpha's step is 50, which the next step starts from.
+    const firstOfNext = after.find((f) => f.index === 1)!;
+    expect(firstOfNext.x).toBeCloseTo(50, 1);
+    for (const f of after.filter((f) => f.index === 0)) expect(f.x).toBeLessThanOrEqual(50 + 1e-6);
+  });
+
+  it('keeps pausing and resuming monotonic and never nests deeper', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    let last = -Infinity;
+    for (let n = 0; n < 4; n++) {
+      for (const f of sample(t, 2)) {
+        expect(f.x).toBeGreaterThanOrEqual(last);
+        last = f.x;
+      }
+      t.handle.player.toggle();
+      expect(xOf(t)).toBeCloseTo(last, 5);
+      t.handle.player.toggle();
+    }
+  });
+
+  it('glides a scrub word by word, as before', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    sample(t, 2);
+    t.handle.player.scrub(2);
+    expect(current(t)).toBe('gamma');
+    expect(xOf(t)).toBe(110 + 20 + 5);
+    expect(Number.parseFloat(ribbonVar(t, '--sr-glide'))).toBeGreaterThan(0);
+    for (const f of sample(t, 3)) expect(f.x).toBe(135);
+  });
+
+  it('places the reached word at once on a jump while playing, then flows on from it', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta. gamma delta epsilon.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    sample(t, 2);
+    t.handle.player.sentence(1);
+    expect(current(t)).toBe('gamma');
+    // gamma starts after "alpha beta. " (12 characters): its middle is 120 + 25.
+    expect(xOf(t)).toBe(145);
+    expect(ribbonVar(t, '--sr-glide')).toBe('0ms');
+    const frames = sample(t, 8);
+    expect(frames[0].x).toBeGreaterThanOrEqual(145);
+    expect(frames.at(-1)!.x).toBeGreaterThan(145);
+  });
+
+  it('crosses a window rebuild past RUN_EDGE without a backward step', () => {
+    stubRibbonLayout();
+    const words = Array.from({ length: 1000 }, (_, i) => `w${i}`);
+    const t = mountHarness(`<p>${words.join(' ')}.</p>`, { settings: { ...flowing, wpm: 1000 } });
+    t.handle.player.toggle();
+    const startOf = (i: number) => words.slice(0, i).reduce((n, w) => n + (w.length + 1) * 10, 0);
+    const first = () => Number(t.q('.sr-ribbon-row[data-position="middle"] .sr-w')!.textContent!.slice(1));
+    let last = -Infinity;
+    let rebuilt = false;
+    for (let i = 0; i < 1500 && !rebuilt; i++) {
+      t.runFrames(16);
+      const absolute = xOf(t) + startOf(first());
+      expect(absolute).toBeGreaterThanOrEqual(last - 1e-6);
+      last = absolute;
+      rebuilt = first() > 0;
+    }
+    expect(rebuilt).toBe(true);
+    for (const f of sample(t, 20)) {
+      const absolute = f.x + startOf(first());
+      expect(absolute).toBeGreaterThanOrEqual(last - 1e-6);
+      last = absolute;
+    }
+  });
+
+  it('places without a slide under reduced motion', () => {
+    stubRibbonLayout();
+    (window as unknown as { matchMedia: unknown }).matchMedia = (query: string) => ({ matches: query.includes('reduce'), media: query });
+    const t = mountHarness('<p>alpha beta gamma.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    expect(xOf(t)).toBe(25);
+    const frames = sample(t, 3);
+    for (const f of frames) expect(f.x).toBe(25);
+    expect(ribbonVar(t, '--sr-glide')).toBe('0ms');
+  });
+
+  it('switches motion at once while playing, both ways', () => {
+    stubRibbonLayout();
+    const t = mountHarness('<p>alpha beta gamma delta epsilon zeta.</p>', { settings: flowing });
+    t.handle.player.toggle();
+    sample(t, 3);
+    const before = xOf(t);
+    t.handle.applySettings({ ...t.handle.player.settings, flowMotion: 'word' });
+    // The current word is placed on the target: alpha's middle.
+    expect(xOf(t)).toBe(25);
+    expect(before).toBeGreaterThan(25);
+    for (const f of sample(t, 2)) {
+      expect(f.index).toBe(0);
+      expect(f.x).toBe(25);
+    }
+    t.handle.applySettings({ ...t.handle.player.settings, flowMotion: 'flowing' });
+    const frames = sample(t, 5);
+    expect(frames[0].x).toBeGreaterThan(25);
+    expect(frames.at(-1)!.x).toBeGreaterThan(frames[0].x);
+  });
+});
