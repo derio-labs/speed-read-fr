@@ -215,7 +215,7 @@ describe('pointAnchor', () => {
     let here: Anchor = { word: 10, at: 'mid' };
     for (let i = 0; i < 50; i++) {
       const to: Anchor = { word: order[(i % 3) + 1], at: 'after' };
-      const x = anchorX(sp, order, here) + (anchorX(sp, order, to) - anchorX(sp, order, here)) * 0.3;
+      const x: number = anchorX(sp, order, here) + (anchorX(sp, order, to) - anchorX(sp, order, here)) * 0.3;
       here = pointAnchor(sp, order, x)!;
       expect(flat(here)).toBe(true);
     }
