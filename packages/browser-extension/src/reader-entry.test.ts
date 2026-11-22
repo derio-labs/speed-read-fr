@@ -544,6 +544,18 @@ describe('floating overlay over the faded page (R17, R29)', () => {
     expect(reader.current!.handle.player.index).toBe(1);
   });
 
+  it('a wheel over the WPM readout is the stepper\'s: it does not also scrub the position (p1-r1)', async () => {
+    const { reader } = make();
+    await reader.open('auto');
+    await reader.current!.handle.ready;
+    const readout = shadow().querySelector('.sr-status-wpm')!;
+    const e = new WheelEvent('wheel', { deltaY: 130, bubbles: true, cancelable: true, composed: true });
+    readout.dispatchEvent(e);
+    expect(reader.current!.handle.player.index).toBe(0);
+    // The stepper took it (and prevented it); a handled event is never routed again.
+    expect(e.defaultPrevented).toBe(true);
+  });
+
   it('over a scroller of its own the wheel scrolls it while it can, and never chains to the page (p5a-r3)', async () => {
     const { reader } = make();
     await reader.open('auto');
