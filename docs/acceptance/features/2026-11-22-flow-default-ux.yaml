@@ -86,9 +86,15 @@ rows:
       does.
     origin:
     - spec:2026-11-22-flow-default-ux#R7
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/vscode-extension/src/manifest.test.ts
+      - speed-read-fr:packages/core/src/ui/settings-panel.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/webview.spec.ts
+    status: ci
+    notes: No speedRead.display contribution and no Reader field in the real webview,
+      verified by manifest/settings-panel unit tests and webview.spec.ts.
     verify: none
 amendments:
   - row: reader-snake-flow
