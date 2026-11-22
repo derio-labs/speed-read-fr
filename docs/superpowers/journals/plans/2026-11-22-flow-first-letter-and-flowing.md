@@ -90,3 +90,198 @@ markBracket uses `overlapping` (binary search on sorted spans) to visit only spa
 ### p1-r4-resolved · finding [fixed] · resolves p1-r4: Acceptance rows reader-flow-first-letter / reader-flowing-motion still not-implemented with no level refs (phase 1)
 
 Both rows moved to ci with unit and ui level refs via fr acceptance set-status (CI runs npm test and test:e2e).
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r1 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-simplicity-r1 · finding [open] (reviewer: in scope) · slideX(anchorX(from), anchorX(to), ...) expression copied three times in stage.ts
+
+Raised by the simplicity lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r2 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-simplicity-r2 · finding [open] (reviewer: in scope) · applyX duplicates placeRibbon's offset/style writes
+
+Raised by the simplicity lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r3 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-simplicity-r3 · finding [open] (reviewer: in scope) · inBracket/screenLeft re-test what overlapping() already guarantees
+
+Raised by the simplicity lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r4 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-simplicity-r4 · finding [open] (reviewer: in scope) · firstLetter duplicates alnumOffsets and forced exporting ALNUM
+
+Raised by the simplicity lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r5 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-simplicity-r5 · finding [open] (reviewer: in scope) · flowWord + showFlow(place=false) re-implement half of placeRibbon behind a flag
+
+Raised by the simplicity lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r6 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-simplicity-r6 · finding [open] (reviewer: in scope) · stepInfo assigned in three places
+
+Raised by the simplicity lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r7 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-simplicity-r7 · finding [open] (reviewer: in scope) · redundant readingMode check before flowing()
+
+Raised by the simplicity lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r8 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-simplicity-r8 · finding [open] (reviewer: in scope) · isInlineStop not used in showStep
+
+Raised by the simplicity lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r9 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-simplicity-r9 · finding [open] (reviewer: in scope) · liveRibbon duplicates showFlow's liveness predicate
+
+Raised by the simplicity lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r10 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-simplicity-r10 · finding [open] (reviewer: in scope) · mount.ts LIVE_KEYS machinery heavier than a literal
+
+Raised by the simplicity lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-tests-r1 · finding [open] (reviewer: in scope) · syncMotion's remaining-time slide untested
+
+Raised by the tests lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-tests-r2 · finding [open] (reviewer: in scope) · switching Flow motion while paused untested
+
+Raised by the tests lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-tests-r3 · finding [open] (reviewer: in scope) · item-gap test does not pin end/begin anchors
+
+Raised by the tests lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-tests-r4 · finding [open] (reviewer: in scope) · Flowing with estimated boundaries never exercised
+
+Raised by the tests lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r5 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-tests-r5 · finding [open] (reviewer: in scope) · e2e clears-after-leaving assertion skipped behind if (same)
+
+Raised by the tests lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r6 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-tests-r6 · finding [open] (reviewer: in scope) · first-letter mark offset inside a later token untested
+
+Raised by the tests lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r7 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-tests-r7 · finding [open] (reviewer: in scope) · player.setFlowMotion untested
+
+Raised by the tests lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r8 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-tests-r8 · finding [open] (reviewer: in scope) · spokenWordMs test restates the formula
+
+Raised by the tests lens reviewer.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r9 created=2026-11-22T17:32:42+00:00 state=open review_scope=in -->
+### l-tests-r9 · finding [open] (reviewer: in scope) · garbled leftover comment in inBracket test
+
+Raised by the tests lens reviewer.
+
+<!-- fr:journal kind=review scope=plan id=lens-review-1 created=2026-11-22T17:32:42+00:00 -->
+### lens-review-1 · review · lens review: simplicity 10 findings, tests 9 findings, all in scope, all closed
+
+One reviewer per lens (simplicity, tests) over the diff from merge base 1af2e37 to HEAD; findings verified and fixed with tests (mutation-checked), l-tests-r6 closed by removing the unreachable code. Suite after fixes: vitest 816 passed / 7 skipped, Playwright 120 passed.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r1-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-simplicity-r1 -->
+### l-simplicity-r1-resolved · finding [fixed] · resolves l-simplicity-r1: slideX(anchorX(from), anchorX(to), ...) expression copied three times in stage.ts
+
+Extracted slideNowX(r, s), used by hereAnchor, tick and relayoutRibbon.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r2-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-simplicity-r2 -->
+### l-simplicity-r2-resolved · finding [fixed] · resolves l-simplicity-r2: applyX duplicates placeRibbon's offset/style writes
+
+applyX(r, x, glide = 0); placeRibbon computes the glide and calls it.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r3-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-simplicity-r3 -->
+### l-simplicity-r3-resolved · finding [fixed] · resolves l-simplicity-r3: inBracket/screenLeft re-test what overlapping() already guarantees
+
+markBracket uses the overlapping range directly; inBracket/screenLeft deleted, edge cases moved to overlapping tests (strictness mutation-checked).
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r4-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-simplicity-r4 -->
+### l-simplicity-r4-resolved · finding [fixed] · resolves l-simplicity-r4: firstLetter duplicates alnumOffsets and forced exporting ALNUM
+
+firstLetter moved to text/middle.ts on alnumOffsets; ALNUM private again; tests moved.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r5-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-simplicity-r5 -->
+### l-simplicity-r5-resolved · finding [fixed] · resolves l-simplicity-r5: flowWord + showFlow(place=false) re-implement half of placeRibbon behind a flag
+
+setCurrent split out; showFlow only builds/returns the ribbon, placeFlow positions; kind ternary replaced by if/else.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r6-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-simplicity-r6 -->
+### l-simplicity-r6-resolved · finding [fixed] · resolves l-simplicity-r6: stepInfo assigned in three places
+
+Set once in showFlowStep and passed to flowWord; flowGap clears it for its own step.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r7-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-simplicity-r7 -->
+### l-simplicity-r7-resolved · finding [fixed] · resolves l-simplicity-r7: redundant readingMode check before flowing()
+
+Dropped.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r8-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-simplicity-r8 -->
+### l-simplicity-r8-resolved · finding [fixed] · resolves l-simplicity-r8: isInlineStop not used in showStep
+
+showStep uses isInlineStop (now a type guard).
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r9-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-simplicity-r9 -->
+### l-simplicity-r9-resolved · finding [fixed] · resolves l-simplicity-r9: liveRibbon duplicates showFlow's liveness predicate
+
+showFlow reuses liveRibbon() plus run bounds.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r10-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-simplicity-r10 -->
+### l-simplicity-r10-resolved · finding [fixed] · resolves l-simplicity-r10: mount.ts LIVE_KEYS machinery heavier than a literal
+
+Replaced with the two-field JSON literal comparison.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-tests-r1 -->
+### l-tests-r1-resolved · finding [fixed] · resolves l-tests-r1: syncMotion's remaining-time slide untested
+
+New test pins x at the handover by the end of the step; the full-time mutation fails it.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-tests-r2 -->
+### l-tests-r2-resolved · finding [fixed] · resolves l-tests-r2: switching Flow motion while paused untested
+
+New test: no movement while paused after switching back; dropping the playing guard fails it.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-tests-r3 -->
+### l-tests-r3-resolved · finding [fixed] · resolves l-tests-r3: item-gap test does not pin end/begin anchors
+
+Gap test asserts the first gap frame at the item's right edge and the next word's first frame at its left edge; removing the end branch fails it.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-tests-r4 -->
+### l-tests-r4-resolved · finding [fixed] · resolves l-tests-r4: Flowing with estimated boundaries never exercised
+
+New estimate=true test: x never goes back, at most one still frame across >3 boundaries; a 0.7x slide mutation fails it. No R6 bug found.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r5-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-tests-r5 -->
+### l-tests-r5-resolved · finding [fixed] · resolves l-tests-r5: e2e clears-after-leaving assertion skipped behind if (same)
+
+Steps scrub(1) until the word leaves the bracket, requires same to be defined, then asserts.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r6-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-tests-r6 -->
+### l-tests-r6-resolved · finding [fixed] · resolves l-tests-r6: first-letter mark offset inside a later token untested
+
+Shape is impossible: flow forces chunkWords 1 (timeline.ts:163), one token per word; the multi-token mark() was removed and markedNodes(token) builds the word, so there is no untested branch left.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r7-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-tests-r7 -->
+### l-tests-r7-resolved · finding [fixed] · resolves l-tests-r7: player.setFlowMotion untested
+
+player.test.ts covers one event on change, none for same value, none after close; guard mutations fail.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r8-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-tests-r8 -->
+### l-tests-r8-resolved · finding [fixed] · resolves l-tests-r8: spokenWordMs test restates the formula
+
+Asserts known values 300->200, 180->333.33, 60->666.67, 1000->111.11; removing the clamp fails it.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r9-resolved created=2026-11-22T17:32:42+00:00 state=fixed resolves=l-tests-r9 -->
+### l-tests-r9-resolved · finding [fixed] · resolves l-tests-r9: garbled leftover comment in inBracket test
+
+Moot: the test was deleted with l-simplicity-r3.
