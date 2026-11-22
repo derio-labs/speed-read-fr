@@ -80,14 +80,29 @@ VS Code only your user settings are moved; a workspace's `.vscode/settings.json`
 Flow shows the text as one continuous ribbon wrapped onto three rows of a much
 wider window (up to 1200 px in the browser overlay, the full panel in the browser dock and VS Code):
 read top left to bottom right, the rows are plain running text, with what you just read on top, the
-current line in the middle and what comes next below. Each step moves the ribbon left by one word, so
-the current word glides into a braced target at the center of the middle row, with its middle letter
-on the center, between a red bracket above and below it. The bracket is the span your eye takes in
-at one glance: one fixed width, the
+current line in the middle and what comes next below. The current word sits in a braced target at the
+center of the middle row, with its middle letter on the center, between a red bracket above and below
+it. The bracket is the span your eye takes in at one glance: one fixed width, the
 **Focus span** (20 characters by default, 6-40 in Settings), the same for every word and never wider
-than the row; no letter is coloured red. The wheel or the dial moves the ribbon
-back and forward word by word with the same glide, and reading resumes from the word you reach; under
-reduced motion it moves without the glide. Both modes use the same speed, timeline, chapter and
+than the row. Every word on the middle row that is inside the bracket, wholly or in part, shows its
+first letter or digit in red (not bold): the letter turns red as the word's front edge enters the
+bracket and clears as its back edge leaves, so several red letters show at once, and a word with no
+letter or digit has none. No other letter is red, and the top and bottom rows never are.
+
+**Flow motion** in Settings (shown only while Reading mode is Three-row flow) chooses how the ribbon
+moves, and applies at once without moving your place. **Flowing**, the default, moves the ribbon
+continuously at your speed and never holds on a word: each word's own time, a long word or the end of
+a clause or sentence, becomes slower movement instead of a stop, and the gap between two list items
+is crossed in its own time. Pausing freezes the ribbon where it is and resuming carries on from
+there. A word before an inline stop slides until its middle is on the target and holds there for the
+stop; cards and exhibit stops hold as they always do. With speech on, it keeps flowing: each spoken
+word (or each estimated word, on a voice that reports none) starts a slide to the next word at the
+voice's pace, and a voice with no word boundaries holds the ribbon at the sentence start with the
+bracket hidden. A jump to another sentence or section puts you on the word you reach at once, and
+flowing goes on from there. **Word by word** steps the ribbon one word at a time, gliding the current
+word onto the target and holding it. The wheel or the dial moves the ribbon
+back and forward word by word with the same glide in both motions, and reading resumes from the word
+you reach; under reduced motion Flowing behaves like Word by word and nothing glides. Both modes use the same speed, timeline, chapter and
 exhibit behavior, pause/play, sentence and section navigation, and dial controls.
 
 In flow, inline code or math of up to 20 characters runs through the target like a word, in monospace
@@ -167,6 +182,7 @@ keeps them in the `speedRead.*` settings.
 | --- | --- | --- |
 | Speed | 300 WPM | 100-1000 |
 | Reading mode | Three-row flow | Chunk-by-chunk or Three-row flow |
+| Flow motion | Flowing | Word by word or Flowing (`speedRead.flowMotion` in VS Code); shown in flow mode only |
 | Focus span | 20 characters | 6-40; the width of the red bracket in flow mode (`speedRead.focusChars` in VS Code) |
 | Words per chunk | 3 | 1-10 |
 | Characters per chunk | 20 (maximum) | 5-80; in the browser and VS Code the limit in force is capped by how many characters fit the chunk stage (the setting keeps your value, so a wider window gives it back) |
