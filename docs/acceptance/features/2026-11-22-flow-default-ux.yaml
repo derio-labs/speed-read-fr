@@ -82,3 +82,11 @@ amendments:
       behave as in chunk mode.
     why: The target becomes a fixed focus-span bracket and the red middle letter is
       dropped (spec 2026-11-22-flow-default-ux R3, R5).
+  - row: reader-three-row-flow
+    op: reword
+    base: 2
+    acceptance: The user can select a persisted reading mode in Chrome, Firefox and
+      VS Code; three-row flow is the default and existing users are moved to it once,
+      chunk mode stays selectable, and switching back restores it unchanged.
+    why: Flow becomes the default reading mode (spec 2026-11-22-flow-default-ux R1,
+      R2).
