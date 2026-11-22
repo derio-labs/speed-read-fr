@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   GLIDE_MAX_MS,
+  anchorX,
+  freezeAnchor,
+  slideX,
+  type Anchor,
   RUN_EDGE,
   RUN_WINDOW,
   firstLetter,
@@ -157,5 +161,63 @@ describe('inBracket', () => {
   it('follows the line offset', () => {
     expect(inBracket({ span: { start: 0, width: 50 }, x: 0, row, target })).toBe(true);
     expect(inBracket({ span: { start: 0, width: 50 }, x: 100, row, target })).toBe(false);
+  });
+});
+
+describe('anchorX', () => {
+  // widths 40, 60, 20, 30 with a 10px gap: starts 0, 50, 120, 150; mids 20, 80, 130, 165.
+  const sp = spans([40, 60, 20, 30]);
+  const order = [10, 11, 12, 13];
+  const x = (anchor: Anchor) => anchorX(sp, order, anchor);
+
+  it("'mid' is the word's middle", () => {
+    expect(x({ word: 11, at: 'mid' })).toBe(80);
+  });
+  it("'before' is the handover from the previous word, and the middle for the window's first word", () => {
+    expect(x({ word: 11, at: 'before' })).toBe((20 + 80) / 2);
+    expect(x({ word: 10, at: 'before' })).toBe(20);
+  });
+  it("'after' is the handover to the next word, and the middle for the run's last word", () => {
+    expect(x({ word: 11, at: 'after' })).toBe((80 + 130) / 2);
+    expect(x({ word: 13, at: 'after' })).toBe(165);
+  });
+  it("'end' and 'begin' are the word's right and left edge, for crossing a gap", () => {
+    expect(x({ word: 11, at: 'end' })).toBe(110);
+    expect(x({ word: 12, at: 'begin' })).toBe(120);
+  });
+  it('interpolates a frozen point between two anchors', () => {
+    const frozen: Anchor = { between: [{ word: 10, at: 'mid' }, { word: 11, at: 'mid' }], t: 0.25 };
+    expect(x(frozen)).toBe(20 + 0.25 * 60);
+  });
+  it('re-derives from the spans it is given (a re-layout moves the anchors, not the slide)', () => {
+    expect(anchorX(sp.map((s) => ({ ...s, mid: s.mid + 100 })), order, { word: 11, at: 'mid' })).toBe(180);
+  });
+});
+
+describe('freezeAnchor', () => {
+  const a: Anchor = { word: 1, at: 'before' };
+  const b: Anchor = { word: 1, at: 'after' };
+  it('freezes a slide at its progress', () => {
+    expect(freezeAnchor(a, b, 0.5)).toEqual({ between: [a, b], t: 0.5 });
+  });
+  it('collapses a slide that started from a frozen point of the same run to one level', () => {
+    const first = freezeAnchor(a, b, 0.5);
+    const second = freezeAnchor(first, b, 0.5);
+    expect(second).toEqual({ between: [a, b], t: 0.75 });
+    expect(freezeAnchor(second, b, 0.5)).toEqual({ between: [a, b], t: 0.875 });
+  });
+});
+
+describe('slideX', () => {
+  const base = { fromX: 100, toX: 200, startedAt: 1000, durationMs: 500 };
+  it('moves linearly, clamped to [fromX, toX]', () => {
+    expect(slideX({ ...base, now: 1000 })).toBe(100);
+    expect(slideX({ ...base, now: 1250 })).toBe(150);
+    expect(slideX({ ...base, now: 1500 })).toBe(200);
+    expect(slideX({ ...base, now: 900 })).toBe(100);
+    expect(slideX({ ...base, now: 9000 })).toBe(200);
+  });
+  it('lands on toX at once for a duration of 0', () => {
+    expect(slideX({ ...base, durationMs: 0, now: 1000 })).toBe(200);
   });
 });

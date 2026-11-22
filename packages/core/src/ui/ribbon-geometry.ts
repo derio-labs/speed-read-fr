@@ -97,3 +97,53 @@ export function inBracket({ span, x, row, target }: { span: { start: number; wid
   const left = screenLeft(span, x, row);
   return left < target.x + target.w && left + span.width > target.x;
 }
+
+/**
+ * A point on the ribbon's line, named by the word it belongs to (a step index) so that it survives the
+ * spans being measured again: the word's middle; the handover `before` it (from the previous word) or
+ * `after` it (to the next one); its right (`end`) or left (`begin`) edge, which bound the gap between two
+ * list items; or a frozen point part-way between two anchors (a paused slide).
+ */
+export type Anchor = { word: number; at: 'mid' | 'before' | 'after' | 'end' | 'begin' } | { between: [Anchor, Anchor]; t: number };
+
+/** Pixels of an anchor on the current spans; `order` lists the step index of each span. */
+export function anchorX(spans: readonly WordSpan[], order: readonly number[], anchor: Anchor): number {
+  if ('between' in anchor) {
+    const from = anchorX(spans, order, anchor.between[0]);
+    return from + (anchorX(spans, order, anchor.between[1]) - from) * anchor.t;
+  }
+  const i = order.indexOf(anchor.word);
+  const span = spans[i];
+  if (!span) return 0;
+  const handover = (other: WordSpan | undefined) => (other ? (other.mid + span.mid) / 2 : span.mid);
+  switch (anchor.at) {
+    case 'mid':
+      return span.mid;
+    case 'before':
+      return handover(spans[i - 1]);
+    case 'after':
+      return handover(spans[i + 1]);
+    case 'end':
+      return span.start + span.width;
+    case 'begin':
+      return span.start;
+  }
+}
+
+const sameAnchor = (a: Anchor, b: Anchor): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * The anchor a slide `from` → `to` has reached at `progress` (0-1). A slide that began at a frozen point
+ * heading for the same end collapses into one frozen point, so repeated pauses never nest deeper than one level.
+ */
+export function freezeAnchor(from: Anchor, to: Anchor, progress: number): Anchor {
+  if ('between' in from && sameAnchor(from.between[1], to)) return { between: [from.between[0], to], t: from.t + (1 - from.t) * progress };
+  return { between: [from, to], t: progress };
+}
+
+/** Where a slide is at `now`: linear from `fromX` to `toX` over `durationMs`, clamped; at `toX` for no duration. */
+export function slideX({ fromX, toX, startedAt, durationMs, now }: { fromX: number; toX: number; startedAt: number; durationMs: number; now: number }): number {
+  if (!(durationMs > 0)) return toX;
+  const progress = Math.min(1, Math.max(0, (now - startedAt) / durationMs));
+  return fromX + (toX - fromX) * progress;
+}
