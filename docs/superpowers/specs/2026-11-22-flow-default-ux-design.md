@@ -50,9 +50,11 @@ load tries again. The marker lives outside `Settings`, so `normalizeSettings` (w
 keys) never sees it.
 
 VS Code: on activation the extension checks `context.globalState` for `speedRead.migrated.flowDefault`;
-when absent, for each scope where `config.inspect('readingMode')` holds an explicit `'chunk'` (global,
-workspace), it updates that scope to `'flow'`, then sets the flag. Workspace-folder values are left
-alone (rare, and not reachable from activation without an open folder list).
+when absent and `config.inspect('readingMode').globalValue` is an explicit `'chunk'`, it updates the
+user (Global) scope to `'flow'`, then sets the flag. Workspace and workspace-folder values are never
+written: they live in a repository's `.vscode/settings.json`, often committed and shared, and a silent
+rewrite would show up as an unasked change (lens finding l-security-r1). A rejected update is caught,
+leaves the flag unset and is retried on the next activation.
 
 ### Fixed-width focus bracket (R3, R4, R5)
 
