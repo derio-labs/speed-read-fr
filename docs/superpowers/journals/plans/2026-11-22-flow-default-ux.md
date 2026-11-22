@@ -110,3 +110,58 @@ c7bdc14: save also records flow-default; storage.test.ts covers it.
 ### p1-r6-resolved · finding [fixed] · resolves p1-r6: The + button shifts when the readout gains a digit (phase 1)
 
 9689303: the readout has a min-width of 10ch; an e2e position test covers it.
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r1 created=2026-11-22T09:17:40+00:00 state=open review_scope=in -->
+### l-security-r1 · finding [open] (reviewer: in scope) · migrateFlowDefault silently rewrote the shared .vscode/settings.json (Workspace target) on activation
+
+Raised by the lens review over the whole diff.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1 created=2026-11-22T09:17:40+00:00 state=open review_scope=in -->
+### l-tests-r1 · finding [open] (reviewer: in scope) · core.spec.ts claimed a stage wheel leaves WPM unchanged but asserted nothing
+
+Raised by the lens review over the whole diff.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2 created=2026-11-22T09:17:40+00:00 state=open review_scope=in -->
+### l-tests-r2 · finding [open] (reviewer: in scope) · R7 was tested only through the harness, not the real VS Code webview mount
+
+Raised by the lens review over the whole diff.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3 created=2026-11-22T09:17:40+00:00 state=open review_scope=in -->
+### l-tests-r3 · finding [open] (reviewer: in scope) · migrateFlowDefault had no test for a rejected update or both scopes set
+
+Raised by the lens review over the whole diff.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4 created=2026-11-22T09:17:40+00:00 state=open review_scope=in -->
+### l-tests-r4 · finding [open] (reviewer: in scope) · A failing migrations read dropped stored settings on load and made save reject
+
+Raised by the lens review over the whole diff.
+
+<!-- fr:journal kind=review scope=plan id=lens-review-1 created=2026-11-22T09:17:40+00:00 -->
+### lens-review-1 · review · Lens review (security, tests): 5 findings, all in scope and fixed
+
+The security lens raised l-security-r1 and the tests lens raised l-tests-r1..r4; each was fixed with a test and the full suite is green.
+
+<!-- fr:journal kind=finding scope=plan id=l-security-r1-resolved created=2026-11-22T09:17:40+00:00 state=fixed resolves=l-security-r1 -->
+### l-security-r1-resolved · finding [fixed] · resolves l-security-r1: migrateFlowDefault silently rewrote the shared .vscode/settings.json (Workspace target) on activation
+
+4557072: only the user (Global) scope is migrated; workspace values are never written; config.test.ts covers it.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1-resolved created=2026-11-22T09:17:40+00:00 state=fixed resolves=l-tests-r1 -->
+### l-tests-r1-resolved · finding [fixed] · resolves l-tests-r1: core.spec.ts claimed a stage wheel leaves WPM unchanged but asserted nothing
+
+7be6971: the e2e now wheels over the stage and asserts WPM unchanged and position moved.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2-resolved created=2026-11-22T09:17:40+00:00 state=fixed resolves=l-tests-r2 -->
+### l-tests-r2-resolved · finding [fixed] · resolves l-tests-r2: R7 was tested only through the harness, not the real VS Code webview mount
+
+c3e2b24: webview.spec.ts opens Settings and asserts no Reader field and a Focus span field.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3-resolved created=2026-11-22T09:17:40+00:00 state=fixed resolves=l-tests-r3 -->
+### l-tests-r3-resolved · finding [fixed] · resolves l-tests-r3: migrateFlowDefault had no test for a rejected update or both scopes set
+
+4557072: the rejection is caught, the flag stays unset and the next run migrates; covered in config.test.ts and providers.test.ts.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4-resolved created=2026-11-22T09:17:40+00:00 state=fixed resolves=l-tests-r4 -->
+### l-tests-r4-resolved · finding [fixed] · resolves l-tests-r4: A failing migrations read dropped stored settings on load and made save reject
+
+d5dc145: the migrations read failure is contained; storage.test.ts covers load and save.
