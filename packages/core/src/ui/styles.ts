@@ -172,6 +172,14 @@ export const READER_CSS = `
 }
 .sr-status { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13px; color: var(--sr-muted); font-variant-numeric: tabular-nums; }
 .sr-status-wpm { font-weight: 650; color: var(--sr-text); }
+.sr-wpm { display: inline-flex; align-items: center; gap: 4px; }
+.sr-wpm-step {
+  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; line-height: 1;
+  border: 1px solid var(--sr-border); border-radius: 6px; background: transparent; color: var(--sr-muted); font: inherit; font-size: 15px; cursor: pointer;
+}
+.sr-wpm-step::before { content: "−"; }
+.sr-wpm-step[aria-label="Faster"]::before { content: "+"; }
+.sr-wpm-step:hover { background: var(--sr-surface-2); color: var(--sr-text); }
 .sr-status-state { padding: 1px 8px; border-radius: 999px; background: var(--sr-surface-2); font-size: 12px; }
 .sr-reader[data-state="playing"] .sr-status-state { background: var(--sr-progress-soft); color: var(--sr-progress); }
 .sr-status-sep { color: var(--sr-border); }

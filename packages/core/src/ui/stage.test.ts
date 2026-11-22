@@ -534,3 +534,122 @@ describe('inline exhibit stops in flow mode', () => {
     expect(t.q('.sr-ribbon')).not.toBeNull();
   });
 });
+
+describe('WPM stepper', () => {
+  const HTML = '<p>One two three four five six seven eight nine ten.</p>';
+  const wheel = (el: Element, init: WheelEventInit) => {
+    const event = new WheelEvent('wheel', { bubbles: true, cancelable: true, ...init });
+    el.dispatchEvent(event);
+    return event;
+  };
+  const press = (t: ReturnType<typeof mountHarness>, label: 'Slower' | 'Faster') => t.q<HTMLButtonElement>(`.sr-wpm-step[aria-label="${label}"]`)!.click();
+  const modes = [
+    ['chunk', chunkSettings],
+    ['flow', { readingMode: 'flow' as const }],
+  ] as const;
+
+  for (const [mode, settings] of modes) {
+    describe(`in ${mode} mode`, () => {
+      it('has Slower and Faster buttons around the WPM readout, first in the status line', () => {
+        const t = mountHarness(HTML, { settings });
+        const group = t.q('.sr-status')!.firstElementChild!;
+        expect(group.className).toBe('sr-wpm');
+        expect([...group.children].map((c) => c.className)).toEqual(['sr-wpm-step', 'sr-status-wpm', 'sr-wpm-step']);
+        expect([...group.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Slower', 'Faster']);
+        expect([...group.querySelectorAll('button')].map((b) => b.getAttribute('tabindex'))).toEqual(['-1', '-1']);
+        expect(text(t.q('.sr-status'))).toBe('300 WPM · Ready · 0%');
+      });
+
+      it('changes the speed by 25 WPM a press, within 100-1000, saving it and keeping playback going', () => {
+        const t = mountHarness(HTML, { settings });
+        t.handle.player.toggle();
+        press(t, 'Faster');
+        expect(t.handle.player.settings.wpm).toBe(325);
+        expect(text(t.q('.sr-status-wpm'))).toBe('325 WPM');
+        press(t, 'Slower');
+        press(t, 'Slower');
+        expect(t.handle.player.settings.wpm).toBe(275);
+        expect(t.handle.player.state).toBe('playing');
+        expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ wpm: 275 }));
+        t.handle.player.setSpeed(100);
+        press(t, 'Slower');
+        expect(t.handle.player.settings.wpm).toBe(100);
+        t.handle.player.setSpeed(1000);
+        press(t, 'Faster');
+        expect(t.handle.player.settings.wpm).toBe(1000);
+      });
+
+      it('steps one notch of the wheel (up faster, down slower), and prevents the page from scrolling', () => {
+        const t = mountHarness(HTML, { settings });
+        const readout = t.q('.sr-wpm')!;
+        expect(wheel(readout, { deltaY: -100 }).defaultPrevented).toBe(true);
+        expect(t.handle.player.settings.wpm).toBe(325);
+        wheel(readout, { deltaY: 100 });
+        wheel(readout, { deltaY: 100 });
+        expect(t.handle.player.settings.wpm).toBe(275);
+      });
+    });
+  }
+
+  it('accumulates small wheel deltas: a hundred px is one step, however many events it takes', () => {
+    const t = mountHarness(HTML);
+    const readout = t.q('.sr-wpm')!;
+    for (let i = 0; i < 24; i++) wheel(readout, { deltaY: -4 });
+    expect(t.handle.player.settings.wpm).toBe(300);
+    wheel(readout, { deltaY: -4 });
+    expect(t.handle.player.settings.wpm).toBe(325);
+    for (let i = 0; i < 50; i++) wheel(readout, { deltaY: -4 });
+    expect(t.handle.player.settings.wpm).toBe(375);
+  });
+
+  it('forgets a partial turn after 300 ms without wheel events', () => {
+    const t = mountHarness(HTML);
+    const readout = t.q('.sr-wpm')!;
+    wheel(readout, { deltaY: -60 });
+    t.clock.advance(400);
+    wheel(readout, { deltaY: -60 });
+    expect(t.handle.player.settings.wpm).toBe(300);
+    wheel(readout, { deltaY: -60 });
+    expect(t.handle.player.settings.wpm).toBe(325);
+  });
+
+  it('converts line-mode wheel deltas', () => {
+    const t = mountHarness(HTML);
+    wheel(t.q('.sr-wpm')!, { deltaY: -7, deltaMode: 1 });
+    expect(t.handle.player.settings.wpm).toBe(325);
+  });
+
+  it('ignores a wheel event with no vertical turn, and leaves ctrl and meta wheel (zoom) alone', () => {
+    const t = mountHarness(HTML);
+    const readout = t.q('.sr-wpm')!;
+    expect(wheel(readout, { deltaX: 120, deltaY: 0 }).defaultPrevented).toBe(false);
+    expect(wheel(readout, { deltaY: -100, ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(wheel(readout, { deltaY: -100, metaKey: true }).defaultPrevented).toBe(false);
+    expect(t.handle.player.settings.wpm).toBe(300);
+  });
+
+  it('with trustedEventsOnly, a synthetic press or wheel does not change the speed', () => {
+    const t = mountHarness(HTML, { trustedEventsOnly: true });
+    press(t, 'Faster');
+    const event = wheel(t.q('.sr-wpm')!, { deltaY: -100 });
+    expect(event.defaultPrevented).toBe(false);
+    expect(t.handle.player.settings.wpm).toBe(300);
+  });
+
+  it('keeps a focused button connected across a status rerender, and a pointer press returns focus to the reader', () => {
+    const t = mountHarness(HTML);
+    const faster = t.q<HTMLButtonElement>('.sr-wpm-step[aria-label="Faster"]')!;
+    faster.focus();
+    t.handle.player.toggle(); // the state changes: the status line renders again
+    expect(text(t.q('.sr-status'))).toContain('Playing');
+    expect(faster.isConnected).toBe(true);
+    expect(t.q('.sr-wpm-step[aria-label="Faster"]')).toBe(faster);
+    expect(document.activeElement).toBe(faster);
+    const down = new Event('pointerdown', { bubbles: true, cancelable: true });
+    faster.dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(t.reader);
+    t.key(' ');
+    expect(t.handle.player.state).toBe('paused');
+  });
+});
