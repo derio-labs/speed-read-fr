@@ -264,3 +264,9 @@ listed under "Test surface" in `## Design`.
 
 Chunk mode; the bracket's width and the focus-span setting; the ribbon's layout, run windows and
 cards; WPM controls; new keyboard shortcuts.
+
+## Implementation Plans
+
+| Plan | Repo | File | Depends on |
+|------|------|------|------------|
+| 2026-11-22-flow-first-letter-and-flowing | `derio-labs/speed-read-fr` | `2026-11-22-flow-first-letter-and-flowing` | — |

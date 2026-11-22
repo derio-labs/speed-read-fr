@@ -1,0 +1,285 @@
+schema_version: 2
+phase:
+  number: 1
+  title: Red first letter in the bracket and the Flowing motion
+  tag: agentic
+  depends_on: []
+  tracking_issue: null
+  acceptance:
+  - reader-flow-first-letter
+  - reader-flowing-motion
+  tier: standard
+  files:
+  - packages/core/src/settings.ts
+  - packages/core/src/settings.test.ts
+  - packages/core/src/player.ts
+  - packages/core/src/player.test.ts
+  - packages/core/src/tts.ts
+  - packages/core/src/tts.test.ts
+  - packages/core/src/text/orp.ts
+  - packages/core/src/ui/*.ts
+  - packages/core/src/testing/**
+  - packages/vscode-extension/package.json
+  - packages/vscode-extension/src/*.test.ts
+  - tests/demo/**
+  - tests/e2e/*.spec.ts
+  - README.md
+  estimate_lines: 900
+tasks:
+- number: 1
+  title: First-letter and bracket geometry
+  steps:
+  - id: P1.T1.S1
+    text: |-
+      Add failing tests in packages/core/src/ui/ribbon-geometry.test.ts for `firstLetter`:
+      - `firstLetter('hello')` → [0,1];
+      - `firstLetter('(Über')` → [1,2];
+      - `firstLetter('42nd')` → [0,1];
+      - `firstLetter('⟨code 1⟩')` → the 'c';
+      - `firstLetter('—')` → null;
+      - a surrogate-pair letter returns its whole code point.
+      And for `inBracket`:
+      - true when the word's right edge is 0.1 px past the bracket's left edge;
+      - false when the word exactly touches the bracket, on either side;
+      - true when the word spans the whole bracket.
+      Run `npx vitest run packages/core/src/ui/ribbon-geometry.test.ts` and see them fail.
+  - id: P1.T1.S2
+    text: |-
+      In ribbon-geometry.ts, implement:
+      - `firstLetter(text)`, reusing ALNUM from text/orp.ts:7-10 (export it if needed);
+      - `inBracket({ span, x, row, target })`, with left = start − x + row/2 and the overlap test `left < target.x + target.w && left + width > target.x`.
+      Run the file's tests green.
+  - id: P1.T1.S3
+    text: |-
+      Refactor: if both inBracket and the later anchor code need it, share the screen-left computation as a small `screenLeft(span, x, row)` helper. Re-run the tests.
+- number: 2
+  title: Red first letter in the renderer
+  steps:
+  - id: P1.T2.S1
+    text: |-
+      Rewrite stage.test.ts:110-122 ("colours no letter of the current word"), add `flowMotion: 'word'` to `flowOpts` (stage.test.ts:88), and add cases:
+      - `.sr-w-first` exists only inside middle-row `.sr-w` spans;
+      - after a step in word mode, exactly the middle-row words `inBracket` reports for the placed x carry `data-in`;
+      - top and bottom rows never carry it;
+      - with the braces hidden (showWhole in flow), no word carries `data-in`;
+      - a focus-span change while paused re-marks;
+      - a relayout (resize observer) re-marks.
+      Run `npx vitest run packages/core/src/ui/stage.test.ts` and see the new cases fail.
+  - id: P1.T2.S2
+    text: |-
+      In stage.ts:
+      - in buildRibbon (146-180), wrap each middle-row word's first letter in `span.sr-w-first`, found with firstLetter over the word's text by splitting the token nodes;
+      - add `markBracket(r, x)`, which diffs and sets `data-in`;
+      - call it from placeRibbon for the destination x (no word marked when the braces are hidden), and from sizeTarget and relayoutRibbon.
+      In styles.ts, add `.sr-ribbon-row[data-position="middle"] .sr-w[data-in] .sr-w-first { color: var(--sr-accent); }`.
+      Run the stage tests green, then `npx vitest run`.
+  - id: P1.T2.S3
+    text: |-
+      Refactor: if it reads simpler, keep the first-letter wrapping inside the existing tokenNodes path instead of a second DOM walk. Re-run `npx vitest run`.
+- number: 3
+  title: The Flow motion setting, render-only
+  steps:
+  - id: P1.T3.S1
+    text: |-
+      Add failing tests:
+      - settings.test.ts: `normalizeSettings({}).flowMotion === 'flowing'`; an unknown value gives 'flowing'; 'word' is kept.
+      - manifest.test.ts: `speedRead.flowMotion` has enum [word, flowing] and default "flowing".
+      - config.test.ts: flowMotion round-trips.
+      - a mount/player test: changing only flowMotion in the settings panel does not rebuild the timeline (player index unchanged, no sentence restart), still saves, and makes the player emit 'settings' with the new value.
+      - settings-panel.test.ts: the Flow motion field is hidden while Reading mode is chunk and shown after the select switches to flow (input/change); its value is populated and read; read() keeps the stored flowMotion while the field is hidden.
+      Run `npx vitest run` and see them fail.
+  - id: P1.T3.S2
+    text: |-
+      Implement:
+      - `flowMotion: 'word' | 'flowing'` in Settings, DEFAULT_SETTINGS and normalizeSettings (oneOf);
+      - the `speedRead.flowMotion` contribution in packages/vscode-extension/package.json;
+      - `player.setFlowMotion(m)`, mirroring setSpeed (player.ts:402-408), plus its entry in the Player interface;
+      - in mount.ts, rename `sameExceptSpeed` to `sameExceptLive`, ignoring wpm and flowMotion, and have applySettings call setSpeed and setFlowMotion;
+      - a "Flow motion" select in the Settings panel after Focus span, in a wrapper the Reading mode select shows and hides.
+      Run `npx vitest run` green and `npm run typecheck`.
+  - id: P1.T3.S3
+    text: |-
+      Refactor: if applySettings now special-cases two live fields, express them as a small list of live keys. Re-run `npx vitest run`.
+- number: 4
+  title: Anchor and slide geometry
+  steps:
+  - id: P1.T4.S1
+    text: |-
+      Add failing ribbon-geometry.test.ts cases for `anchorX(spans, order, anchor)`:
+      - 'mid' → mid;
+      - 'before' → (mid[prev]+mid[i])/2, and mid[i] for the window's first word;
+      - 'after' → (mid[i]+mid[next])/2, and mid[i] for the run's last word;
+      - a frozen `{between:[a,b], t}` → the interpolation between a and b.
+      And for `slideX({fromX,toX,startedAt,durationMs,now})`: it clamps to [fromX,toX] and handles a durationMs of 0.
+      Run the file and see them fail.
+  - id: P1.T4.S2
+    text: |-
+      Implement `Anchor`, `anchorX` and `slideX` in ribbon-geometry.ts. Run the file green.
+  - id: P1.T4.S3
+    text: |-
+      Refactor: keep the frozen-point recursion shallow; freezing a slide that starts from a frozen anchor collapses it to one level. Re-run.
+- number: 5
+  title: Flowing frame loop in the stage
+  steps:
+  - id: P1.T5.S1
+    text: |-
+      Add failing stage.test.ts cases, using the fake frame source and clock from testing/reader.ts with flowMotion 'flowing':
+      - --sr-x rises monotonically within a step and across steps, with --sr-glide 0ms;
+      - marks change on the frame a word's edge enters the bracket and on the frame its last edge leaves;
+      - an item-gap crosses the separator in its own time without holding;
+      - the word before an inline stop ends on its mid, and the stop holds with no back-glide;
+      - pause freezes x, and resume continues from it to the same end;
+      - a scrub (dial) glides word by word;
+      - a jump while playing (N / Right) places the reached word at once, then flows;
+      - a Flowing run past RUN_EDGE crosses the window rebuild with no backward step;
+      - reduced motion (matchMedia stub) places without a slide;
+      - switching flowMotion while playing takes effect at once, both ways.
+      Run and see them fail.
+  - id: P1.T5.S2
+    text: |-
+      Implement in stage.ts:
+      - slide state `{from, to, startedAt, durationMs}`, held in anchors;
+      - a frame loop on ctx.frame that writes --sr-x via slideX(anchorX…) and calls markBracket;
+      - the spec's step classification (continuation / item gap / inline stop / resume / jump / not playing) in the step listener and showStep; in flowing, handle item-gap instead of returning at stage.ts:419;
+      - freeze on a player 'state' event that leaves playing, and cancel on destroy;
+      - the 'settings' listener reacting to flowMotion;
+      - in flowing, a window rebuild skips the prev-placement glide.
+      Run the stage tests green, then `npx vitest run` and `npm run typecheck`.
+  - id: P1.T5.S3
+    text: |-
+      Refactor: if it keeps stage.ts readable, pull the step classification into a pure `classifyFlowStep` in ribbon-geometry.ts with its own unit tests. Re-run `npx vitest run`.
+- number: 6
+  title: Flowing with speech
+  steps:
+  - id: P1.T6.S1
+    text: |-
+      Add failing tests:
+      - tts.test.ts: `spokenWordMs(wpm)` equals 60000/(180×speechRate(wpm)).
+      - stage/tts-panel tests with the fake speech driver and flowMotion 'flowing':
+        - the sentence's first word (from show(), durationMs null) starts a slide of spokenWordMs, and so does each boundary;
+        - an early boundary retargets from the current x;
+        - a late boundary leaves x held at `to`;
+        - a jump while speaking is a jump;
+        - with no boundaries (whole), the ribbon holds with the braces hidden.
+      Pin flowMotion 'word' on the existing tts-panel flow cases that assert the middle letter on the centre.
+      Run and see them fail.
+  - id: P1.T6.S2
+    text: |-
+      Export `spokenWordMs` from tts.ts and use it for the speech driver's msPerWord (tts.ts:282-283). In stage.ts, treat a `playing` step with durationMs null and tts enabled as spoken, and slide over spokenWordMs(player.settings.wpm). Run `npx vitest run` green.
+  - id: P1.T6.S3
+    text: |-
+      Refactor: remove duplicated speech checks; nothing more is expected. Re-run `npx vitest run`.
+- number: 7
+  title: End-to-end tests, demo and README
+  steps:
+  - id: P1.T7.S1
+    text: |-
+      Update the Playwright tests:
+      - core.spec.ts:250-256, 311-316, 1276-1278 assert that only the first letter of in-bracket words is red;
+      - pin flowMotion 'word' through the demo's settings for core.spec.ts:303, 363, extension.spec.ts:886-910 and the webview.spec.ts flow cases.
+      Add cases on the bottom-stage demo:
+      - a word's first letter is red while it overlaps the bracket, and not after it leaves;
+      - in Flowing, two transform samples taken within one word's time differ;
+      - in Word by word, they are equal;
+      - the Flow motion field is visible in flow and hidden in chunk.
+      Save screenshots to a git-ignored dir. Run `npm run build && npx playwright test` and fix until green.
+  - id: P1.T7.S2
+    text: |-
+      Update README.md:
+      - the flow section (80-91): the red first letter of words inside the bracket replaces "no letter is coloured red" (88);
+      - the Flow motion choice, with Flowing as the default, and its behaviour on pause, at stops, when scrubbing, with speech and under reduced motion;
+      - a Settings table row: "Flow motion | Flowing | Word by word or Flowing (`speedRead.flowMotion` in VS Code)".
+      Run `npx vitest run tests/readme.test.ts`, then the full `npx vitest run`, green.
+  - id: P1.T7.S3
+    text: |-
+      Refactor: reuse test helpers for pinning the demo's settings; nothing more. After the last code commit, run the full suite with `npx vitest run > <host-visible log outside the repo> 2>&1`.
+state:
+  steps:
+    P1.T1.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T1.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T1.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T5.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T5.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T5.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T6.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T6.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T6.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T7.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T7.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T7.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+  completion:
+    at: null
+    note: null
+    observed_prs: []
