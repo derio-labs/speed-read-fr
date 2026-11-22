@@ -3,7 +3,7 @@ run: 2026-11-22-feat-flow-first-letter-and-flowing-mode
 workflow: fr-goal@1
 branch: feat/flow-first-letter-and-flowing-mode
 started: '2026-11-22T16:17:31+00:00'
-cursor: plan-review
+cursor: implement
 steps:
   brainstorm:
     state: done
@@ -46,7 +46,11 @@ steps:
           returned: '2026-11-22T16:32:33+00:00'
           outcome: done
   plan-review:
-    state: pending
+    state: done
+    at: '2026-11-22T16:32:34+00:00'
+    exit: 0
+    stdout: |
+      self-review passed
   implement:
     state: pending
     members:
