@@ -346,7 +346,7 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
   /**
    * The faded page (spec section 13): a veil in the page's own background colour at `1 - pageFade`
    * with a clear window over the block being read, and the eased scroll that keeps that block's top
-   * at 10 % of the viewport height.
+   * a gap below the reader's cards (10 % of the viewport height when there are none).
    */
   function createVeil(shadow: ShadowRoot, container: Element, pageFade: number) {
     const veil = doc.createElement('div');
@@ -371,7 +371,7 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
     let lastTop = Number.NaN;
     let stuck = 0;
     let pending: unknown = null;
-    let bandBottom = () => win.innerHeight;
+    let bandTop = () => 0;
     let chromeFloor = 0;
     const reducedMotion = win.matchMedia?.('(prefers-reduced-motion: reduce)');
 
@@ -386,9 +386,9 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       const clamp = (v: number, hi: number) => Math.min(hi + WINDOW_PAD_PX, Math.max(-WINDOW_PAD_PX, v));
       const left = clamp(box.left - WINDOW_PAD_PX, vw);
       const port = scrollport();
-      const top = Math.max(port?.top ?? -WINDOW_PAD_PX, clamp(box.top - WINDOW_PAD_PX, vh));
+      const top = Math.max(bandTop(), port?.top ?? -WINDOW_PAD_PX, clamp(box.top - WINDOW_PAD_PX, vh));
       const right = clamp(box.right + WINDOW_PAD_PX, vw);
-      const bottom = Math.min(bandBottom(), port?.bottom ?? vh + WINDOW_PAD_PX, clamp(box.bottom + WINDOW_PAD_PX, vh));
+      const bottom = Math.min(port?.bottom ?? vh + WINDOW_PAD_PX, clamp(box.bottom + WINDOW_PAD_PX, vh));
       const height = Math.max(0, bottom - top);
       Object.assign(clear.style, { left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${height}px`, border: height > 2 ? '2px solid #ff7563' : '0' });
     }
@@ -414,7 +414,7 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       // Arrival is judged by where the block is, never by the scroll offset read back.
       stuck = Math.abs(box.top - lastTop) < 0.5 ? stuck + 1 : 0;
       lastTop = box.top;
-      const base = Math.max(win.innerHeight * FOLLOW_AT, (scrollport()?.top ?? -BAND_GAP_PX) + BAND_GAP_PX);
+      const base = Math.max(bandTop() + BAND_GAP_PX, (scrollport()?.top ?? -BAND_GAP_PX) + BAND_GAP_PX, win.innerHeight * FOLLOW_AT);
       if (firstFrame) chromeFloor = belowChrome(doc, win, block, box, base);
       const aim = Math.max(chromeFloor, base);
       const delta = box.top - aim;
@@ -444,9 +444,22 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
 
     return {
       fade,
-      /** Clip large blocks to the page area above the reader's cards. */
-      setBandBottom(fn: () => number) {
-        bandBottom = fn;
+      /** The top of the page area below the reader's cards (0 when there is none): the window and the follow start there. */
+      setBandTop(fn: () => number) {
+        bandTop = fn;
+      },
+      /** Re-place the window after the band moved. */
+      place() {
+        place();
+      },
+      /** Follow the held block again, to where the band now puts it. */
+      refollow() {
+        if (!block) return;
+        following = true;
+        last = null;
+        lastTop = Number.NaN;
+        stuck = 0;
+        if (pending === null) pending = frames.request(tick);
       },
       follow(el: Element) {
         if (el === block) return;
@@ -556,6 +569,7 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       },
       onClose: () => finish(),
     });
+    let offBand = () => {};
     const handle = mountReader(frame, content.doc, {
       settings,
       store,
@@ -569,9 +583,18 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
     // Overlay: every wheel event on the page turns the dial, except where the reader scrolls its own
     // content; zoom (ctrl/meta) and horizontal swipes stay the browser's.
     if (overlay) {
-      overlay.setBandBottom(() => {
+      const bandTop = () => {
         const band = handle.freeBand();
-        return band.bottom > band.top ? band.bottom : win.innerHeight;
+        return band.bottom > band.top ? band.top : 0;
+      };
+      overlay.setBandTop(bandTop);
+      let seenTop = bandTop();
+      offBand = handle.onBandChange(() => {
+        const next = bandTop();
+        const moved = Math.abs(next - seenTop);
+        seenTop = next;
+        overlay?.place();
+        if (moved > 1) overlay?.refollow();
       });
       frame.addEventListener('wheel', (e) => routeWheel(e, handle), { passive: false });
     }
@@ -590,6 +613,7 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       lastRef: at,
       teardown() {
         removal.disconnect();
+        offBand();
         overlay?.destroy();
         handle.destroy();
         hostElement.remove();

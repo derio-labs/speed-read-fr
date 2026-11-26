@@ -53,10 +53,17 @@ export interface ReaderHandle {
   /** Recompute the narrow exhibit push in layouts that use it (also follows resizes). */
   relayout(): void;
   /**
-   * The unobstructed band in viewport px, plus the stage's bottom: where a host can show the
-   * block being read. The bottom-stage browser layout reserves the area above its support cards.
+   * The unobstructed band in viewport px, plus the reader's bottom: where a host can show the
+   * block being read. The bottom-stage browser layout puts the stage on top, then the support
+   * cards, and reserves the area below them: `top` is the bottom of the cards (of the stage when
+   * there are none), `bottom` and `below` the reader's bottom.
    */
   freeBand(): FreeBand;
+  /**
+   * Call `fn` when the stage or the support cards change size, so the band's top may have moved
+   * (a card appeared). Returns the unsubscribe; a no-op without ResizeObserver.
+   */
+  onBandChange(fn: () => void): () => void;
   /**
    * Show a note in the status line, or clear it with null: a host reports a failure the reader
    * cannot see itself (VS Code's configuration refusing a write: "Settings not saved").
@@ -361,10 +368,17 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     },
     freeBand() {
       if (push) return push.freeBand();
-      const dock = main.getBoundingClientRect();
-      const top = reader.getBoundingClientRect().top;
+      const bottom = reader.getBoundingClientRect().bottom;
       const card = support?.getBoundingClientRect();
-      return { top, bottom: card?.height ? card.top : dock.top, below: dock.bottom };
+      return { top: card?.height ? card.bottom : main.getBoundingClientRect().bottom, bottom, below: bottom };
+    },
+    onBandChange(fn) {
+      const Observer = (win as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ?? globalThis.ResizeObserver;
+      if (!Observer || destroyed) return () => {};
+      const observer = new Observer(() => fn());
+      observer.observe(main);
+      if (support) observer.observe(support);
+      return () => observer.disconnect();
     },
     setStatusNote(text) {
       if (destroyed) return;

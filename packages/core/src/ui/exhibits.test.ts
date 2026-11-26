@@ -123,12 +123,12 @@ describe('newest-first pane (the browser dock)', () => {
     const t = mountHarness(THREE, { bottomStage: true, settings: { stopLevels: [] } });
     readAll(t);
     const section = t.doc.sections[0];
-    const spy = vi.spyOn(t.handle.player, 'revealedExhibits');
     const all = t.handle.player.revealedExhibits(section.id);
-    spy.mockReturnValueOnce(all.slice(1));
-    t.handle.player.section(0);
+    const spy = vi.spyOn(t.handle.player, 'revealedExhibits').mockReturnValue(all.slice(1));
+    t.handle.applySettings({ ...DEFAULT_SETTINGS, stopLevels: [], chunkWords: 1 });
+    expect(order(t)).toEqual(['b5', 'b3']);
     spy.mockRestore();
-    t.handle.player.section(0);
+    t.handle.applySettings({ ...DEFAULT_SETTINGS, stopLevels: [], chunkWords: 2 });
     expect(order(t)).toEqual(['b5', 'b3', 'b1']);
   });
 
