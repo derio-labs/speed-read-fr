@@ -170,3 +170,113 @@ Unit test: closing the reader disconnects every ResizeObserver; fails without of
 ### p2-r8-resolved · finding [out-of-scope] · resolves p2-r8: Short windows leave a tiny page band (phase 2)
 
 The support's max-height reservation predates this change; the band size in short windows is unchanged by moving the stage.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r1 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-simplicity-r1 · finding [open] (reviewer: in scope) · exhibits.ts:96-99 duplicates the filter/sort chain for newestFirst
+
+Collapse to one chain with a direction-aware predicate.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r2 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-simplicity-r2 · finding [open] (reviewer: in scope) · newestFirst actually means latest by document position; document it
+
+exhibits.ts:35-36.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r3 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-simplicity-r3 · finding [open] (reviewer: in scope) · mount.ts repeats the ResizeObserver lookup
+
+mount.ts:348 and :376.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r4 created=2026-11-26T13:48:43+00:00 state=open review_scope=out -->
+### l-simplicity-r4 · finding [open] (reviewer: out of scope) · FreeBand.below is never read anywhere
+
+Unread before and after this change (layout.ts:74, :118; mount.ts:373).
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r5 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-simplicity-r5 · finding [open] (reviewer: in scope) · Shape file omits the overlay's place(), the belowChrome limit change and the layout.ts edit
+
+reader-entry.ts:253, :463-467; layout.ts:66-70.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r6 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-simplicity-r6 · finding [open] (reviewer: in scope) · e2e helper bandPoint moves the mouse; rename
+
+extension.spec.ts:115.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-tests-r1 · finding [open] (reviewer: in scope) · No test asserts the pivot or first letter is red with Red letters on
+
+core.spec.ts:1360-1382 checks only the off state.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-tests-r2 · finding [open] (reviewer: in scope) · snap.html case asserts nothing about blocks snapping below the cards
+
+extension.spec.ts:878-891; the unit test restates pad().
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-tests-r3 · finding [open] (reviewer: in scope) · p5a-r8 narrow-window assertion is guaranteed by place()'s band-top clip
+
+extension.spec.ts:952-956.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-tests-r4 · finding [open] (reviewer: in scope) · Shape file says the outline is out of the page band and omits layout.ts and place()/belowChrome changes
+
+styles.ts row 3 align-self end is inside the free band.
+
+<!-- fr:journal kind=discovery scope=plan id=lens-d1 created=2026-11-26T13:48:43+00:00 -->
+### lens-d1 · discovery · Eased follow fights proximity scroll-snap after ~20 wheel notches
+
+Even with scroll-padding-top set, a long scrub on a proximity-snap page (tests/fixtures/snap.html) lets the snap pull back against the eased follow; predates this change. The e2e scrubs 16 notches.
+
+<!-- fr:journal kind=review scope=plan id=lens-review created=2026-11-26T13:48:43+00:00 -->
+### lens-review · review · lens review: simplicity 5 in / 1 out, tests 4 in; all in-scope fixed
+
+Fixes 261797d, 3aad100, 90efb50, c6cc4d0, de357fd, 2ee28ce and the shape file; each new test assertion shown to fail with the behaviour removed. Full suite green after the last commit.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r1-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-simplicity-r1 -->
+### l-simplicity-r1-resolved · finding [fixed] · resolves l-simplicity-r1: exhibits.ts:96-99 duplicates the filter/sort chain for newestFirst
+
+261797d: one chain with precedes = newestFirst ? (a,b) => before(b,a) : before.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r2-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-simplicity-r2 -->
+### l-simplicity-r2-resolved · finding [fixed] · resolves l-simplicity-r2: newestFirst actually means latest by document position; document it
+
+3aad100: doc comment says it orders by document position.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r3-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-simplicity-r3 -->
+### l-simplicity-r3-resolved · finding [fixed] · resolves l-simplicity-r3: mount.ts repeats the ResizeObserver lookup
+
+90efb50: one Observer lookup at the top of mountReader.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r4-resolved created=2026-11-26T13:48:43+00:00 state=open resolves=l-simplicity-r4 out_of_scope=true -->
+### l-simplicity-r4-resolved · finding [out-of-scope] · resolves l-simplicity-r4: FreeBand.below is never read anywhere
+
+FreeBand.below was unread before this change; removing a field from a public handle type is its own change.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r5-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-simplicity-r5 -->
+### l-simplicity-r5-resolved · finding [fixed] · resolves l-simplicity-r5: Shape file omits the overlay's place(), the belowChrome limit change and the layout.ts edit
+
+Shape file lists place(), the place() clip change, the belowChrome limit and layout.ts.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r6-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-simplicity-r6 -->
+### l-simplicity-r6-resolved · finding [fixed] · resolves l-simplicity-r6: e2e helper bandPoint moves the mouse; rename
+
+c6cc4d0: renamed to hoverBand.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-tests-r1 -->
+### l-tests-r1-resolved · finding [fixed] · resolves l-tests-r1: No test asserts the pivot or first letter is red with Red letters on
+
+de357fd: asserts accent colour with the toggle on for pivot and first letter; fails with the gated pivot rule deleted.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-tests-r2 -->
+### l-tests-r2-resolved · finding [fixed] · resolves l-tests-r2: snap.html case asserts nothing about blocks snapping below the cards
+
+2ee28ce: snap.html scrubs, asserts scrollY > 0 and the block's own top at or below the band top; fails without scroll-padding.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-tests-r3 -->
+### l-tests-r3-resolved · finding [fixed] · resolves l-tests-r3: p5a-r8 narrow-window assertion is guaranteed by place()'s band-top clip
+
+2ee28ce: asserts the code block's own top is within 3 px of bandTop + 8.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-tests-r4 -->
+### l-tests-r4-resolved · finding [fixed] · resolves l-tests-r4: Shape file says the outline is out of the page band and omits layout.ts and place()/belowChrome changes
+
+Shape file: outline is row 3 bottom-left inside the band, below the followed block; missing entries added.
