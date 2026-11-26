@@ -167,10 +167,10 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   const support = details ? h('div', { class: 'sr-stage-support' }, details, exhibits) : null;
   if (support && floating) {
     main.prepend(outlineBar);
-    layout.append(outline, support, main);
+    layout.append(outline, main, support);
   } else if (support) {
     main.prepend(outlineBar);
-    stage.before(support);
+    stage.after(support);
     layout.append(outline, main);
   } else if (floating) {
     main.prepend(outlineBar);

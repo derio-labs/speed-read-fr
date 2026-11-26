@@ -12,6 +12,21 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+describe('stage on top (bottomStage dock)', () => {
+  it('panel: the support follows the stage inside the main column', () => {
+    const t = mountHarness(ARTICLE, { bottomStage: true, layout: 'panel' });
+    const stage = t.q('.sr-stage')!;
+    expect(stage.nextElementSibling).toBe(t.q('.sr-stage-support'));
+    expect(t.q('.sr-main')!.contains(t.q('.sr-stage-support'))).toBe(true);
+  });
+
+  it('floating: the layout holds the outline, the main card and the support in that order', () => {
+    const t = mountHarness(ARTICLE, { bottomStage: true, layout: 'floating' });
+    const classes = [...t.q('.sr-layout')!.children].map((c) => c.className.split(' ')[0]);
+    expect(classes).toEqual(['sr-outline', 'sr-main', 'sr-stage-support']);
+  });
+});
+
 describe('mountReader', () => {
   it('returns a handle with destroy and the player', () => {
     const t = mountHarness(ARTICLE);
