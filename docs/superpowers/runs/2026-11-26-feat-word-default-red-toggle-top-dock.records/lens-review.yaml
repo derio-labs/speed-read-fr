@@ -1,0 +1,29 @@
+schema_version: 12
+run: 2026-11-26-feat-word-default-red-toggle-top-dock
+step: lens-review
+outcome: done
+journal:
+  - {kind: finding, id: l-simplicity-r1, global: true, review_scope: in, title: "exhibits.ts:96-99 duplicates the filter/sort chain for newestFirst", body: "Collapse to one chain with a direction-aware predicate."}
+  - {kind: finding, id: l-simplicity-r2, global: true, review_scope: in, title: "newestFirst actually means latest by document position; document it", body: "exhibits.ts:35-36."}
+  - {kind: finding, id: l-simplicity-r3, global: true, review_scope: in, title: "mount.ts repeats the ResizeObserver lookup", body: "mount.ts:348 and :376."}
+  - {kind: finding, id: l-simplicity-r4, global: true, review_scope: out, title: "FreeBand.below is never read anywhere", body: "Unread before and after this change (layout.ts:74, :118; mount.ts:373)."}
+  - {kind: finding, id: l-simplicity-r5, global: true, review_scope: in, title: "Shape file omits the overlay's place(), the belowChrome limit change and the layout.ts edit", body: "reader-entry.ts:253, :463-467; layout.ts:66-70."}
+  - {kind: finding, id: l-simplicity-r6, global: true, review_scope: in, title: "e2e helper bandPoint moves the mouse; rename", body: "extension.spec.ts:115."}
+  - {kind: finding, id: l-tests-r1, global: true, review_scope: in, title: "No test asserts the pivot or first letter is red with Red letters on", body: "core.spec.ts:1360-1382 checks only the off state."}
+  - {kind: finding, id: l-tests-r2, global: true, review_scope: in, title: "snap.html case asserts nothing about blocks snapping below the cards", body: "extension.spec.ts:878-891; the unit test restates pad()."}
+  - {kind: finding, id: l-tests-r3, global: true, review_scope: in, title: "p5a-r8 narrow-window assertion is guaranteed by place()'s band-top clip", body: "extension.spec.ts:952-956."}
+  - {kind: finding, id: l-tests-r4, global: true, review_scope: in, title: "Shape file says the outline is out of the page band and omits layout.ts and place()/belowChrome changes", body: "styles.ts row 3 align-self end is inside the free band."}
+  - {kind: discovery, id: lens-d1, global: true, title: "Eased follow fights proximity scroll-snap after ~20 wheel notches", body: "Even with scroll-padding-top set, a long scrub on a proximity-snap page (tests/fixtures/snap.html) lets the snap pull back against the eased follow; predates this change. The e2e scrubs 16 notches."}
+  - {kind: review, id: lens-review, global: true, title: "lens review: simplicity 5 in / 1 out, tests 4 in; all in-scope fixed", body: "Fixes 261797d, 3aad100, 90efb50, c6cc4d0, de357fd, 2ee28ce and the shape file; each new test assertion shown to fail with the behaviour removed. Full suite green after the last commit."}
+resolves:
+  - {id: l-simplicity-r1, state: fixed, body: "261797d: one chain with precedes = newestFirst ? (a,b) => before(b,a) : before."}
+  - {id: l-simplicity-r2, state: fixed, body: "3aad100: doc comment says it orders by document position."}
+  - {id: l-simplicity-r3, state: fixed, body: "90efb50: one Observer lookup at the top of mountReader."}
+  - {id: l-simplicity-r4, state: out-of-scope, body: "FreeBand.below was unread before this change; removing a field from a public handle type is its own change."}
+  - {id: l-simplicity-r5, state: fixed, body: "Shape file lists place(), the place() clip change, the belowChrome limit and layout.ts."}
+  - {id: l-simplicity-r6, state: fixed, body: "c6cc4d0: renamed to hoverBand."}
+  - {id: l-tests-r1, state: fixed, body: "de357fd: asserts accent colour with the toggle on for pivot and first letter; fails with the gated pivot rule deleted."}
+  - {id: l-tests-r2, state: fixed, body: "2ee28ce: snap.html scrubs, asserts scrollY > 0 and the block's own top at or below the band top; fails without scroll-padding."}
+  - {id: l-tests-r3, state: fixed, body: "2ee28ce: asserts the code block's own top is within 3 px of bandTop + 8."}
+  - {id: l-tests-r4, state: fixed, body: "Shape file: outline is row 3 bottom-left inside the band, below the followed block; missing entries added."}
+evidence: {review: lens-review, reviewer: "simplicity=ad84f18820b3039fc,tests=a4ff4fbb5b0d573c1"}
