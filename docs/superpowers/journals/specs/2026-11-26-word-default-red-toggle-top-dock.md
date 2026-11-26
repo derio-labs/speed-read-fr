@@ -144,3 +144,6 @@ row_kinds:
 run_gate: developer
 run_kind: none
 ```
+
+<!-- fr:journal kind=decision scope=spec id=phase-split-2026-11-26-word-default-red-toggle-top-dock-p2 created=2026-11-26T11:11:00+00:00 -->
+### phase-split-2026-11-26-word-default-red-toggle-top-dock-p2 · decision · ask: the top dock layout and page follow (R4-R6) is its own reviewable ask, separate from the settings (R1-R3)
