@@ -13,8 +13,15 @@ evidence: {tests: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis
 visual:
   - row: reader-red-letters-toggle
     shots:
-      - {path: test-results/visual-p1/flow-red-on.png, shows: [flow with Red letters on, red first letters inside the bracket]}
-      - {path: test-results/visual-p1/flow-red-off.png, shows: [flow with Red letters off, first letters in the text colour]}
-      - {path: test-results/visual-p1/chunk-red-on.png, shows: [chunk with Red letters on, red pivot letter]}
-      - {path: test-results/visual-p1/chunk-red-off.png, shows: [chunk with Red letters off, pivot bold but not red]}
-      - {path: test-results/visual-p1/settings-panel.png, shows: [Settings panel Display fieldset with the Red letters checkbox checked after Flow motion]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/visual-p1/flow-red-on.png, shows: ["flow with Red letters on and off"]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/visual-p1/flow-red-off.png, shows: ["flow with Red letters on and off"]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/visual-p1/chunk-red-on.png, shows: ["chunk pivot with Red letters on and off"]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/visual-p1/chunk-red-off.png, shows: ["chunk pivot with Red letters on and off"]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/visual-p1/settings-flow-red-on.png, shows: ["Settings showing the Red letters checkbox in both reading modes"]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/visual-p1/settings-flow-red-off.png, shows: ["Settings showing the Red letters checkbox in both reading modes"]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/visual-p1/settings-chunk-red-on.png, shows: ["Settings showing the Red letters checkbox in both reading modes"]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/visual-p1/settings-chunk-red-off.png, shows: ["Settings showing the Red letters checkbox in both reading modes"]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/visual-p1/toggle-before-playing-on.png, shows: ["toggle Red letters while playing and see the colour change at once"]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/visual-p1/toggle-after-off-still-playing.png, shows: ["toggle Red letters while playing and see the colour change at once"]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/visual-p1/reopened-settings-persisted-off.png, shows: ["reopen the reader and confirm the choice persisted"]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/visual-p1/reopened-ribbon-persisted-off.png, shows: ["reopen the reader and confirm the choice persisted"]}
