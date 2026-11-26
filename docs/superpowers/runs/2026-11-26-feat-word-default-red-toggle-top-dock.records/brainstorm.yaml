@@ -1,0 +1,41 @@
+schema_version: 12
+run: 2026-11-26-feat-word-default-red-toggle-top-dock
+step: brainstorm
+outcome: done
+journal:
+  - {kind: discovery, input: true, id: brief, title: Operator brief, body: "the flowing motion is \"choppy\" at 30Hz so we'll use word by word as default from now on. Also, let's make the red letters toggleable, default on. Another change: the reading box should be at the top of the page. The exhibits and title etc should appear underneath it and push the previous ones downward."}
+  - {kind: decision, id: D1, title: "Migration: move everyone once", body: "Stored browser flowMotion 'flowing' becomes 'word' once via the migrations record; VS Code manifest default changes."}
+  - {kind: decision, id: D2, title: "Red letters toggle covers both modes", body: "Flow first letter and chunk ORP pivot; other accents stay red."}
+  - {kind: decision, id: D3, title: "All dock hosts get the top reading box", body: "Browser Overlay, Side panel, VS Code panel (bottomStage)."}
+  - {kind: decision, id: D4, title: "Verification: unit + Playwright in CI", body: "VS Code row stays walk-owed."}
+acceptance:
+  - id: reader-word-motion-default
+    capability: reader-ui
+    acceptance: Flow motion defaults to Word by word for new users and in VS Code, and saved browser settings on Flowing move to Word by word once; a later Flowing choice persists.
+    origin: [spec:2026-11-26-word-default-red-toggle-top-dock#R1, spec:2026-11-26-word-default-red-toggle-top-dock#R2]
+    status: not-implemented
+    verify: none
+  - id: reader-red-letters-toggle
+    capability: reader-ui
+    acceptance: A persisted Red letters setting, on by default, shows or hides the red reading letters (flow's in-bracket first letters and chunk's pivot) at once without moving the reading position; brackets and guides stay red.
+    origin: [spec:2026-11-26-word-default-red-toggle-top-dock#R3]
+    status: not-implemented
+    verify: none
+    visual:
+      states: [flow with Red letters on and off, chunk pivot with Red letters on and off, Settings showing the Red letters checkbox in both reading modes]
+      interactions: [toggle Red letters while playing and see the colour change at once, reopen the reader and confirm the choice persisted]
+  - id: browser-dock-stage-top
+    capability: browser-extension
+    acceptance: In browser Overlay and Side panel the reading box sits fixed at the top, with the title or stop card and exhibits below it newest first, earlier ones pushed down; in Overlay the faded page follows the current block below the cards.
+    origin: [spec:2026-11-26-word-default-red-toggle-top-dock#R4, spec:2026-11-26-word-default-red-toggle-top-dock#R5, spec:2026-11-26-word-default-red-toggle-top-dock#R6]
+    status: not-implemented
+    verify: none
+    visual:
+      states: [Overlay with stage on top and no cards, Overlay with a title card and two exhibits (newest first), Side panel with stage on top and exhibits below, narrow window]
+      interactions: [read past a heading and two exhibits and watch each push the earlier down, page follow keeps the current block below the cards]
+  - {row: reader-flowing-motion, op: reword, why: "Word by word becomes the default Flow motion (spec 2026-11-26-word-default-red-toggle-top-dock R1).", acceptance: "Flow mode offers a persisted Flow motion choice, Word by word (the default) or Flowing; in Flowing the ribbon moves continuously at the set speed without holding on each word, freezes on pause and resumes from there, scrubs word by word, keeps flowing with speech on, and falls back to word steps under reduced motion."}
+  - {row: browser-floating-overlay, op: reword, why: "The reading box moves to the top (spec 2026-11-26-word-default-red-toggle-top-dock R4-R6).", acceptance: "In Overlay, the speed-read box stays at the top with steady typography and guides, with chapters and exhibits below it, newest first. The faded page scrolls to show the outlined current block in the visible area below the reader's cards."}
+  - {row: vscode-fixed-chunk-box, op: reword, why: "The reading box moves to the top in every dock host (spec 2026-11-26-word-default-red-toggle-top-dock R4, R5).", acceptance: "The VS Code side panel uses the browser dock's reader: fixed speed-read box at the top, no faded sentence line, chapters and exhibits below the stage, newest first."}
+emitted:
+  spec: docs/superpowers/specs/2026-11-26-word-default-red-toggle-top-dock-design.md
+evidence: {}
