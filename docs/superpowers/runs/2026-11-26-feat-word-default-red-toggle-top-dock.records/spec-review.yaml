@@ -1,0 +1,92 @@
+schema_version: 12
+run: 2026-11-26-feat-word-default-red-toggle-top-dock
+step: spec-review
+outcome: done
+journal:
+- kind: finding
+  id: s1
+  review_scope: in
+  title: The Red letters off rule loses to the flow first-letter accent rule on specificity
+  body: See the reviewer's return; fixed in the spec.
+- kind: finding
+  id: s2
+  review_scope: in
+  title: Render-only redLetters path through applySettings is undesigned
+  body: See the reviewer's return; fixed in the spec.
+- kind: finding
+  id: s3
+  review_scope: in
+  title: add prepends puts re-added earlier exhibits on top
+  body: See the reviewer's return; fixed in the spec.
+- kind: finding
+  id: s4
+  review_scope: in
+  title: New follow aim drops the scrollport floor; FOLLOW_AT and fallback undefined
+  body: See the reviewer's return; fixed in the spec.
+- kind: finding
+  id: s5
+  review_scope: in
+  title: Cards growing over the block do not re-aim or re-clip
+  body: See the reviewer's return; fixed in the spec.
+- kind: finding
+  id: s6
+  review_scope: in
+  title: Floating-dock styles plan misses drawer rule and outline anchoring
+  body: See the reviewer's return; fixed in the spec.
+- kind: finding
+  id: s7
+  review_scope: in
+  title: Test surface omits existing tests that assert the inverted behaviour
+  body: See the reviewer's return; fixed in the spec.
+- kind: finding
+  id: s8
+  review_scope: in
+  title: Storage test 'leaves a missing record alone' contradicts the design
+  body: See the reviewer's return; fixed in the spec.
+- kind: finding
+  id: s9
+  review_scope: in
+  title: Panel 'reading section' and manifest description names do not match code
+  body: See the reviewer's return; fixed in the spec.
+- kind: review
+  id: spec-review
+  title: 'independent spec review: 9 findings, all in scope'
+  body: fr-spec-reviewer checked the spec against D1-D4, the codebase (file:line for every named file, helper and selector) and itself. Findings s1-s9 were all in scope and are fixed in the spec.
+- kind: lens
+  lens: tests
+  title: existing unit and e2e assertions encode the old geometry and defaults; check none silently invert
+- kind: lens
+  lens: simplicity
+  title: the generalised migration list and the dynamic follow band add moving parts; keep them minimal
+resolves:
+- id: s1
+  state: fixed
+  body: Gate the accent rules themselves with .sr-reader:not([data-red-letters="off"]) (styles.ts:212, :241); pivot weight split out; shape block matches.
+- id: s2
+  state: fixed
+  body: redLetters joins sameExceptLive; the live branch assigns settings.redLetters, sets reader.dataset.redLetters and saves when save is true (mount.ts:116-117, :240-250).
+- id: s3
+  state: fixed
+  body: newestFirst now inserts by reverse document position, mirroring exhibits.ts:93-95; test covers sync re-adds.
+- id: s4
+  state: fixed
+  body: Aim is max(bandTop+gap, port.top+gap, innerHeight*FOLLOW_AT) raised to chromeFloor; degenerate band falls back to 0/FOLLOW_AT; below defined; doc comments named.
+- id: s5
+  state: fixed
+  body: handle.onBandChange from a ResizeObserver on .sr-main and the support; overlay re-places and restarts the follow when the band top moves >1px.
+- id: s6
+  state: fixed
+  body: Spec lists the grid template change, outline align/margin flip and the narrow drawer rule (styles.ts:541, :554-555, :562-563).
+- id: s7
+  state: fixed
+  body: Test surface lists each existing unit and e2e assertion to rewrite, with line refs.
+- id: s8
+  state: fixed
+  body: Reworded to the unreadable-record case; added the both-migrations-in-one-write case.
+- id: s9
+  state: fixed
+  body: Names the Display fieldset; the manifest change is the default value only.
+acceptance: []
+evidence:
+  review: spec-review
+  reviewer: af8a1337e0d146a96

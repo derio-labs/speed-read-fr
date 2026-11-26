@@ -61,15 +61,18 @@ What each file is responsible for, and the entries the change adds (`+`) or repl
 +   reader.dataset.redLetters
 -   freeBand(): page band ends at the cards' top
 +   freeBand(): page band starts at the cards' bottom
++   onBandChange(fn)                       # R6, cards grew or shrank
   packages/core/src/ui/exhibits.ts         # createExhibits: the exhibit pane and its list
-+   newestFirst option for add()
++   newestFirst: reverse-position insert   # R5
   packages/core/src/ui/styles.ts           # reader stylesheet, incl. the [data-bottom-stage] dock grid
-+   [data-red-letters="off"] :is(.sr-w-first, .sr-pivot) { color: inherit }
+-   .sr-ribbon-row[…] .sr-w-first, .sr-pivot { color: accent }
++   .sr-reader:not([data-red-letters="off"]) … { color: accent }
   packages/browser-extension/src/storage.ts       # storage.local store + one-time migrations
 +   'word-motion-default' migration        # R2
   packages/browser-extension/src/reader-entry.ts  # Overlay: page fade, follow, scroll band
 -   setBandBottom(fn)
 +   setBandTop(fn)                         # R6, the follow aims below the cards
++   re-follow on onBandChange
   packages/vscode-extension/package.json   # speedRead.* configuration manifest
 -   speedRead.flowMotion default "flowing"
 +   speedRead.flowMotion default "word"
@@ -80,8 +83,8 @@ What each file is responsible for, and the entries the change adds (`+`) or repl
 
 ### Word-by-word default (R1, R2)
 
-- `DEFAULT_SETTINGS.flowMotion = 'word'` in `settings.ts`. The VS Code manifest default becomes
-  `"word"`, and its description no longer calls Flowing the default.
+- `DEFAULT_SETTINGS.flowMotion = 'word'` in `settings.ts`. The VS Code manifest's
+  `speedRead.flowMotion` `"default"` value becomes `"word"` (`package.json:65`).
 - `storage.ts` gains a second migration id, `word-motion-default`, applied with the same
   read-record / write-once logic as `flow-default`: on load, if the id is absent and the stored
   settings have `flowMotion: 'flowing'`, they are rewritten with `'word'` and the id is recorded.
@@ -90,47 +93,99 @@ What each file is responsible for, and the entries the change adds (`+`) or repl
 
 ### Red letters (R3)
 
-- `Settings.redLetters: boolean`, default `true`, normalised like `tts.enabled`. It is render-only,
-  so `mount.ts`'s settings update does not rebuild the timeline for it.
-- `mount.ts` sets `reader.dataset.redLetters = 'on' | 'off'` at mount and on every settings change.
-- `styles.ts`: `.sr-reader[data-red-letters="off"] :is(.sr-w-first, .sr-pivot) { color: inherit; }`.
-  The pivot keeps its weight, so the fixation point still reads.
-- The settings panel has a "Red letters" checkbox in the reading section, shown in both modes.
+- `Settings.redLetters: boolean`, default `true`, normalised like `tts.enabled` (`settings.ts:91-97`).
+- It is render-only, so it goes in the live set. `sameExceptLive` (`mount.ts:116-117`) neutralises
+  `redLetters` beside `wpm` and `flowMotion`. In `applySettings`'s live branch (`mount.ts:240-250`),
+  when `next.redLetters` differs, the branch assigns `settings = { ...settings, redLetters:
+  next.redLetters }`, sets `reader.dataset.redLetters`, and calls `saveSettings(settings)` when `save`
+  is true. The player's `settings` event (`mount.ts:229-232`) copies only wpm and flowMotion, so it
+  cannot carry this value. `mount` also sets `reader.dataset.redLetters = 'on' | 'off'` at mount.
+- `styles.ts` gates the accents themselves, so no override rule has to win on specificity. The
+  flow rule (`styles.ts:212`) becomes `.sr-reader:not([data-red-letters="off"])
+  .sr-ribbon-row[data-position="middle"] .sr-w[data-in] .sr-w-first`. The pivot (`styles.ts:241`)
+  splits into `.sr-pivot { font-weight: 700 }` and `.sr-reader:not([data-red-letters="off"])
+  .sr-pivot { color: var(--sr-accent) }`. The pivot keeps its weight, so the fixation point still
+  reads.
+- The settings panel has a "Red letters" checkbox in the Display fieldset, after Flow motion
+  (`settings-panel.ts:86-89`). It shows in both modes.
 - VS Code: `KEYS` comes from `DEFAULT_SETTINGS`, so the manifest needs a `speedRead.redLetters`
   boolean (the manifest test enforces it).
 
 ### Reading box on top (R4, R5, R6)
 
-- `mount.ts`: in the panel dock the support goes after the stage (`stage.after(support)`), so `main` is
-  toolbar, progress, stage, support. In the floating dock the layout order is `main`, then support,
-  then outline.
-- `styles.ts`, floating dock grid: row 1 is the stage (`align-self: start`), row 2 is the support,
-  and row 3 is the outline card (left, `align-self: start`, taking the remaining height). The
-  support's `max-height` rule stays. Panel dock: the stage is the fixed top row and the support
-  takes `flex: 1` below it. The `margin-bottom` on the support becomes `margin-top`.
-- `exhibits.ts`: `createExhibits` takes `newestFirst` (true in a dock). When it is set, `add`
-  prepends the item, so the latest-revealed exhibit is at the top. `reveal` keeps the active one in
-  view as before.
-- Overlay follow (`reader-entry.ts`): `setBandBottom` becomes `setBandTop(fn)`. The band top is the
-  bottom of the lowest visible reader card (support, or the stage when the support is empty), from
-  `handle.freeBand()`. The dock's `freeBand()` (in `mount.ts`, used when there is no narrow push
-  layout) returns `{ top: <bottom of the support, or of .sr-main when the support is empty>,
-  bottom: <reader bottom>, below: … }`. `place` clips the outline's top to the band top, and `tick` aims the block's
-  top at `max(bandTop + BAND_GAP_PX, chromeFloor)` instead of `FOLLOW_AT × innerHeight`.
+- `mount.ts`: in the panel dock the support goes after the stage (`stage.after(support)` replaces
+  `stage.before(support)`, `mount.ts:173`), so `main` is toolbar, progress, stage, support. In the
+  floating dock the layout order is `main`, then the support, then the outline
+  (`mount.ts:170`).
+- `styles.ts`, floating dock (`styles.ts:540-564`):
+  - The grid template changes from `minmax(0,1fr) auto auto` to `auto auto minmax(0,1fr)`. Row 1 is
+    `.sr-main` (`align-self: start`), row 2 is the support (its `max-height` rule at `:549` stays),
+    and row 3 is the outline card (left, `align-self: start`, `margin-top: 8px` in place of
+    `align-self: end; margin-bottom: 8px`).
+  - The support's `margin-bottom` (`:551`) becomes `margin-top`.
+  - The narrow open-drawer rule (`:562-563`) moves to `grid-area: 2 / 1 / 4`, anchored from the top
+    of row 2 (`inset: 8px auto auto 8px`), so the open outline never covers the reading box.
+  - Panel dock: the stage is the fixed top row, and the support takes `flex: 1` below it (`:539`).
+- `exhibits.ts`: `createExhibits` takes `newestFirst` (true in a dock). Under it, `add` mirrors
+  today's sorted insert (`exhibits.ts:93-95`) in reverse: it inserts before the first shown item that
+  comes *earlier* in the document. "Newest" therefore means latest by position, whatever order
+  `sync` adds them in, including after a section change, a jump or a rebuild. Without the option the
+  order stays document order. `reveal` keeps the active item in view as before.
+- Overlay band (`mount.ts:350-356`, `reader-entry.ts`):
+  - The dock's `freeBand()` returns `{ top, bottom, below }`:
+    - `top` is the bottom of the support when it shows anything, else the bottom of `.sr-main`;
+    - `bottom` is the reader's bottom;
+    - `below` is the same as `bottom` (no reader card sits below the band in the dock).
+    The doc comments on `FreeBand` (`layout.ts:66-71`) and `ReaderHandle.freeBand` (`mount.ts:56-58`)
+    now say "the unobstructed band below the reader's cards" for the dock.
+  - `setBandBottom` becomes `setBandTop(fn)`. `reader-entry.ts:572-575` passes `band.bottom >
+    band.top ? band.top : 0`, so a degenerate band (zero rects in jsdom) falls back to the viewport
+    top.
+  - `place` clips the outline's top to `max(bandTop, port.top)`.
+  - `tick` aims the block's top at `max(bandTop + BAND_GAP_PX, (port?.top ?? -BAND_GAP_PX) +
+    BAND_GAP_PX, innerHeight × FOLLOW_AT)`, raised to `chromeFloor` as today. `FOLLOW_AT` stays as
+    the floor that applies when the band is degenerate. The scrollport term is kept for nested
+    scrollers.
+  - Cards growing over the block: the overlay keeps the last band top. A `ResizeObserver` on the
+    reader's support (exposed as `handle.onBandChange(fn)`, fired from the observer on `.sr-main`
+    and the support) calls `place()`, and when the band top moved by more than 1 px it restarts the
+    follow for the current block (`following = true; last = null`). That way a new stop card or
+    exhibit pushes the page down with the cards.
 
 ### Test surface
 
-- `settings.test.ts`: the `word` default, `redLetters` normalisation.
-- `storage.test.ts`: the migration moves flowing to word once, keeps a later Flowing choice, and
-  leaves a missing record alone.
+New or changed tests:
+
+- `settings.test.ts`: the `word` default and `redLetters` normalisation. The existing assertions at
+  `:21-29` that hard-code `'flowing'` are updated.
+- `storage.test.ts`:
+  - the migration moves flowing to word once and keeps a later Flowing choice;
+  - stored settings are kept as they are when the migrations record cannot be read;
+  - one load with stored `chunk` + `flowing` applies both migrations (flow + word) and records both
+    ids.
+  The existing expectations that the record equals `['flow-default']` (`:50, :59, :66, :76, :84`)
+  are updated to the two-id list.
 - `settings-panel.test.ts`: the Red letters checkbox reads and writes `redLetters`.
-- `mount.test.ts` / `stage.test.ts`: `data-red-letters` follows the setting without a timeline rebuild.
-- `exhibits.test.ts`: dock order is newest first, and the default stays document order.
-- `vscode-extension/src/manifest.test.ts`: manifest defaults match `DEFAULT_SETTINGS`.
-- `tests/e2e/extension.spec.ts`: in Overlay and Side panel, the stage top is at the reader top
-  and stays fixed, cards and exhibits are below it with the newest first, and the Overlay follow
-  puts the current block below the cards. `tests/e2e/core.spec.ts`: red-letters off shows no
-  accent colour on the first letter or the pivot.
+- `mount.test.ts`: changing `redLetters` updates `data-red-letters` and saves without rebuilding the
+  timeline. `stage.test.ts` is unchanged.
+- `exhibits.test.ts`: dock order is newest first by position, including after `sync` re-adds
+  earlier exhibits. The default order stays document order.
+- `vscode-extension/src/manifest.test.ts`: manifest defaults match `DEFAULT_SETTINGS`, and the
+  hard-coded `'flowing'` at `:80` becomes `'word'`.
+- `reader-entry.test.ts:501-520`: the follow target becomes the band top plus the gap, with the 10 %
+  floor when the band is degenerate. A new case covers a band-top change re-following the same
+  block.
+
+Rewritten e2e (`tests/e2e/extension.spec.ts`), because they encode the old geometry:
+
+- `:582-621`: the stage now sits at the top and stays fixed, and the cards are below it, newest first.
+- `:707-726`: the followed block sits below the cards.
+- `:624-641`: fixed-header positions are measured below the cards.
+- The "wheel over the faded page" tests (`:715, :739, :745, :764, :808`) move the mouse to a point
+  inside the free band instead of `(640, 40)`.
+
+`tests/e2e/core.spec.ts`: with Red letters off, neither the first letter nor the pivot shows the
+accent colour, next to `expectRedFirstLetters` (`:389`).
 
 ## Verification
 
