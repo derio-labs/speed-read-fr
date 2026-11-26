@@ -943,6 +943,9 @@ test.describe('overlay review fixes (p5a)', () => {
     // The code block is taller than the band, so it is not 'framed'; its outline starts 6 px above it, a gap
     // (8 px) under the band top, which place()'s clip alone (the outline at the band top) cannot produce.
     await expect.poll(async () => Math.abs((await windowBox(page)).top - ((await bandTop(page)) + 2)), { timeout: 10_000 }).toBeLessThanOrEqual(1);
+    // With cards showing the band starts low; the Contents card still ends above it, so it never covers the block.
+    const contents = (await page.locator('[data-speed-read-host] .sr-outline').boundingBox())!;
+    expect(contents.y + contents.height, 'the Contents card ends above the page band').toBeLessThanOrEqual((await bandTop(page)) + 1);
   });
 
   test('in a narrow window at a code stop the block being read is not under the exhibit card (p5a-r8)', async () => {
