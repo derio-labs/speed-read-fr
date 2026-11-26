@@ -3,7 +3,7 @@ run: 2026-11-26-feat-word-default-red-toggle-top-dock
 workflow: fr-goal@1
 branch: feat/word-default-red-toggle-top-dock
 started: '2026-11-26T10:24:05+00:00'
-cursor: journal-check
+cursor: lens-review
 steps:
   brainstorm:
     state: done
@@ -129,7 +129,11 @@ steps:
           visual: browser-dock-stage-top:9:1a521eb8fabf
           findings: p2-f1,p2-f2,p2-r1,p2-r2,p2-r3,p2-r4,p2-r5,p2-r6,p2-r7,p2-r8
   journal-check:
-    state: pending
+    state: done
+    at: '2026-11-26T13:36:40+00:00'
+    exit: 0
+    stdout: |
+      1 out-of-scope finding(s): p2-r8
   lens-review:
     state: pending
   deliver:
