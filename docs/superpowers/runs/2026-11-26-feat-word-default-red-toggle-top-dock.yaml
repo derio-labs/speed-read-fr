@@ -163,3 +163,4 @@ steps:
           session: 262b9e5d-301d-436a-97d5-76243a036973
 driver: standalone
 fr_version: 9.0.0
+pr: https://github.com/derio-labs/speed-read-fr/pull/24
