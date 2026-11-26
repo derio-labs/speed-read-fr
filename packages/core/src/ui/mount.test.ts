@@ -270,4 +270,14 @@ describe('red letters is a live setting', () => {
     expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ redLetters: false }));
     expect(rebuild).not.toHaveBeenCalled();
   });
+
+  it('a host push through handle.applySettings (save=false) flips data-red-letters without saving', async () => {
+    const t = mountHarness(ARTICLE);
+    await t.settle();
+    const reader = t.q<HTMLElement>('.sr-reader')!;
+    t.store.save.mockClear();
+    t.handle.applySettings({ ...t.handle.player.settings, redLetters: false });
+    expect(reader.dataset.redLetters).toBe('off');
+    expect(t.store.save).not.toHaveBeenCalled();
+  });
 });

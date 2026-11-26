@@ -277,6 +277,8 @@ describe('red letters field', () => {
       expect(box.checked).toBe(true);
       expect((box.closest('.sr-field') as HTMLElement).hidden).toBe(false);
       expect(box.closest('.sr-field')!.textContent).toContain('Red letters');
+      // The hint holds in both modes: flow's first letters and chunk's pivot.
+      expect(box.closest('.sr-field')!.textContent).toContain('first letters and pivot');
       expect(box.closest('fieldset')!.querySelector('legend')!.textContent).toBe('Display');
       const names = [...box.closest('fieldset')!.querySelectorAll('[name]')].map((e) => e.getAttribute('name'));
       expect(names.indexOf('redLetters')).toBe(names.indexOf('flowMotion') + 1);

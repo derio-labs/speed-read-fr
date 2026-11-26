@@ -88,7 +88,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       field('Reading mode', null, select('readingMode', [['chunk', 'Chunk-by-chunk'], ['flow', 'Three-row flow']], 'Reading mode')),
       field('Focus span', 'characters, 6-40', number('focusChars', 6, 40, 1)),
       flowMotionField,
-      field('Red letters', 'first letter of each word', redLettersToggle),
+      field('Red letters', 'first letters and pivot', redLettersToggle),
       field('Images and diagrams', 'seconds shown', number('imageDwellSeconds', 1, 60, 1)),
       ctx.hostSettings.includes('display') ? field('Reader', 'in the browser', select('display', [['overlay', 'Overlay'], ['dock', 'Side panel']])) : null,
       ctx.hostSettings.includes('pageFade')
