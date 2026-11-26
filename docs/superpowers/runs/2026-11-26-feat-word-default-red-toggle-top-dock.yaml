@@ -3,11 +3,14 @@ run: 2026-11-26-feat-word-default-red-toggle-top-dock
 workflow: fr-goal@1
 branch: feat/word-default-red-toggle-top-dock
 started: '2026-11-26T10:24:05+00:00'
-cursor: brainstorm
+cursor: spec-review
 steps:
   brainstorm:
-    state: blocked
-    at: '2026-11-26T10:24:13+00:00'
+    state: done
+    at: '2026-11-26T10:33:53+00:00'
+    answered_by: operator
+    emitted:
+      spec: docs/superpowers/specs/2026-11-26-word-default-red-toggle-top-dock-design.md
   spec-review:
     state: pending
   plan:
