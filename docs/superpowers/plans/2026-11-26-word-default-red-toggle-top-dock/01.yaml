@@ -8,7 +8,6 @@ phase:
   acceptance:
   - reader-word-motion-default
   - reader-red-letters-toggle
-  - reader-flowing-motion
   skeleton: true
   tier: standard
   files:
