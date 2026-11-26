@@ -202,7 +202,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     accepts: (event) => !options.trustedEventsOnly || event.isTrusted,
   };
   const outlineZone = createOutline(ctx, { outline, bar: outlineBar, layout });
-  const exhibitZone = createExhibits(ctx, { pane: exhibits, root: layout });
+  const exhibitZone = createExhibits(ctx, { pane: exhibits, root: layout, newestFirst: !!support });
   const panel = createSettingsPanel(ctx, (next) => applySettings(next), () => seenFit ?? FIT_MAX);
   const stageZone = createStage(ctx, { stage, status, details, overallFill: overall.firstElementChild as HTMLElement });
   const zones: Zone[] = [
