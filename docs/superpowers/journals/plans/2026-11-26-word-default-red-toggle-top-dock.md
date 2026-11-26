@@ -75,3 +75,98 @@ a DOM-order swap plus grid-area edits; no duplication introduced
 ### no-refactor-p2-t3 · discovery · no-refactor-because P2.T3 (phase 2)
 
 setBandBottom became setBandTop and place/tick read one bandTop(); no leftover code from the old clip
+
+<!-- fr:journal kind=finding scope=plan id=p2-r1 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r1 · finding [open] (reviewer: in scope) · Floating outline card sits on the page band and covers the followed block (phase 2)
+
+styles.ts:554-556 put the outline at band top + 8.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r2 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r2 · finding [open] (reviewer: in scope) · On proximity-snap pages the follow ends with the block under the stage; the snap assertion was dropped (covers p2-f1) (phase 2)
+
+tests/e2e/extension.spec.ts:861-866.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r3 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r3 · finding [open] (reviewer: in scope) · The current stop/dwell card, first under the stage, is squeezed whenever an exhibit shows (covers p2-f2) (phase 2)
+
+styles.ts:524 flex 0 1 auto inside the capped support.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r4 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r4 · finding [open] (reviewer: in scope) · Fixed-toolbar e2e no longer exercises the chrome floor; belowChrome scan capped at 0.6 of the viewport (phase 2)
+
+extension.spec.ts:672; reader-entry.ts:249-270.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r5 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r5 · finding [open] (reviewer: in scope) · Stop-card re-follow e2e passes by construction (phase 2)
+
+extension.spec.ts:904-920 asserted w.top >= bandTop, which place() guarantees.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r6 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r6 · finding [open] (reviewer: in scope) · Packaged-build test lost its follow checks (phase 2)
+
+extension.spec.ts:507-528.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r7 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r7 · finding [open] (reviewer: in scope) · Teardown unsubscribe from onBandChange untested (phase 2)
+
+reader-entry.ts:616.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r8 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=out -->
+### p2-r8 · finding [open] (reviewer: out of scope) · Short windows leave a tiny page band (phase 2)
+
+The calc(100vh - 245px) support reservation (styles.ts:549) predates this change.
+
+<!-- fr:journal kind=review scope=plan id=p2-review created=2026-11-26T13:36:37+00:00 phase=2 -->
+### p2-review · review · phase 2 review: 7 in-scope findings (incl. p2-f1, p2-f2 reclassified), all fixed; 1 out of scope (phase 2)
+
+Independent reviewer checked newest-first insert, dock DOM/grid, freeBand/onBandChange, follow aim/refollow/teardown and the e2e rewrites against R4-R6, and drove the extension fixture. p2-r2 = p2-f1 and p2-r3 = p2-f2, reclassified in scope by the reviewer; the operator approved fixing both. Fixes: 154b78b, e9324a1, bd8e18a; full suite green after them.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r1-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r1 -->
+### p2-r1-resolved · finding [fixed] · resolves p2-r1: Floating outline card sits on the page band and covers the followed block (phase 2)
+
+Outline align-self end at the bottom of row 3; e2e asserts the outline does not intersect the followed block.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r2-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r2 -->
+### p2-r2-resolved · finding [fixed] · resolves p2-r2: On proximity-snap pages the follow ends with the block under the stage; the snap assertion was dropped (covers p2-f1) (phase 2)
+
+Same defect as p2-f1; fixed by e9324a1 (scroll-padding-top) with the snap.html assertion restored in bd8e18a.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r3-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r3 -->
+### p2-r3-resolved · finding [fixed] · resolves p2-r3: The current stop/dwell card, first under the stage, is squeezed whenever an exhibit shows (covers p2-f2) (phase 2)
+
+Same defect as p2-f2; fixed by 154b78b (details flex 0 0 auto) with the whole-card e2e in bd8e18a.
+
+<!-- fr:journal kind=finding scope=plan id=p2-f1-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-f1 answered_by=operator -->
+### p2-f1-resolved · finding [fixed] · resolves p2-f1: Pages with scroll-snap pull the block back under the cards (phase 2)
+
+Reclassified in scope by the reviewer (p2-r2); operator approved. scroll-padding-top = bandTop + 8 on the scroller, restored on close; snap.html height assertion restored; unit test for set/update/restore.
+
+<!-- fr:journal kind=finding scope=plan id=p2-f2-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-f2 answered_by=operator -->
+### p2-f2-resolved · finding [fixed] · resolves p2-f2: Title or stop card is squeezed to a strip when the exhibit list is tall (phase 2)
+
+Reclassified in scope by the reviewer (p2-r3); operator approved. Details card flex 0 0 auto, exhibits flex 0 1 auto with the list scrolling; e2e asserts the card is whole in Overlay and Side panel.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r4-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r4 -->
+### p2-r4-resolved · finding [fixed] · resolves p2-r4: Fixed-toolbar e2e no longer exercises the chrome floor; belowChrome scan capped at 0.6 of the viewport (phase 2)
+
+Scan limit relative to its start; e2e runs header 128 and 320 px and asserts aim = header bottom + 8 at 320.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r5-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r5 -->
+### p2-r5-resolved · finding [fixed] · resolves p2-r5: Stop-card re-follow e2e passes by construction (phase 2)
+
+Asserts the block sits 8 px under the band top within 1 px after the card appears.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r6-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r6 -->
+### p2-r6-resolved · finding [fixed] · resolves p2-r6: Packaged-build test lost its follow checks (phase 2)
+
+Restored reached-block position and paragraph-gap checks.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r7-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r7 -->
+### p2-r7-resolved · finding [fixed] · resolves p2-r7: Teardown unsubscribe from onBandChange untested (phase 2)
+
+Unit test: closing the reader disconnects every ResizeObserver; fails without offBand().
+
+<!-- fr:journal kind=finding scope=plan id=p2-r8-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=open resolves=p2-r8 out_of_scope=true -->
+### p2-r8-resolved · finding [out-of-scope] · resolves p2-r8: Short windows leave a tiny page band (phase 2)
+
+The support's max-height reservation predates this change; the band size in short windows is unchanged by moving the stage.

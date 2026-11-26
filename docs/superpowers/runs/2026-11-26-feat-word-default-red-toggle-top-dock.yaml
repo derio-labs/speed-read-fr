@@ -3,7 +3,7 @@ run: 2026-11-26-feat-word-default-red-toggle-top-dock
 workflow: fr-goal@1
 branch: feat/word-default-red-toggle-top-dock
 started: '2026-11-26T10:24:05+00:00'
-cursor: implement
+cursor: journal-check
 steps:
   brainstorm:
     state: done
@@ -52,8 +52,8 @@ steps:
     stdout: |
       self-review passed
   implement:
-    state: running
-    at: '2026-11-26T11:55:51+00:00'
+    state: done
+    at: '2026-11-26T13:36:38+00:00'
     members:
     - implement-phase
     - review-phase
@@ -114,13 +114,20 @@ steps:
           tests: p2-suite.log@fdbb6e6e7b22;tree=f747784c1ef6f27d13f158643764fa222792af64c837956f04559442751de709
           visual: browser-dock-stage-top:9:7c32daadfe3d
       phase/2/review-phase:
-        state: running
+        state: done
         attempts:
         - dispatched: '2026-11-26T11:55:51+00:00'
           agent: a26e36c3fdb9f3282
           harness: claude-code
           model: claude-opus-5-5
           session: 262b9e5d-301d-436a-97d5-76243a036973
+          returned: '2026-11-26T13:36:38+00:00'
+          outcome: done
+        evidence:
+          review: p2-review
+          reviewer: a26e36c3fdb9f3282
+          visual: browser-dock-stage-top:9:1a521eb8fabf
+          findings: p2-f1,p2-f2,p2-r1,p2-r2,p2-r3,p2-r4,p2-r5,p2-r6,p2-r7,p2-r8
   journal-check:
     state: pending
   lens-review:
