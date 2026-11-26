@@ -15,9 +15,17 @@ rows:
     origin:
     - spec:2026-11-26-word-default-red-toggle-top-dock#R1
     - spec:2026-11-26-word-default-red-toggle-top-dock#R2
-    levels: {}
-    status: not-implemented
-    notes: ''
+    levels:
+      unit:
+      - speed-read-fr:packages/core/src/settings.test.ts
+      - speed-read-fr:packages/browser-extension/src/storage.test.ts
+      - speed-read-fr:packages/vscode-extension/src/manifest.test.ts
+      ui:
+      - speed-read-fr:tests/e2e/core.spec.ts
+    status: ci
+    notes: Default and the one-time browser migration verified by settings, storage
+      and manifest unit tests and the core e2e Flow motion default; CI runs npm test
+      and the e2e suite.
     verify: none
   - id: reader-red-letters-toggle
     capability: reader-ui
