@@ -1371,6 +1371,13 @@ test('Red letters off leaves the flow first letters and the chunk pivot in the t
   await page.keyboard.press(',');
   await page.locator('.sr-settings [name="redLetters"]').check();
   await expect(page.locator('.sr-reader')).toHaveAttribute('data-red-letters', 'on');
+  // Turned on, the same flow first letters are no longer the row's text colour.
+  const flowOn = await page.evaluate(() => {
+    const row = getComputedStyle(document.querySelector('.sr-ribbon-row[data-position="middle"]')!).color;
+    return [...document.querySelectorAll('.sr-w[data-in] .sr-w-first')].map((e) => ({ colour: getComputedStyle(e).color, row }));
+  });
+  expect(flowOn.length).toBeGreaterThan(0);
+  expect(flowOn.every((f) => f.colour !== f.row)).toBe(true);
   await page.locator('.sr-settings [name="redLetters"]').uncheck();
   await page.locator('.sr-settings [name="readingMode"]').selectOption('chunk');
   await page.keyboard.press('Escape');
@@ -1379,6 +1386,15 @@ test('Red letters off leaves the flow first letters and the chunk pivot in the t
     return { pivot: getComputedStyle(pivot).color, text: getComputedStyle(document.querySelector('.sr-chunk')!).color };
   });
   expect(chunk.pivot).toBe(chunk.text);
+  // And on again: the pivot takes the accent, not the chunk's text colour.
+  await page.keyboard.press(',');
+  await page.locator('.sr-settings [name="redLetters"]').check();
+  await page.keyboard.press('Escape');
+  const lit = await page.evaluate(() => ({
+    pivot: getComputedStyle(document.querySelector('.sr-chunk .sr-pivot')!).color,
+    text: getComputedStyle(document.querySelector('.sr-chunk')!).color,
+  }));
+  expect(lit.pivot).not.toBe(lit.text);
 });
 
 test('the Focus span setting resizes the bracket at once, from 6 to 40 characters (clamped to the row)', async ({ page }) => {
