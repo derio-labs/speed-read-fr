@@ -12,7 +12,17 @@ steps:
     emitted:
       spec: docs/superpowers/specs/2026-11-26-word-default-red-toggle-top-dock-design.md
   spec-review:
-    state: pending
+    state: running
+    at: '2026-11-26T10:33:54+00:00'
+    units:
+      step/spec-review:
+        attempts:
+        - dispatched: '2026-11-26T10:33:54+00:00'
+          agent_type: super-fr:fr-spec-reviewer
+          harness: claude-code
+          tier: hard
+          bound: claude-opus-5-5
+          session: 262b9e5d-301d-436a-97d5-76243a036973
   plan:
     state: pending
   plan-review:
