@@ -285,3 +285,8 @@ Shape file: outline is row 3 bottom-left inside the band, below the followed blo
 ### p2-r8-resolved-2 · finding [deferred → https://github.com/derio-labs/speed-read-fr/issues/25] · resolves p2-r8: Short windows leave a tiny page band (phase 2)
 
 Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/25.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r4-resolved-2 created=2026-11-26T13:50:23+00:00 state=open resolves=l-simplicity-r4 tracked_by=https://github.com/derio-labs/speed-read-fr/issues/26 -->
+### l-simplicity-r4-resolved-2 · finding [deferred → https://github.com/derio-labs/speed-read-fr/issues/26] · resolves l-simplicity-r4: FreeBand.below is never read anywhere
+
+Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/26.
