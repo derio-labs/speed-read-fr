@@ -1,0 +1,8 @@
+schema_version: 12
+run: 2026-11-26-feat-word-default-red-toggle-top-dock
+step: plan
+outcome: done
+journal: []
+emitted:
+  plan: docs/superpowers/plans/2026-11-26-word-default-red-toggle-top-dock
+evidence: {}
