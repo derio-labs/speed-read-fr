@@ -35,19 +35,45 @@ R6. In the browser Overlay, the faded page scrolls the current block into the vi
 
 ## Design shape
 
+The dock reader (`bottomStage: true`), top to bottom. The reading box moves above the support,
+and the exhibits inside the support switch to newest first (R4, R5):
+
+```diff
+  .sr-main          toolbar · overall progress
+- .sr-stage-support title / stop / dwell card, then exhibits in document order
+  .sr-stage         the reading box (chunk or three-row flow), fixed size
++ .sr-stage-support title / stop / dwell card, then exhibits newest first
+  .sr-outline       floating only: the outline card, now below the support
 ```
-packages/core/src/
-  settings.ts            ~ flowMotion default 'word'; + redLetters: boolean (default true)
-  ui/settings-panel.ts   + "Red letters" checkbox (both reading modes)
-  ui/mount.ts            ~ reader[data-red-letters] kept in sync; dock: support moves AFTER the stage
-  ui/exhibits.ts         + newest-first insertion when the reader is a dock (bottomStage)
-  ui/styles.ts           ~ [data-red-letters="off"] clears .sr-w-first / .sr-pivot colour
-                         ~ dock grid: stage row 1, support row 2, outline below (floating)
-packages/browser-extension/src/
-  storage.ts             + migration 'word-motion-default' (flowing → word, once)
-  reader-entry.ts        ~ overlay band: setBandBottom → setBandTop (follow aims below the cards)
-packages/vscode-extension/package.json
-                         ~ speedRead.flowMotion default "word"; + speedRead.redLetters
+
+What each file is responsible for, and the entries the change adds (`+`) or replaces (`-`):
+
+```diff
+  packages/core/src/settings.ts            # Settings, DEFAULT_SETTINGS, normalizeSettings
+-   flowMotion: 'flowing'
++   flowMotion: 'word'
++   redLetters: true                       # R3, render-only
+  packages/core/src/ui/settings-panel.ts   # the Settings form
++   field('Red letters', …)                # both reading modes
+  packages/core/src/ui/mount.ts            # builds the reader DOM, applies settings, freeBand()
+-   stage.before(support)                  # panel dock
++   stage.after(support)
++   reader.dataset.redLetters
+-   freeBand(): page band ends at the cards' top
++   freeBand(): page band starts at the cards' bottom
+  packages/core/src/ui/exhibits.ts         # createExhibits: the exhibit pane and its list
++   newestFirst option for add()
+  packages/core/src/ui/styles.ts           # reader stylesheet, incl. the [data-bottom-stage] dock grid
++   [data-red-letters="off"] :is(.sr-w-first, .sr-pivot) { color: inherit }
+  packages/browser-extension/src/storage.ts       # storage.local store + one-time migrations
++   'word-motion-default' migration        # R2
+  packages/browser-extension/src/reader-entry.ts  # Overlay: page fade, follow, scroll band
+-   setBandBottom(fn)
++   setBandTop(fn)                         # R6, the follow aims below the cards
+  packages/vscode-extension/package.json   # speedRead.* configuration manifest
+-   speedRead.flowMotion default "flowing"
++   speedRead.flowMotion default "word"
++   speedRead.redLetters
 ```
 
 ## Design
@@ -87,8 +113,9 @@ packages/vscode-extension/package.json
   view as before.
 - Overlay follow (`reader-entry.ts`): `setBandBottom` becomes `setBandTop(fn)`. The band top is the
   bottom of the lowest visible reader card (support, or the stage when the support is empty), from
-  `handle.freeBand()`. `freeBand()` for a dock returns `{ top: <bottom of stage+support>, bottom:
-  viewport bottom }`. `place` clips the outline's top to the band top, and `tick` aims the block's
+  `handle.freeBand()`. The dock's `freeBand()` (in `mount.ts`, used when there is no narrow push
+  layout) returns `{ top: <bottom of the support, or of .sr-main when the support is empty>,
+  bottom: <reader bottom>, below: … }`. `place` clips the outline's top to the band top, and `tick` aims the block's
   top at `max(bandTop + BAND_GAP_PX, chromeFloor)` instead of `FOLLOW_AT × innerHeight`.
 
 ### Test surface
