@@ -290,3 +290,8 @@ Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/25.
 ### l-simplicity-r4-resolved-2 · finding [deferred → https://github.com/derio-labs/speed-read-fr/issues/26] · resolves l-simplicity-r4: FreeBand.below is never read anywhere
 
 Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/26.
+
+<!-- fr:journal kind=finding scope=plan id=d-r1 created=2026-11-26T14:15:21+00:00 state=fixed review_scope=in -->
+### d-r1 · finding [fixed] (reviewer: in scope) · With cards showing, the wide Overlay's Contents card covered the left of the followed block
+
+Found in the deliver screenshots: with cards the band top drops to ~y=580 and the bottom-left Contents card overlapped the block; the p2-r1 e2e only covered the no-cards case. Operator chose Contents top-left beside the reading box. Fixed in 763184f: its own grid column spanning the reading box and card rows (contain: size), ending above the page band; e2e asserts it ends above the band top with a stop card showing (fails without the CSS change).
