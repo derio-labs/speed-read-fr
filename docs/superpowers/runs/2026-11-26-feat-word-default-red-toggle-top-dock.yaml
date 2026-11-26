@@ -3,7 +3,7 @@ run: 2026-11-26-feat-word-default-red-toggle-top-dock
 workflow: fr-goal@1
 branch: feat/word-default-red-toggle-top-dock
 started: '2026-11-26T10:24:05+00:00'
-cursor: plan-review
+cursor: implement
 steps:
   brainstorm:
     state: done
@@ -46,7 +46,11 @@ steps:
           returned: '2026-11-26T11:11:10+00:00'
           outcome: done
   plan-review:
-    state: pending
+    state: done
+    at: '2026-11-26T11:11:11+00:00'
+    exit: 0
+    stdout: |
+      self-review passed
   implement:
     state: pending
     members:
