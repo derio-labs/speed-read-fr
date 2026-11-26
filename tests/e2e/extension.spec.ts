@@ -112,7 +112,7 @@ async function saveSettings(settings: Record<string, unknown>) {
 }
 
 /** A point of the free band under the reader's cards (the dock puts them on top), where a wheel turns the dial. */
-async function bandPoint(page: Page) {
+async function hoverBand(page: Page) {
   await page.mouse.move(640, (page.viewportSize()?.height ?? 800) - 40);
 }
 
@@ -770,7 +770,7 @@ test.describe('floating overlay over the faded page (R17, R29)', () => {
     const shadow = await veilWindow(page).evaluate((el) => getComputedStyle(el).boxShadow);
     expect(shadow).toContain('rgba(255, 255, 255, 0.68)');
     // Into the second section by the wheel over the faded page (the dial), then let the page follow.
-    await bandPoint(page);
+    await hoverBand(page);
     for (let i = 0; i < 6; i++) {
       await page.mouse.wheel(0, 130);
       await page.waitForTimeout(450);
@@ -798,13 +798,13 @@ test.describe('floating overlay over the faded page (R17, R29)', () => {
   test('a wheel over the page turns the dial and never scrolls the page itself', async () => {
     const page = await openPage(ARTICLE);
     await openReader(page, 'auto');
-    await bandPoint(page);
+    await hoverBand(page);
     // At the start a turn back moves nothing, so nothing may scroll.
     await page.mouse.wheel(0, -400);
     await page.waitForTimeout(400);
     expect(await page.evaluate(() => scrollY)).toBe(0);
     await expect(page.locator('[data-speed-read-host] .sr-display')).toHaveAttribute('data-kind', 'ready');
-    await bandPoint(page);
+    await hoverBand(page);
     await page.mouse.wheel(0, 130);
     await expect(page.locator('[data-speed-read-host] .sr-display')).not.toHaveAttribute('data-kind', 'ready');
   });
@@ -823,7 +823,7 @@ test.describe('floating overlay over the faded page (R17, R29)', () => {
   test('closing removes the veil and leaves the page at the block', async () => {
     const page = await openPage(ARTICLE);
     await openReader(page, 'auto');
-    await bandPoint(page);
+    await hoverBand(page);
     for (let i = 0; i < 8; i++) {
       await page.mouse.wheel(0, 130);
       await page.waitForTimeout(450);
@@ -867,7 +867,7 @@ test.describe('overlay review fixes (p5a)', () => {
     });
 
   async function scrub(page: Page, notches: number) {
-    await bandPoint(page);
+    await hoverBand(page);
     for (let i = 0; i < notches; i++) {
       await page.mouse.wheel(0, 130);
       await page.waitForTimeout(420);
@@ -916,7 +916,7 @@ test.describe('overlay review fixes (p5a)', () => {
       (window as unknown as { __wheels: boolean[] }).__wheels = [];
       window.addEventListener('wheel', (e) => (window as unknown as { __wheels: boolean[] }).__wheels.push(e.defaultPrevented));
     });
-    await bandPoint(page);
+    await hoverBand(page);
     await page.keyboard.down('Control');
     await page.mouse.wheel(0, 100);
     await page.keyboard.up('Control');
