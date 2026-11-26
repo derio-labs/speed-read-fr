@@ -250,7 +250,8 @@ function belowChrome(doc: Document, win: Window, block: Element, box: DOMRect, s
   if (typeof doc.elementsFromPoint !== 'function') return start;
   const x = Math.min(win.innerWidth - 1, Math.max(0, box.left + box.width / 2));
   let y = start;
-  for (let i = 0; i < 4 && y < win.innerHeight * 0.6; i++) {
+  const limit = start + win.innerHeight * 0.6;
+  for (let i = 0; i < 4 && y < limit; i++) {
     let next = y;
     const seen = new Set<Element>();
     for (const hit of doc.elementsFromPoint(x, y)) {
@@ -373,6 +374,16 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
     let pending: unknown = null;
     let bandTop = () => 0;
     let chromeFloor = 0;
+    // Scrollers given a scroll-padding-top (their own value kept for the teardown), so a page that snaps its
+    // blocks snaps them below the reader's cards, not under them.
+    const padded = new Map<HTMLElement, string>();
+    function pad() {
+      const top = bandTop();
+      const el = scroller as HTMLElement | null;
+      if (!el || top <= 0) return;
+      if (!padded.has(el)) padded.set(el, el.style.getPropertyValue('scroll-padding-top'));
+      el.style.setProperty('scroll-padding-top', `${Math.round(top + BAND_GAP_PX)}px`);
+    }
     const reducedMotion = win.matchMedia?.('(prefers-reduced-motion: reduce)');
 
     function scrollport() {
@@ -447,9 +458,11 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       /** The top of the page area below the reader's cards (0 when there is none): the window and the follow start there. */
       setBandTop(fn: () => number) {
         bandTop = fn;
+        pad();
       },
       /** Re-place the window after the band moved. */
       place() {
+        pad();
         place();
       },
       /** Follow the held block again, to where the band now puts it. */
@@ -464,6 +477,7 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
       follow(el: Element) {
         if (el === block) return;
         scroller = scrollerOf(el, doc, win);
+        pad();
         if (block) resize?.unobserve(block);
         resize?.observe(el);
         block = el;
@@ -481,6 +495,10 @@ export function createReader({ api, win, scope, trustedEventsOnly = true, frame:
         win.removeEventListener('scroll', onMove, { capture: true });
         win.removeEventListener('resize', onMove);
         resize?.disconnect();
+        for (const [el, was] of padded) {
+          if (was) el.style.setProperty('scroll-padding-top', was);
+          else el.style.removeProperty('scroll-padding-top');
+        }
         veil.remove();
       },
     };

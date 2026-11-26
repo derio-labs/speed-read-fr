@@ -595,6 +595,68 @@ describe('floating overlay over the faded page (R17, R29)', () => {
     }
   });
 
+  it('sets scroll-padding-top on the scroller to the band top plus the gap, follows the band, and restores it on close', async () => {
+    const observers: (() => void)[] = [];
+    class FakeResize {
+      constructor(cb: () => void) {
+        observers.push(cb);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    (window as unknown as { ResizeObserver: unknown }).ResizeObserver = FakeResize;
+    const root = document.documentElement;
+    root.style.setProperty('scroll-padding-top', '5px');
+    try {
+      const { reader } = make();
+      await reader.open('auto');
+      const handle = reader.current!.handle;
+      await handle.ready;
+      let top = 300;
+      vi.spyOn(handle, 'freeBand').mockImplementation(() => ({ top, bottom: 700, below: 768 }));
+      const p3 = document.getElementById('p3')!;
+      boxOf(p3, () => ({ top: 900 - root.scrollTop, left: 0, width: 400, height: 40 }));
+      handle.player.jumpToBlock({ element: p3 });
+      frames.run(5);
+      expect(root.style.getPropertyValue('scroll-padding-top')).toBe('308px');
+      top = 420;
+      for (const cb of observers) cb();
+      expect(root.style.getPropertyValue('scroll-padding-top')).toBe('428px');
+      reader.close();
+      expect(root.style.getPropertyValue('scroll-padding-top')).toBe('5px');
+    } finally {
+      delete (window as unknown as { ResizeObserver?: unknown }).ResizeObserver;
+      root.style.removeProperty('scroll-padding-top');
+      root.scrollTop = 0;
+    }
+  });
+
+  it('closing the reader disconnects the observers of the band', async () => {
+    const live = new Set<object>();
+    class FakeResize {
+      constructor() {
+        live.add(this);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {
+        live.delete(this);
+      }
+    }
+    (window as unknown as { ResizeObserver: unknown }).ResizeObserver = FakeResize;
+    try {
+      const { reader } = make();
+      await reader.open('auto');
+      await reader.current!.handle.ready;
+      expect(live.size).toBeGreaterThan(0);
+      reader.close();
+      expect([...live]).toEqual([]);
+    } finally {
+      delete (window as unknown as { ResizeObserver?: unknown }).ResizeObserver;
+    }
+  });
+
   it('followStep eases exponentially and stops within a pixel', () => {
     expect(followStep(100, 16)).toBeCloseTo(100 * (1 - Math.exp(-16 / FOLLOW_TAU_MS)));
     expect(followStep(-100, 16)).toBeCloseTo(-100 * (1 - Math.exp(-16 / FOLLOW_TAU_MS)));
