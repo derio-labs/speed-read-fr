@@ -1,0 +1,33 @@
+schema_version: 12
+run: 2026-11-26-feat-word-default-red-toggle-top-dock
+step: deliver
+outcome: done
+journal:
+  - {kind: finding, id: d-r1, global: true, review_scope: in, title: "With cards showing, the wide Overlay's Contents card covered the left of the followed block", body: "Found in the deliver screenshots: the band top drops to ~y=580 with cards, and the bottom-left Contents card (row 3, align-self end) overlapped the block. The p2-r1 e2e only covered the no-cards case. Operator chose: Contents top-left beside the reading box."}
+resolves:
+  - {id: d-r1, state: fixed, body: "763184f: the Contents card has its own grid column spanning the reading box and card rows (contain: size), so it ends above the page band; e2e asserts it ends above the band top with a stop card showing (fails without the CSS change)."}
+emitted:
+  pr: https://github.com/derio-labs/speed-read-fr/pull/24
+visual:
+  - row: reader-red-letters-toggle
+    shots:
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/flow-on.png, shows: [flow with Red letters on and off]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/flow-off.png, shows: [flow with Red letters on and off]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/flow-off-immediate.png, shows: [toggle Red letters while playing and see the colour change at once]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/chunk-on.png, shows: [chunk pivot with Red letters on and off]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/chunk-off.png, shows: [chunk pivot with Red letters on and off]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/settings-flow.png, shows: [Settings showing the Red letters checkbox in both reading modes]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/settings-chunk.png, shows: [Settings showing the Red letters checkbox in both reading modes]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/reopen-persisted.png, shows: [reopen the reader and confirm the choice persisted]}
+  - row: browser-dock-stage-top
+    shots:
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/12-smooth-follow.png, shows: [Overlay with stage on top and no cards]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/04-overlay-title-two-exhibits.png, shows: [Overlay with a title card and two exhibits (newest first), read past a heading and two exhibits and watch each push the earlier down]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/02-overlay-title-card.png, shows: [read past a heading and two exhibits and watch each push the earlier down]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/03-overlay-one-exhibit.png, shows: [read past a heading and two exhibits and watch each push the earlier down]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/06-panel-stage-top-exhibits.png, shows: [Side panel with stage on top and exhibits below]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/07-narrow-window.png, shows: [narrow window]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/05-overlay-follow-after.png, shows: [page follow keeps the current block below the cards]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/deliver-shots/10-after-resize-short.png, shows: [page follow keeps the current block below the cards]}
+evidence:
+  tests: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/full-suite-2.log
