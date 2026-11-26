@@ -280,3 +280,8 @@ de357fd: asserts accent colour with the toggle on for pivot and first letter; fa
 ### l-tests-r4-resolved · finding [fixed] · resolves l-tests-r4: Shape file says the outline is out of the page band and omits layout.ts and place()/belowChrome changes
 
 Shape file: outline is row 3 bottom-left inside the band, below the followed block; missing entries added.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r8-resolved-2 created=2026-11-26T13:50:18+00:00 phase=2 state=open resolves=p2-r8 tracked_by=https://github.com/derio-labs/speed-read-fr/issues/25 -->
+### p2-r8-resolved-2 · finding [deferred → https://github.com/derio-labs/speed-read-fr/issues/25] · resolves p2-r8: Short windows leave a tiny page band (phase 2)
+
+Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/25.
