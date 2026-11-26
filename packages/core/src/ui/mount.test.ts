@@ -249,3 +249,25 @@ describe('flow motion is a live setting', () => {
     expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ flowMotion: 'word' }));
   });
 });
+
+describe('red letters is a live setting', () => {
+  it('sets data-red-letters at mount and flips it without rebuilding the timeline; the panel saves the choice', async () => {
+    const t = mountHarness(ARTICLE);
+    await t.settle();
+    const reader = t.q<HTMLElement>('.sr-reader')!;
+    expect(reader.dataset.redLetters).toBe('on');
+    const rebuild = vi.spyOn(t.handle.player, 'replaceTimeline');
+    t.handle.applySettings({ ...t.handle.player.settings, redLetters: false });
+    expect(reader.dataset.redLetters).toBe('off');
+    t.handle.applySettings({ ...t.handle.player.settings, redLetters: true });
+    expect(reader.dataset.redLetters).toBe('on');
+    t.store.save.mockClear();
+    t.q<HTMLButtonElement>('.sr-settings-button')!.click();
+    const box = t.q<HTMLInputElement>('.sr-settings [name="redLetters"]')!;
+    box.checked = false;
+    box.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(reader.dataset.redLetters).toBe('off');
+    expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ redLetters: false }));
+    expect(rebuild).not.toHaveBeenCalled();
+  });
+});

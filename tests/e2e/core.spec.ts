@@ -1357,6 +1357,30 @@ test('flow is the default on first open, with one fixed-width bracket across wor
   await page.locator('.sr-display').screenshot({ path: `${UX_SHOTS}/flow-red-first-letter.png` });
 });
 
+test('Red letters off leaves the flow first letters and the chunk pivot in the text colour', async ({ page }) => {
+  await openFlow(page, 'floating', { redLetters: false });
+  await startFlow(page);
+  await expect(page.locator('.sr-reader')).toHaveAttribute('data-red-letters', 'off');
+  const flow = await page.evaluate(() => {
+    const row = getComputedStyle(document.querySelector('.sr-ribbon-row[data-position="middle"]')!).color;
+    const firsts = [...document.querySelectorAll('.sr-w[data-in] .sr-w-first')].map((e) => getComputedStyle(e).color);
+    return { row, firsts };
+  });
+  expect(flow.firsts.length).toBeGreaterThan(0);
+  expect(flow.firsts.every((c) => c === flow.row)).toBe(true);
+  await page.keyboard.press(',');
+  await page.locator('.sr-settings [name="redLetters"]').check();
+  await expect(page.locator('.sr-reader')).toHaveAttribute('data-red-letters', 'on');
+  await page.locator('.sr-settings [name="redLetters"]').uncheck();
+  await page.locator('.sr-settings [name="readingMode"]').selectOption('chunk');
+  await page.keyboard.press('Escape');
+  const chunk = await page.evaluate(() => {
+    const pivot = document.querySelector('.sr-chunk .sr-pivot')!;
+    return { pivot: getComputedStyle(pivot).color, text: getComputedStyle(document.querySelector('.sr-chunk')!).color };
+  });
+  expect(chunk.pivot).toBe(chunk.text);
+});
+
 test('the Focus span setting resizes the bracket at once, from 6 to 40 characters (clamped to the row)', async ({ page }) => {
   await openFresh(page);
   await startFlow(page);

@@ -53,6 +53,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     ),
   );
 
+  const redLettersToggle = h('input', { type: 'checkbox', name: 'redLetters' });
   const ttsToggle = h('input', { type: 'checkbox', name: 'tts' });
   const voiceSelect = h('select', { name: 'tts-voice', 'aria-label': 'Voice' });
   const ttsNotes = h('div', { class: 'sr-tts-notes' });
@@ -87,6 +88,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       field('Reading mode', null, select('readingMode', [['chunk', 'Chunk-by-chunk'], ['flow', 'Three-row flow']], 'Reading mode')),
       field('Focus span', 'characters, 6-40', number('focusChars', 6, 40, 1)),
       flowMotionField,
+      field('Red letters', 'first letter of each word', redLettersToggle),
       field('Images and diagrams', 'seconds shown', number('imageDwellSeconds', 1, 60, 1)),
       ctx.hostSettings.includes('display') ? field('Reader', 'in the browser', select('display', [['overlay', 'Overlay'], ['dock', 'Side panel']])) : null,
       ctx.hostSettings.includes('pageFade')
@@ -126,6 +128,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
     control('readingMode').value = s.readingMode;
     control('focusChars').value = String(s.focusChars);
     control('flowMotion').value = s.flowMotion;
+    control('redLetters').checked = s.redLetters;
     showMotionField();
     if (control('display')) control('display').value = s.display;
     if (control('pageFade')) control('pageFade').value = String(Math.round(s.pageFade * 100));
@@ -210,6 +213,7 @@ export function createSettingsPanel(ctx: ReaderContext, onChange: (next: Setting
       readingMode: control('readingMode').value as Settings['readingMode'],
       focusChars: num('focusChars', current.focusChars),
       flowMotion: flowMotionField.hidden ? current.flowMotion : (control('flowMotion').value as Settings['flowMotion']),
+      redLetters: redLettersToggle.checked,
       display: control('display') ? (control('display').value as Settings['display']) : current.display,
       pageFade: control('pageFade') ? num('pageFade', current.pageFade * 100) / 100 : current.pageFade,
       tts: { enabled: ttsToggle.checked, voiceURI: voiceSelect.value || (missingVoice ? current.tts.voiceURI : null) },

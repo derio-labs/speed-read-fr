@@ -112,9 +112,9 @@ function defaultFrame(win: Window): FrameSource {
   return { request: (fn) => win.setTimeout(() => fn(win.performance?.now() ?? Date.now()), 16), cancel: (handle) => win.clearTimeout(handle as number) };
 }
 
-/** Equal apart from the settings the player applies to the run it has (speed, flow motion): neither changes the timeline. */
+/** Equal apart from the live settings (speed, flow motion, red letters): none changes the timeline. */
 const sameExceptLive = (a: Settings, b: Settings) =>
-  JSON.stringify({ ...a, wpm: 0, flowMotion: 'word' }) === JSON.stringify({ ...b, wpm: 0, flowMotion: 'word' });
+  JSON.stringify({ ...a, wpm: 0, flowMotion: 'word', redLetters: true }) === JSON.stringify({ ...b, wpm: 0, flowMotion: 'word', redLetters: true });
 
 /** Build the reader inside `root` (spec section 6). */
 export function mountReader(root: Element | ShadowRoot, doc: Doc, options: MountOptions): ReaderHandle {
@@ -177,6 +177,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     layout.append(outline, main, exhibits);
   } else layout.append(outlineBar, outline, main, exhibits);
   reader.dataset.readingMode = settings.readingMode;
+  setRedLetters(settings.redLetters);
   reader.append(layout);
   root.appendChild(reader);
   const removeStyles = applyStyles(root, reader);
@@ -236,6 +237,11 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     }),
   ];
 
+  /** Red letters is pure presentation: the stylesheet reads this attribute. */
+  function setRedLetters(on: boolean) {
+    reader.dataset.redLetters = on ? 'on' : 'off';
+  }
+
   /** Apply new settings at once: speed alone goes to the player, anything else rebuilds the timeline. */
   function applySettings(next: Settings, save = true) {
     next = normalizeSettings(next);
@@ -244,6 +250,11 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       try {
         if (next.wpm !== settings.wpm) player.setSpeed(next.wpm);
         if (next.flowMotion !== settings.flowMotion) player.setFlowMotion(next.flowMotion);
+        if (next.redLetters !== settings.redLetters) {
+          settings = { ...settings, redLetters: next.redLetters };
+          setRedLetters(next.redLetters);
+          if (save) saveSettings(settings);
+        }
       } finally {
         saving = true;
       }
@@ -254,6 +265,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     speech.setVoice(next.tts.voiceURI);
     // The stage's width follows the mode: set it first and take the new mode's fit before building, so there is one rebuild.
     reader.dataset.readingMode = next.readingMode;
+    setRedLetters(next.redLetters);
     if (modeChanged && probe) fit = currentFit();
     rebuild();
     if (save) saveSettings(next);

@@ -266,3 +266,23 @@ describe('flow motion field', () => {
     expect(t.handle.player.settings.flowMotion).toBe('word');
   });
 });
+
+describe('red letters field', () => {
+  it('is a checkbox in the Display fieldset after Flow motion, reflects redLetters and submits it, in both modes', () => {
+    for (const readingMode of ['flow', 'chunk'] as const) {
+      const t = mountHarness(ARTICLE, { settings: { readingMode } });
+      const { panel, field, set } = open(t);
+      const box = field('redLetters');
+      expect(box.type).toBe('checkbox');
+      expect(box.checked).toBe(true);
+      expect((box.closest('.sr-field') as HTMLElement).hidden).toBe(false);
+      expect(box.closest('.sr-field')!.textContent).toContain('Red letters');
+      expect(box.closest('fieldset')!.querySelector('legend')!.textContent).toBe('Display');
+      const names = [...box.closest('fieldset')!.querySelectorAll('[name]')].map((e) => e.getAttribute('name'));
+      expect(names.indexOf('redLetters')).toBe(names.indexOf('flowMotion') + 1);
+      set('redLetters', false);
+      expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ redLetters: false }));
+      expect(panel.querySelector<HTMLInputElement>('[name="redLetters"]')!.checked).toBe(false);
+    }
+  });
+});

@@ -209,7 +209,7 @@ export const READER_CSS = `
 .sr-ribbon-row[data-position="top"] { grid-row: 1; --sr-shift: calc(var(--sr-w, 0) * 1.5px); }
 .sr-ribbon-row[data-position="middle"] { grid-row: 2; color: var(--sr-text); --sr-shift: calc(var(--sr-w, 0) * 0.5px); }
 .sr-ribbon-row[data-position="bottom"] { grid-row: 3; --sr-shift: calc(var(--sr-w, 0) * -0.5px); }
-.sr-ribbon-row[data-position="middle"] .sr-w[data-in] .sr-w-first { color: var(--sr-accent); }
+.sr-reader:not([data-red-letters="off"]) .sr-ribbon-row[data-position="middle"] .sr-w[data-in] .sr-w-first { color: var(--sr-accent); }
 .sr-ribbon-line {
   flex: none; white-space: nowrap; will-change: transform;
   transform: translateX(calc(var(--sr-x, 0) * -1px + var(--sr-shift, 0px))); transition: transform var(--sr-glide) ease-out;
@@ -238,7 +238,8 @@ export const READER_CSS = `
 .sr-display[data-wrap] { height: auto; min-height: 150px; display: flex; align-items: center; }
 .sr-display[data-wrap] .sr-axis { display: none; }
 .sr-display[data-wrap] .sr-chunk { position: static; margin: 0; width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; line-height: 1.25; }
-.sr-pivot { color: var(--sr-accent); font-weight: 700; }
+.sr-pivot { font-weight: 700; }
+.sr-reader:not([data-red-letters="off"]) .sr-pivot { color: var(--sr-accent); }
 .sr-atom { font-family: var(--sr-mono); font-size: .86em; padding: 0 .14em; border-radius: 4px; background: var(--sr-surface-2); }
 .sr-pivot.sr-atom, .sr-pivot .sr-atom { background: transparent; }
 .sr-item-counter {
