@@ -1,0 +1,20 @@
+schema_version: 12
+run: 2026-11-26-feat-word-default-red-toggle-top-dock
+step: implement-phase
+item: phase/1
+outcome: done
+ticks: [P1.T1.S1, P1.T2.S1, P1.T2.S2, P1.T2.S3, P1.T3.S1, P1.T3.S2, P1.T3.S3, P1.T4.S1, P1.T4.S2, P1.T4.S3, P1.T4.S4]
+refactor: {}
+journal:
+  - {kind: discovery, id: p1-d1, phase: 1, title: "A fresh worktree has no node_modules", body: "npm ci was needed in the workspace before typecheck/test could run."}
+  - {kind: discovery, id: p1-d2, phase: 1, title: "handle.applySettings never saves", body: "ReaderHandle.applySettings applies with save=false (host-driven); the panel's path saves. The redLetters live branch saves only when save is true, so the mount test asserts the store save through the panel."}
+resolves: []
+evidence: {}
+visual:
+  - row: reader-red-letters-toggle
+    shots:
+      - {path: test-results/visual-p1/flow-red-on.png, shows: [flow with Red letters on, red first letters inside the bracket]}
+      - {path: test-results/visual-p1/flow-red-off.png, shows: [flow with Red letters off, first letters in the text colour]}
+      - {path: test-results/visual-p1/chunk-red-on.png, shows: [chunk with Red letters on, red pivot letter]}
+      - {path: test-results/visual-p1/chunk-red-off.png, shows: [chunk with Red letters off, pivot bold but not red]}
+      - {path: test-results/visual-p1/settings-panel.png, shows: [Settings panel Display fieldset with the Red letters checkbox checked after Flow motion]}
