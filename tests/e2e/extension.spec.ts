@@ -522,9 +522,18 @@ test('the packaged build has a closed shadow root and no test hook', async () =>
     for (let i = 0; i < 3; i++) await page.keyboard.press('n');
     const before = await settled();
     expect(before).toBeGreaterThan(0);
+    // The reached block (the first paragraph of the section) sits a little under the cards at the top, and the
+    // block after it lies one gap further down.
+    const marks = await page.evaluate(() => {
+      const first = [...document.querySelectorAll('#content > p')].find((p) => p.textContent!.startsWith('A list whose items are all short'))!;
+      return { reached: first.getBoundingClientRect().top, gap: first.nextElementSibling!.getBoundingClientRect().top - first.getBoundingClientRect().top };
+    });
+    expect(marks.reached).toBeGreaterThan(150);
+    expect(marks.reached).toBeLessThan(450);
+    expect(marks.gap).toBeGreaterThan(20);
     await page.keyboard.press('Space');
-    // Playing moves reading on to the next block, and the page follows it.
-    await expect.poll(() => page.evaluate(() => scrollY), { timeout: 20_000 }).toBeGreaterThan(before + 20);
+    // Playing moves reading on to the next block, and the page follows it by about that gap.
+    await expect.poll(() => page.evaluate(() => scrollY), { timeout: 20_000 }).toBeGreaterThan(before + marks.gap * 0.8);
     await page.keyboard.press('Space');
     // The settings survive a reload: the reader opened again starts at 325 WPM, so ArrowUp stores 350.
     await page.reload();
@@ -651,32 +660,40 @@ for (const display of ['dock', 'overlay']) {
     expect(later.y).toBeLessThan(earlier.y);
     expect(later.y).toBeGreaterThanOrEqual(initial.y + initial.height - 1);
     expect(await stage.boundingBox()).toEqual(initial);
+    // The stop card above the exhibits is not squeezed: its content fits its box.
+    const details = await page.locator('[data-speed-read-host] .sr-stage-details').evaluate((el) => ({ hidden: (el as HTMLElement).hidden, client: el.clientHeight, scroll: el.scrollHeight }));
+    expect(details.hidden).toBe(false);
+    expect(details.client).toBeGreaterThan(40);
+    expect(details.client).toBeGreaterThanOrEqual(details.scroll);
   });
 }
-
-test('overlay follows a paragraph inside a nested scroll area below a fixed toolbar', async () => {
-  const page = await openPage(READER_DOCK);
-  await openReader(page, 'auto');
-  await page.keyboard.press('Space');
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('ArrowRight');
-  await expect(currentChunk(page)).toHaveText('LONG_REPOSITORY_IDENTIFIER');
-  const position = () => page.evaluate(() => {
-    const p = document.querySelector('#identifier')!.getBoundingClientRect();
-    const bar = document.querySelector('header')!.getBoundingClientRect();
-    const mark = document.querySelector('[data-speed-read-host]')!.shadowRoot!.querySelector('.sr-window')!;
-    const r = mark.getBoundingClientRect();
-    return { top: Math.round(p.top), mark: Math.round(r.top), header: bar.bottom, nested: document.querySelector('.preview')!.scrollTop, page: scrollY };
+// The toolbar is shorter than the band (the band floor places the block), then taller (belowChrome does).
+for (const bar of [128, 320]) {
+  test(`overlay follows a paragraph inside a nested scroll area below a fixed toolbar of ${bar}px`, async () => {
+    const page = await openPage(READER_DOCK);
+    if (bar !== 128) await page.addStyleTag({ content: `header { height: ${bar}px; }` });
+    await openReader(page, 'auto');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await expect(currentChunk(page)).toHaveText('LONG_REPOSITORY_IDENTIFIER');
+    const position = () => page.evaluate(() => {
+      const p = document.querySelector('#identifier')!.getBoundingClientRect();
+      const bar = document.querySelector('header')!.getBoundingClientRect();
+      const mark = document.querySelector('[data-speed-read-host]')!.shadowRoot!.querySelector('.sr-window')!;
+      const r = mark.getBoundingClientRect();
+      return { top: Math.round(p.top), mark: Math.round(r.top), header: bar.bottom, nested: document.querySelector('.preview')!.scrollTop, page: scrollY };
+    });
+    // The aim is the higher of two floors (a 320 px toolbar is taller than the band, so only the chrome floor can place the block): the free band's top (the bottom of the reader's cards) and the fixed toolbar's bottom, plus the gap.
+    const aim = async () => Math.max((await bandTop(page)) + 8, bar + 8);
+    await expect.poll(async () => Math.abs((await position()).top - (await aim()))).toBeLessThanOrEqual(1);
+    const at = await position();
+    expect(at).toMatchObject({ header: bar, page: 0 });
+    // The outline is clipped to the free band and to the scroll area, so it starts at the block less its padding.
+    expect(Math.abs(at.mark - Math.max(at.top - 6, Math.round(await bandTop(page))))).toBeLessThanOrEqual(1);
+    expect((await position()).nested).toBeGreaterThan(0);
   });
-  // The aim is the higher of two floors: the free band's top (the bottom of the reader's cards) and the fixed toolbar's bottom, plus the gap.
-  const aim = async () => Math.max((await bandTop(page)) + 8, 128 + 8);
-  await expect.poll(async () => Math.abs((await position()).top - (await aim()))).toBeLessThanOrEqual(1);
-  const at = await position();
-  expect(at).toMatchObject({ header: 128, page: 0 });
-  // The outline is clipped to the free band and to the scroll area, so it starts at the block less its padding.
-  expect(Math.abs(at.mark - Math.max(at.top - 6, Math.round(await bandTop(page))))).toBeLessThanOrEqual(1);
-  expect((await position()).nested).toBeGreaterThan(0);
-});
+}
 
 test("on a hostile page the normal-reading clone is not rotated, faded or narrowed by the page's div rules", async () => {
   const page = await openPage(HOSTILE);
@@ -727,20 +744,23 @@ test('a remote picture shown in the reader is not fetched again', async () => {
   expect(remoteRequests.slice(onLoad)).toEqual([]);
 });
 
+/** The page block under the clear window: the p/li/h* whose box the window frames. */
+const framed = (page: Page) =>
+  page.evaluate(() => {
+    const root = document.querySelector('[data-speed-read-host]')!.shadowRoot!;
+    const w = root.querySelector('.sr-window')!.getBoundingClientRect();
+    const blocks = [...document.querySelectorAll('#content :is(p, li, h1, h2, h3, pre, table, figure)')];
+    const hit = blocks.find((b) => {
+      const r = b.getBoundingClientRect();
+      return r.height > 0 && Math.abs(r.top - (w.top + 6)) <= 2 && Math.abs(r.bottom - (w.bottom - 6)) <= 2;
+    });
+    const rect = hit?.getBoundingClientRect();
+    return hit ? { text: hit.textContent!.replace(/\s+/g, ' '), top: rect!.top, left: rect!.left, right: rect!.right, bottom: rect!.bottom } : null;
+  });
+
 test.describe('floating overlay over the faded page (R17, R29)', () => {
   const veilWindow = (page: Page) => page.locator('[data-speed-read-host] .sr-window');
-  /** The page block under the clear window: the p/li/h* whose box the window frames. */
-  const framed = (page: Page) =>
-    page.evaluate(() => {
-      const root = document.querySelector('[data-speed-read-host]')!.shadowRoot!;
-      const w = root.querySelector('.sr-window')!.getBoundingClientRect();
-      const blocks = [...document.querySelectorAll('#content :is(p, li, h1, h2, h3, pre, table, figure)')];
-      const hit = blocks.find((b) => {
-        const r = b.getBoundingClientRect();
-        return r.height > 0 && Math.abs(r.top - (w.top + 6)) <= 2 && Math.abs(r.bottom - (w.bottom - 6)) <= 2;
-      });
-      return hit ? { text: hit.textContent!.replace(/\s+/g, ' '), top: hit.getBoundingClientRect().top } : null;
-    });
+
 
   test('the floating cards sit over a veil in the page colour with a clear window over the block being read, followed to just under the cards', async () => {
     const page = await openPage(ARTICLE);
@@ -762,6 +782,10 @@ test.describe('floating overlay over the faded page (R17, R29)', () => {
     expect(words, 'the current chunk contains words').not.toBe('');
     expect(block!.text).toContain(words);
     expect(Math.abs(block!.top - ((await bandTop(page)) + 8))).toBeLessThanOrEqual(3);
+    // The Contents card stays out of the band, so it never covers the block the follow lands.
+    const outline = (await page.locator('[data-speed-read-host] .sr-outline').boundingBox())!;
+    const apart = outline.x + outline.width <= block!.left || outline.x >= block!.right || outline.y + outline.height <= block!.top || outline.y >= block!.bottom;
+    expect(apart, `outline ${JSON.stringify(outline)} must not cover the block ${JSON.stringify(block)}`).toBe(true);
     // Playing keeps the window on the block being read.
     await page.keyboard.press('Space');
     await page.waitForTimeout(1200);
@@ -856,11 +880,11 @@ test.describe('overlay review fixes (p5a)', () => {
       const page = await openPage(file);
       await openReader(page, 'auto');
       await scrub(page, 10);
-      expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+      // On the snapping page the first blocks already sit in the band, so the snapped page stays at the top.
+      if (file.includes('smooth')) expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
       const w = await windowBox(page);
-      // A page that snaps to its blocks pulls the scroll back to a snap point, which can leave the block
-      // under the reader's cards (the outline is clipped to the free band, so it may be empty there).
-      if (file.includes('smooth')) expect(w.height).toBeGreaterThan(12);
+      // A page that snaps to its blocks snaps them below the cards (the reader pads the scroller), not under them.
+      expect(w.height).toBeGreaterThan(12);
       expect(w.top).toBeGreaterThanOrEqual(-1);
       expect(w.bottom).toBeLessThanOrEqual(801);
       if (file.includes('smooth')) expect(Math.abs(w.top + 6 - ((await bandTop(page)) + 8))).toBeLessThanOrEqual(4);
@@ -911,12 +935,10 @@ test.describe('overlay review fixes (p5a)', () => {
     for (let i = 0; i < 30 && (await display.getAttribute('data-kind')) !== 'stop'; i++) await page.keyboard.press('ArrowRight');
     await expect(display).toHaveAttribute('data-kind', 'stop');
     await expect.poll(() => bandTop(page)).toBeGreaterThan(before + 20);
-    await expect
-      .poll(async () => {
-        const w = await windowBox(page);
-        return w.height > 12 && w.top >= (await bandTop(page)) - 1;
-      })
-      .toBe(true);
+    // The block lands a gap under the grown cards, as it does without a stop card.
+    // The code block is taller than the band, so it is not 'framed'; its outline starts 6 px above it, a gap
+    // (8 px) under the band top, which place()'s clip alone (the outline at the band top) cannot produce.
+    await expect.poll(async () => Math.abs((await windowBox(page)).top - ((await bandTop(page)) + 2)), { timeout: 10_000 }).toBeLessThanOrEqual(1);
   });
 
   test('in a narrow window at a code stop the block being read is not under the exhibit card (p5a-r8)', async () => {
