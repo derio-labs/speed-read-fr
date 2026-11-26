@@ -879,14 +879,18 @@ test.describe('overlay review fixes (p5a)', () => {
     test(`the follow keeps the block in view on ${file.split('/').pop()} (p5a-r2)`, async () => {
       const page = await openPage(file);
       await openReader(page, 'auto');
-      await scrub(page, 10);
-      // On the snapping page the first blocks already sit in the band, so the snapped page stays at the top.
-      if (file.includes('smooth')) expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+      await scrub(page, 16);
+      // Far enough that the page has to scroll to bring the block down to the band.
+      expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
       const w = await windowBox(page);
-      // A page that snaps to its blocks snaps them below the cards (the reader pads the scroller), not under them.
       expect(w.height).toBeGreaterThan(12);
       expect(w.top).toBeGreaterThanOrEqual(-1);
       expect(w.bottom).toBeLessThanOrEqual(801);
+      // A page that snaps to its blocks snaps them below the cards (the reader pads the scroller), not under
+      // them: the block's own top, not the clipped outline, is at or below the band top.
+      const block = await framed(page);
+      expect(block, 'the window frames a block of the page').not.toBeNull();
+      expect(block!.top).toBeGreaterThanOrEqual((await bandTop(page)) - 1);
       if (file.includes('smooth')) expect(Math.abs(w.top + 6 - ((await bandTop(page)) + 8))).toBeLessThanOrEqual(4);
     });
   }
@@ -952,7 +956,10 @@ test.describe('overlay review fixes (p5a)', () => {
     const card = (await page.locator('[data-speed-read-host] .sr-exhibits').boundingBox())!;
     const w = await windowBox(page);
     expect(w.height).toBeGreaterThan(12);
-    expect(w.top).toBeGreaterThanOrEqual(card.y + card.height - 1);
+    // The code block's own top (not the outline, which place() clips) is a gap under the cards.
+    const pre = await page.evaluate(() => document.querySelector('#content pre')!.getBoundingClientRect().top);
+    expect(card.height).toBeGreaterThan(0);
+    expect(Math.abs(pre - ((await bandTop(page)) + 8))).toBeLessThanOrEqual(3);
     await page.setViewportSize({ width: 1280, height: 800 });
   });
 });
