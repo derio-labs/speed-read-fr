@@ -1,0 +1,34 @@
+schema_version: 12
+run: 2026-11-26-feat-word-default-red-toggle-top-dock
+step: review-phase
+outcome: done
+journal:
+  - {kind: finding, id: p2-r1, phase: 2, review_scope: in, title: "Floating outline card sits on the page band and covers the followed block", body: "styles.ts:554-556 put the outline at band top + 8."}
+  - {kind: finding, id: p2-r4, phase: 2, review_scope: in, title: "Fixed-toolbar e2e no longer exercises the chrome floor; belowChrome scan capped at 0.6 of the viewport", body: "extension.spec.ts:672; reader-entry.ts:249-270."}
+  - {kind: finding, id: p2-r5, phase: 2, review_scope: in, title: "Stop-card re-follow e2e passes by construction", body: "extension.spec.ts:904-920 asserted w.top >= bandTop, which place() guarantees."}
+  - {kind: finding, id: p2-r6, phase: 2, review_scope: in, title: "Packaged-build test lost its follow checks", body: "extension.spec.ts:507-528."}
+  - {kind: finding, id: p2-r7, phase: 2, review_scope: in, title: "Teardown unsubscribe from onBandChange untested", body: "reader-entry.ts:616."}
+  - {kind: finding, id: p2-r8, phase: 2, review_scope: out, title: "Short windows leave a tiny page band", body: "The calc(100vh - 245px) support reservation (styles.ts:549) predates this change."}
+  - {kind: review, id: p2-review, phase: 2, title: "phase 2 review: 7 in-scope findings (incl. p2-f1, p2-f2 reclassified), all fixed; 1 out of scope", body: "Independent reviewer checked newest-first insert, dock DOM/grid, freeBand/onBandChange, follow aim/refollow/teardown and the e2e rewrites against R4-R6, and drove the extension fixture. p2-r2 = p2-f1 and p2-r3 = p2-f2, reclassified in scope by the reviewer; the operator approved fixing both. Fixes: 154b78b, e9324a1, bd8e18a; full suite green after them."}
+resolves:
+  - {id: p2-r1, state: fixed, body: "Outline align-self end at the bottom of row 3; e2e asserts the outline does not intersect the followed block."}
+  - {id: p2-f1, state: fixed, answered_by: operator, body: "Reclassified in scope by the reviewer (p2-r2); operator approved. scroll-padding-top = bandTop + 8 on the scroller, restored on close; snap.html height assertion restored; unit test for set/update/restore."}
+  - {id: p2-f2, state: fixed, answered_by: operator, body: "Reclassified in scope by the reviewer (p2-r3); operator approved. Details card flex 0 0 auto, exhibits flex 0 1 auto with the list scrolling; e2e asserts the card is whole in Overlay and Side panel."}
+  - {id: p2-r4, state: fixed, body: "Scan limit relative to its start; e2e runs header 128 and 320 px and asserts aim = header bottom + 8 at 320."}
+  - {id: p2-r5, state: fixed, body: "Asserts the block sits 8 px under the band top within 1 px after the card appears."}
+  - {id: p2-r6, state: fixed, body: "Restored reached-block position and paragraph-gap checks."}
+  - {id: p2-r7, state: fixed, body: "Unit test: closing the reader disconnects every ResizeObserver; fails without offBand()."}
+  - {id: p2-r8, state: out-of-scope, body: "The support's max-height reservation predates this change; the band size in short windows is unchanged by moving the stage."}
+visual:
+  - row: browser-dock-stage-top
+    shots:
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/review-p2/12-smooth-follow.png, shows: [Overlay with stage on top and no cards]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/review-p2/04-overlay-title-two-exhibits.png, shows: [Overlay with a title card and two exhibits (newest first), read past a heading and two exhibits and watch each push the earlier down]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/review-p2/02-overlay-title-card.png, shows: [read past a heading and two exhibits and watch each push the earlier down]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/review-p2/03-overlay-one-exhibit.png, shows: [read past a heading and two exhibits and watch each push the earlier down]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/review-p2/06-panel-stage-top-exhibits.png, shows: [Side panel with stage on top and exhibits below]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/review-p2/07-narrow-window.png, shows: [narrow window]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/review-p2/08-narrow-drawer-open.png, shows: [narrow window]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/review-p2/05-overlay-follow-after.png, shows: [page follow keeps the current block below the cards]}
+      - {path: /Users/idermitzakis/.claude-tmp/claude-502/-Users-idermitzakis-Docs-projects-speed-read-fr/262b9e5d-301d-436a-97d5-76243a036973/scratchpad/review-p2/10-after-resize-short.png, shows: [page follow keeps the current block below the cards]}
+evidence: {review: p2-review, reviewer: a26e36c3fdb9f3282, model: claude-opus-5-5}
