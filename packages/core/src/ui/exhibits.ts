@@ -32,7 +32,10 @@ export interface ExhibitElements {
   pane: HTMLElement;
   /** The reader's layout root; the expanded view covers it (spec section 13, p3-r18). */
   root: HTMLElement;
-  /** List the latest exhibit first (the browser dock, where the newest card sits under the stage). */
+  /**
+   * List the exhibit latest by document position first (the browser dock, under the stage). The order is
+   * by position, not by when it was revealed: one revealed after a jump back sits below the later ones.
+   */
   newestFirst?: boolean;
 }
 
