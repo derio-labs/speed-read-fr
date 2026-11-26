@@ -128,6 +128,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   const { store, host } = options;
   const ownerDocument = root.ownerDocument;
   const win = ownerDocument.defaultView as Window;
+  const Observer = (win as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ?? globalThis.ResizeObserver;
   const h = builder(ownerDocument);
   // `settings` is what the user set (and what is saved); the reader runs on `effective(settings)`, whose
   // characters limit a bottom-stage host clamps to what fits its stage (`fit`, null until measured).
@@ -345,7 +346,6 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   let fitObserver: ResizeObserver | null = null;
   if (probe) {
     updateFit();
-    const Observer = (win as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ?? globalThis.ResizeObserver;
     fitObserver = Observer ? new Observer(() => updateFit()) : null;
     fitObserver?.observe(stage);
   }
@@ -373,7 +373,6 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       return { top: card?.height ? card.bottom : main.getBoundingClientRect().bottom, bottom, below: bottom };
     },
     onBandChange(fn) {
-      const Observer = (win as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ?? globalThis.ResizeObserver;
       if (!Observer || destroyed) return () => {};
       const observer = new Observer(() => fn());
       observer.observe(main);
