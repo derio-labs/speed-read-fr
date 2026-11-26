@@ -5,7 +5,7 @@ The dock reader (`bottomStage: true`: browser Overlay, Side panel, VS Code panel
 - .sr-stage-support    title / stop / dwell card, then exhibits in document order
   .sr-stage            the reading box, fixed size
 + .sr-stage-support    title / stop / dwell card (kept whole), then exhibits latest-by-position first (list scrolls)
-  .sr-outline          floating only: row 3 bottom-left, inside the page band but below the followed block
+  .sr-outline          floating only: its own left column beside the reading box and cards, ending above the page band
 ```
 
 What changed in each file. `+` marks what the change adds and `-` what it replaces:
@@ -28,7 +28,7 @@ What changed in each file. `+` marks what the change adds and `-` what it replac
 +   FreeBand doc: the dock's band lies below the reader's cards
   packages/core/src/ui/styles.ts                # reader stylesheet, incl. the [data-bottom-stage] dock grid
 +   accents gated on .sr-reader:not([data-red-letters="off"])
-+   floating grid auto auto minmax(0,1fr); details flex 0 0 auto; drawer rows 2-4
++   floating grid rows auto auto minmax(0,1fr), columns auto (Contents) minmax(0,1fr); details flex 0 0 auto; drawer rows 2-4
   packages/browser-extension/src/storage.ts     # storage.local store + one-time migrations
 +   MIGRATIONS list: flow-default, word-motion-default (one write)
   packages/browser-extension/src/reader-entry.ts  # Overlay: page fade, follow, scroll band
