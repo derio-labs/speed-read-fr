@@ -44,14 +44,14 @@ describe('VS Code focus span setting', () => {
 });
 
 describe('VS Code flow motion setting', () => {
-  it('reads speedRead.flowMotion (flowing by default, unknown values too) and writes changes', async () => {
-    expect(readSettings().flowMotion).toBe('flowing');
-    __stub.setConfig({ 'speedRead.flowMotion': 'word' }, false);
+  it('reads speedRead.flowMotion (word by default, unknown values too) and writes changes', async () => {
     expect(readSettings().flowMotion).toBe('word');
-    __stub.setConfig({ 'speedRead.flowMotion': 'bogus' }, false);
+    __stub.setConfig({ 'speedRead.flowMotion': 'flowing' }, false);
     expect(readSettings().flowMotion).toBe('flowing');
-    await writeSettings({ ...DEFAULT_SETTINGS, flowMotion: 'word' });
-    expect(__stub.state.configWrites).toContainEqual({ key: 'speedRead.flowMotion', value: 'word', target: expect.anything() });
+    __stub.setConfig({ 'speedRead.flowMotion': 'bogus' }, false);
+    expect(readSettings().flowMotion).toBe('word');
+    await writeSettings({ ...DEFAULT_SETTINGS, flowMotion: 'flowing' });
+    expect(__stub.state.configWrites).toContainEqual({ key: 'speedRead.flowMotion', value: 'flowing', target: expect.anything() });
   });
 });
 

@@ -90,7 +90,7 @@ bracket and clears as its back edge leaves, so several red letters show at once,
 letter or digit has none. No other letter is red, and the top and bottom rows never are.
 
 **Flow motion** in Settings (shown only while Reading mode is Three-row flow) chooses how the ribbon
-moves, and applies at once without moving your place. **Flowing**, the default, moves the ribbon
+moves, and applies at once without moving your place. **Flowing** moves the ribbon
 continuously at your speed and never holds on a word: each word's own time, a long word or the end of
 a clause or sentence, becomes slower movement instead of a stop, and the gap between two list items
 is crossed in its own time. Pausing freezes the ribbon where it is and resuming carries on from
@@ -99,7 +99,7 @@ stop; cards and exhibit stops hold as they always do. With speech on, it keeps f
 word (or each estimated word, on a voice that reports none) starts a slide to the next word at the
 voice's pace, and a voice with no word boundaries holds the ribbon at the sentence start with the
 bracket hidden. A jump to another sentence or section puts you on the word you reach at once, and
-flowing goes on from there. **Word by word** steps the ribbon one word at a time, gliding the current
+flowing goes on from there. **Word by word**, the default, steps the ribbon one word at a time, gliding the current
 word onto the target and holding it. The wheel or the dial moves the ribbon
 back and forward word by word with the same glide in both motions, and reading resumes from the word
 you reach; under reduced motion Flowing behaves like Word by word and nothing glides. Both modes use the same speed, timeline, chapter and
@@ -182,7 +182,8 @@ keeps them in the `speedRead.*` settings.
 | --- | --- | --- |
 | Speed | 300 WPM | 100-1000 |
 | Reading mode | Three-row flow | Chunk-by-chunk or Three-row flow |
-| Flow motion | Flowing | Word by word or Flowing (`speedRead.flowMotion` in VS Code); shown in flow mode only |
+| Flow motion | Word by word | Word by word or Flowing (`speedRead.flowMotion` in VS Code); shown in flow mode only |
+| Red letters | On | The first letter of each flow word and the chunk pivot are red; off leaves them in the text colour (`speedRead.redLetters` in VS Code) |
 | Focus span | 20 characters | 6-40; the width of the red bracket in flow mode (`speedRead.focusChars` in VS Code) |
 | Words per chunk | 3 | 1-10 |
 | Characters per chunk | 20 (maximum) | 5-80; in the browser and VS Code the limit in force is capped by how many characters fit the chunk stage (the setting keeps your value, so a wider window gives it back) |
