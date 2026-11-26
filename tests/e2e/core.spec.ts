@@ -1597,24 +1597,24 @@ test.describe('first letter in the bracket and flowing motion', () => {
     await page.screenshot({ path: `${FLOW_SHOTS}/word-by-word-holding.png` });
   });
 
-  test('the Flow motion field shows Flowing by default in flow mode, is hidden in chunk mode, and the choice persists', async ({ page }) => {
+  test('the Flow motion field shows Word by word by default in flow mode, is hidden in chunk mode, and the choice persists', async ({ page }) => {
     await openFresh(page);
     await page.keyboard.press(',');
     const field = page.locator('.sr-settings [name="flowMotion"]');
     await expect(field).toBeVisible();
-    await expect(field).toHaveValue('flowing');
+    await expect(field).toHaveValue('word');
     await page.screenshot({ path: `${FLOW_SHOTS}/settings-flow-motion.png` });
     await page.locator('.sr-settings [name="readingMode"]').selectOption('chunk');
     await expect(field).toBeHidden();
     await page.screenshot({ path: `${FLOW_SHOTS}/settings-chunk-no-flow-motion.png` });
     await page.locator('.sr-settings [name="readingMode"]').selectOption('flow');
     await expect(field).toBeVisible();
-    await expect(field).toHaveValue('flowing');
-    await field.selectOption('word');
+    await expect(field).toHaveValue('word');
+    await field.selectOption('flowing');
     await page.keyboard.press('Escape');
     await page.reload();
     await expect(page.locator('.sr-reader')).toBeFocused();
     await page.keyboard.press(',');
-    await expect(page.locator('.sr-settings [name="flowMotion"]')).toHaveValue('word');
+    await expect(page.locator('.sr-settings [name="flowMotion"]')).toHaveValue('flowing');
   });
 });

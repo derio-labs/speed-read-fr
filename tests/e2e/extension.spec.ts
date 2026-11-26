@@ -128,7 +128,7 @@ test('saved chunk mode from before the default moves to flow once, and a later c
   await page.keyboard.press('Space');
   await page.keyboard.press('Space');
   await expect(host(page).locator('.sr-ribbon-row')).toHaveCount(3);
-  expect(await worker.evaluate(() => chrome.storage.local.get(['settings', 'migrations']))).toMatchObject({ settings: { readingMode: 'flow', wpm: 400 }, migrations: ['flow-default'] });
+  expect(await worker.evaluate(() => chrome.storage.local.get(['settings', 'migrations']))).toMatchObject({ settings: { readingMode: 'flow', wpm: 400 }, migrations: ['flow-default', 'word-motion-default'] });
   // The user picks chunk again (the reader saves it like this): the migration does not run again, so it is kept.
   await worker.evaluate(() => chrome.storage.local.set({ settings: { readingMode: 'chunk', wpm: 400 } }));
   page = await openPage(ARTICLE);
