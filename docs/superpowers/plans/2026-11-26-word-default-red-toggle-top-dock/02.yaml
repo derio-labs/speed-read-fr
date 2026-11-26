@@ -9,7 +9,6 @@ phase:
   tracking_issue: null
   acceptance:
   - browser-dock-stage-top
-  - browser-floating-overlay
   - vscode-fixed-chunk-box
   tier: standard
   files:
