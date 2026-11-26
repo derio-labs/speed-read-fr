@@ -18,15 +18,24 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.tts).toEqual({ enabled: false, voiceURI: null });
     expect(DEFAULT_SETTINGS.readingMode).toBe('flow');
     expect(DEFAULT_SETTINGS.focusChars).toBe(20);
-    expect(DEFAULT_SETTINGS.flowMotion).toBe('flowing');
+    expect(DEFAULT_SETTINGS.flowMotion).toBe('word');
+    expect(DEFAULT_SETTINGS.redLetters).toBe(true);
   });
 });
 
 describe('normalizeSettings flowMotion', () => {
-  it('defaults to flowing, keeps word, and reads an unknown value as flowing', () => {
-    expect(normalizeSettings({}).flowMotion).toBe('flowing');
-    expect(normalizeSettings({ flowMotion: 'word' }).flowMotion).toBe('word');
-    expect(normalizeSettings({ flowMotion: 'sideways' as never }).flowMotion).toBe('flowing');
+  it('defaults to word, keeps flowing, and reads an unknown value as word', () => {
+    expect(normalizeSettings({}).flowMotion).toBe('word');
+    expect(normalizeSettings({ flowMotion: 'flowing' }).flowMotion).toBe('flowing');
+    expect(normalizeSettings({ flowMotion: 'sideways' as never }).flowMotion).toBe('word');
+  });
+});
+
+describe('normalizeSettings redLetters', () => {
+  it('defaults to true, keeps false, and reads a non-boolean as true', () => {
+    expect(normalizeSettings({}).redLetters).toBe(true);
+    expect(normalizeSettings({ redLetters: false }).redLetters).toBe(false);
+    expect(normalizeSettings({ redLetters: 'no' as never }).redLetters).toBe(true);
   });
 });
 

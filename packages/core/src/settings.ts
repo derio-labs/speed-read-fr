@@ -30,6 +30,8 @@ export interface Settings {
   focusChars: number;
   /** Flow mode: how the ribbon moves. A render-only setting: changing it never rebuilds the timeline. */
   flowMotion: FlowMotion;
+  /** Colour the first letter of each flow word and the chunk pivot in the accent. A render-only setting. */
+  redLetters: boolean;
   tts: TtsSettings;
   /** Strength of the page behind the browser's floating reader, 0.10-0.80 (R29); other hosts ignore it. */
   pageFade: number;
@@ -47,7 +49,8 @@ export const DEFAULT_SETTINGS: Settings = {
   display: 'overlay',
   readingMode: 'flow',
   focusChars: 20,
-  flowMotion: 'flowing',
+  flowMotion: 'word',
+  redLetters: true,
   tts: { enabled: false, voiceURI: null },
   pageFade: 0.32,
 };
@@ -113,6 +116,7 @@ export function normalizeSettings(partial: Partial<Settings>): Settings {
     readingMode: oneOf(p.readingMode, READING_MODES, d.readingMode),
     focusChars: clampNumber(p.focusChars, 6, 40, d.focusChars),
     flowMotion: oneOf(p.flowMotion, FLOW_MOTIONS, d.flowMotion),
+    redLetters: typeof p.redLetters === 'boolean' ? p.redLetters : d.redLetters,
     tts: normalizeTts(p.tts),
     pageFade: clampNumber(p.pageFade, 0.1, 0.8, d.pageFade),
   };

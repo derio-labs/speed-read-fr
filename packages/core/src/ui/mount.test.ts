@@ -12,6 +12,21 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+describe('stage on top (bottomStage dock)', () => {
+  it('panel: the support follows the stage inside the main column', () => {
+    const t = mountHarness(ARTICLE, { bottomStage: true, layout: 'panel' });
+    const stage = t.q('.sr-stage')!;
+    expect(stage.nextElementSibling).toBe(t.q('.sr-stage-support'));
+    expect(t.q('.sr-main')!.contains(t.q('.sr-stage-support'))).toBe(true);
+  });
+
+  it('floating: the layout holds the outline, the main card and the support in that order', () => {
+    const t = mountHarness(ARTICLE, { bottomStage: true, layout: 'floating' });
+    const classes = [...t.q('.sr-layout')!.children].map((c) => c.className.split(' ')[0]);
+    expect(classes).toEqual(['sr-outline', 'sr-main', 'sr-stage-support']);
+  });
+});
+
 describe('mountReader', () => {
   it('returns a handle with destroy and the player', () => {
     const t = mountHarness(ARTICLE);
@@ -247,5 +262,37 @@ describe('flow motion is a live setting', () => {
     expect(seen).toEqual(['word']);
     expect(player.settings.flowMotion).toBe('word');
     expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ flowMotion: 'word' }));
+  });
+});
+
+describe('red letters is a live setting', () => {
+  it('sets data-red-letters at mount and flips it without rebuilding the timeline; the panel saves the choice', async () => {
+    const t = mountHarness(ARTICLE);
+    await t.settle();
+    const reader = t.q<HTMLElement>('.sr-reader')!;
+    expect(reader.dataset.redLetters).toBe('on');
+    const rebuild = vi.spyOn(t.handle.player, 'replaceTimeline');
+    t.handle.applySettings({ ...t.handle.player.settings, redLetters: false });
+    expect(reader.dataset.redLetters).toBe('off');
+    t.handle.applySettings({ ...t.handle.player.settings, redLetters: true });
+    expect(reader.dataset.redLetters).toBe('on');
+    t.store.save.mockClear();
+    t.q<HTMLButtonElement>('.sr-settings-button')!.click();
+    const box = t.q<HTMLInputElement>('.sr-settings [name="redLetters"]')!;
+    box.checked = false;
+    box.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(reader.dataset.redLetters).toBe('off');
+    expect(t.store.save).toHaveBeenLastCalledWith(expect.objectContaining({ redLetters: false }));
+    expect(rebuild).not.toHaveBeenCalled();
+  });
+
+  it('a host push through handle.applySettings (save=false) flips data-red-letters without saving', async () => {
+    const t = mountHarness(ARTICLE);
+    await t.settle();
+    const reader = t.q<HTMLElement>('.sr-reader')!;
+    t.store.save.mockClear();
+    t.handle.applySettings({ ...t.handle.player.settings, redLetters: false });
+    expect(reader.dataset.redLetters).toBe('off');
+    expect(t.store.save).not.toHaveBeenCalled();
   });
 });

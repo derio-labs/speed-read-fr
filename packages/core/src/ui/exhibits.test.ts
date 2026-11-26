@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../settings';
 import { mountHarness } from '../testing/reader';
 
@@ -89,6 +89,53 @@ describe('exhibit pane', () => {
     expect(t.live.size).toBe(1);
     t.handle.destroy();
     expect(t.live.size).toBe(0);
+  });
+});
+
+describe('newest-first pane (the browser dock)', () => {
+  const THREE = '<p>one.</p><pre>a</pre><p>two.</p><pre>b</pre><p>three.</p><pre>c</pre><p>end.</p>';
+  const order = (t: ReturnType<typeof mountHarness>) => paneItems(t).map((i) => i.dataset.key);
+  const readAll = (t: ReturnType<typeof mountHarness>) => {
+    t.handle.player.toggle();
+    for (let i = 0; i < 3; i++) {
+      runToStop(t);
+      t.handle.player.continue();
+    }
+  };
+
+  it('lists the latest exhibit first', () => {
+    const t = mountHarness(THREE, { bottomStage: true, settings: { stopLevels: [] } });
+    readAll(t);
+    expect(order(t)).toEqual(['b5', 'b3', 'b1']);
+  });
+
+  it('keeps that order after a section re-entry re-adds every exhibit', () => {
+    const t = mountHarness(`<h2>S</h2>${THREE}<h2>T</h2><p>next.</p>`, { bottomStage: true, settings: { stopLevels: [] } });
+    readAll(t);
+    runToStop(t);
+    t.handle.player.continue();
+    runToStop(t);
+    t.handle.player.section(-1);
+    expect(order(t)).toEqual(['b5', 'b3', 'b1']);
+  });
+
+  it('keeps that order when the earliest exhibit is added last', () => {
+    const t = mountHarness(THREE, { bottomStage: true, settings: { stopLevels: [] } });
+    readAll(t);
+    const section = t.doc.sections[0];
+    const all = t.handle.player.revealedExhibits(section.id);
+    const spy = vi.spyOn(t.handle.player, 'revealedExhibits').mockReturnValue(all.slice(1));
+    t.handle.applySettings({ ...DEFAULT_SETTINGS, stopLevels: [], chunkWords: 1 });
+    expect(order(t)).toEqual(['b5', 'b3']);
+    spy.mockRestore();
+    t.handle.applySettings({ ...DEFAULT_SETTINGS, stopLevels: [], chunkWords: 2 });
+    expect(order(t)).toEqual(['b5', 'b3', 'b1']);
+  });
+
+  it('lists in document order without the dock', () => {
+    const t = mountHarness(THREE, { settings: { stopLevels: [] } });
+    readAll(t);
+    expect(order(t)).toEqual(['b1', 'b3', 'b5']);
   });
 });
 

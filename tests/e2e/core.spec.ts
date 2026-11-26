@@ -1357,6 +1357,46 @@ test('flow is the default on first open, with one fixed-width bracket across wor
   await page.locator('.sr-display').screenshot({ path: `${UX_SHOTS}/flow-red-first-letter.png` });
 });
 
+test('Red letters off leaves the flow first letters and the chunk pivot in the text colour', async ({ page }) => {
+  await openFlow(page, 'floating', { redLetters: false });
+  await startFlow(page);
+  await expect(page.locator('.sr-reader')).toHaveAttribute('data-red-letters', 'off');
+  const flow = await page.evaluate(() => {
+    const row = getComputedStyle(document.querySelector('.sr-ribbon-row[data-position="middle"]')!).color;
+    const firsts = [...document.querySelectorAll('.sr-w[data-in] .sr-w-first')].map((e) => getComputedStyle(e).color);
+    return { row, firsts };
+  });
+  expect(flow.firsts.length).toBeGreaterThan(0);
+  expect(flow.firsts.every((c) => c === flow.row)).toBe(true);
+  await page.keyboard.press(',');
+  await page.locator('.sr-settings [name="redLetters"]').check();
+  await expect(page.locator('.sr-reader')).toHaveAttribute('data-red-letters', 'on');
+  // Turned on, the same flow first letters are no longer the row's text colour.
+  const flowOn = await page.evaluate(() => {
+    const row = getComputedStyle(document.querySelector('.sr-ribbon-row[data-position="middle"]')!).color;
+    return [...document.querySelectorAll('.sr-w[data-in] .sr-w-first')].map((e) => ({ colour: getComputedStyle(e).color, row }));
+  });
+  expect(flowOn.length).toBeGreaterThan(0);
+  expect(flowOn.every((f) => f.colour !== f.row)).toBe(true);
+  await page.locator('.sr-settings [name="redLetters"]').uncheck();
+  await page.locator('.sr-settings [name="readingMode"]').selectOption('chunk');
+  await page.keyboard.press('Escape');
+  const chunk = await page.evaluate(() => {
+    const pivot = document.querySelector('.sr-chunk .sr-pivot')!;
+    return { pivot: getComputedStyle(pivot).color, text: getComputedStyle(document.querySelector('.sr-chunk')!).color };
+  });
+  expect(chunk.pivot).toBe(chunk.text);
+  // And on again: the pivot takes the accent, not the chunk's text colour.
+  await page.keyboard.press(',');
+  await page.locator('.sr-settings [name="redLetters"]').check();
+  await page.keyboard.press('Escape');
+  const lit = await page.evaluate(() => ({
+    pivot: getComputedStyle(document.querySelector('.sr-chunk .sr-pivot')!).color,
+    text: getComputedStyle(document.querySelector('.sr-chunk')!).color,
+  }));
+  expect(lit.pivot).not.toBe(lit.text);
+});
+
 test('the Focus span setting resizes the bracket at once, from 6 to 40 characters (clamped to the row)', async ({ page }) => {
   await openFresh(page);
   await startFlow(page);
@@ -1573,24 +1613,24 @@ test.describe('first letter in the bracket and flowing motion', () => {
     await page.screenshot({ path: `${FLOW_SHOTS}/word-by-word-holding.png` });
   });
 
-  test('the Flow motion field shows Flowing by default in flow mode, is hidden in chunk mode, and the choice persists', async ({ page }) => {
+  test('the Flow motion field shows Word by word by default in flow mode, is hidden in chunk mode, and the choice persists', async ({ page }) => {
     await openFresh(page);
     await page.keyboard.press(',');
     const field = page.locator('.sr-settings [name="flowMotion"]');
     await expect(field).toBeVisible();
-    await expect(field).toHaveValue('flowing');
+    await expect(field).toHaveValue('word');
     await page.screenshot({ path: `${FLOW_SHOTS}/settings-flow-motion.png` });
     await page.locator('.sr-settings [name="readingMode"]').selectOption('chunk');
     await expect(field).toBeHidden();
     await page.screenshot({ path: `${FLOW_SHOTS}/settings-chunk-no-flow-motion.png` });
     await page.locator('.sr-settings [name="readingMode"]').selectOption('flow');
     await expect(field).toBeVisible();
-    await expect(field).toHaveValue('flowing');
-    await field.selectOption('word');
+    await expect(field).toHaveValue('word');
+    await field.selectOption('flowing');
     await page.keyboard.press('Escape');
     await page.reload();
     await expect(page.locator('.sr-reader')).toBeFocused();
     await page.keyboard.press(',');
-    await expect(page.locator('.sr-settings [name="flowMotion"]')).toHaveValue('word');
+    await expect(page.locator('.sr-settings [name="flowMotion"]')).toHaveValue('flowing');
   });
 });

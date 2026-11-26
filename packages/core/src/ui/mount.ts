@@ -53,10 +53,17 @@ export interface ReaderHandle {
   /** Recompute the narrow exhibit push in layouts that use it (also follows resizes). */
   relayout(): void;
   /**
-   * The unobstructed band in viewport px, plus the stage's bottom: where a host can show the
-   * block being read. The bottom-stage browser layout reserves the area above its support cards.
+   * The unobstructed band in viewport px, plus the reader's bottom: where a host can show the
+   * block being read. The bottom-stage browser layout puts the stage on top, then the support
+   * cards, and reserves the area below them: `top` is the bottom of the cards (of the stage when
+   * there are none), `bottom` and `below` the reader's bottom.
    */
   freeBand(): FreeBand;
+  /**
+   * Call `fn` when the stage or the support cards change size, so the band's top may have moved
+   * (a card appeared). Returns the unsubscribe; a no-op without ResizeObserver.
+   */
+  onBandChange(fn: () => void): () => void;
   /**
    * Show a note in the status line, or clear it with null: a host reports a failure the reader
    * cannot see itself (VS Code's configuration refusing a write: "Settings not saved").
@@ -112,15 +119,16 @@ function defaultFrame(win: Window): FrameSource {
   return { request: (fn) => win.setTimeout(() => fn(win.performance?.now() ?? Date.now()), 16), cancel: (handle) => win.clearTimeout(handle as number) };
 }
 
-/** Equal apart from the settings the player applies to the run it has (speed, flow motion): neither changes the timeline. */
+/** Equal apart from the live settings (speed, flow motion, red letters): none changes the timeline. */
 const sameExceptLive = (a: Settings, b: Settings) =>
-  JSON.stringify({ ...a, wpm: 0, flowMotion: 'word' }) === JSON.stringify({ ...b, wpm: 0, flowMotion: 'word' });
+  JSON.stringify({ ...a, wpm: 0, flowMotion: 'word', redLetters: true }) === JSON.stringify({ ...b, wpm: 0, flowMotion: 'word', redLetters: true });
 
 /** Build the reader inside `root` (spec section 6). */
 export function mountReader(root: Element | ShadowRoot, doc: Doc, options: MountOptions): ReaderHandle {
   const { store, host } = options;
   const ownerDocument = root.ownerDocument;
   const win = ownerDocument.defaultView as Window;
+  const Observer = (win as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ?? globalThis.ResizeObserver;
   const h = builder(ownerDocument);
   // `settings` is what the user set (and what is saved); the reader runs on `effective(settings)`, whose
   // characters limit a bottom-stage host clamps to what fits its stage (`fit`, null until measured).
@@ -167,16 +175,17 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   const support = details ? h('div', { class: 'sr-stage-support' }, details, exhibits) : null;
   if (support && floating) {
     main.prepend(outlineBar);
-    layout.append(outline, support, main);
+    layout.append(outline, main, support);
   } else if (support) {
     main.prepend(outlineBar);
-    stage.before(support);
+    stage.after(support);
     layout.append(outline, main);
   } else if (floating) {
     main.prepend(outlineBar);
     layout.append(outline, main, exhibits);
   } else layout.append(outlineBar, outline, main, exhibits);
   reader.dataset.readingMode = settings.readingMode;
+  setRedLetters(settings.redLetters);
   reader.append(layout);
   root.appendChild(reader);
   const removeStyles = applyStyles(root, reader);
@@ -201,7 +210,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     accepts: (event) => !options.trustedEventsOnly || event.isTrusted,
   };
   const outlineZone = createOutline(ctx, { outline, bar: outlineBar, layout });
-  const exhibitZone = createExhibits(ctx, { pane: exhibits, root: layout });
+  const exhibitZone = createExhibits(ctx, { pane: exhibits, root: layout, newestFirst: !!support });
   const panel = createSettingsPanel(ctx, (next) => applySettings(next), () => seenFit ?? FIT_MAX);
   const stageZone = createStage(ctx, { stage, status, details, overallFill: overall.firstElementChild as HTMLElement });
   const zones: Zone[] = [
@@ -236,6 +245,11 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     }),
   ];
 
+  /** Red letters is pure presentation: the stylesheet reads this attribute. */
+  function setRedLetters(on: boolean) {
+    reader.dataset.redLetters = on ? 'on' : 'off';
+  }
+
   /** Apply new settings at once: speed alone goes to the player, anything else rebuilds the timeline. */
   function applySettings(next: Settings, save = true) {
     next = normalizeSettings(next);
@@ -244,6 +258,11 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
       try {
         if (next.wpm !== settings.wpm) player.setSpeed(next.wpm);
         if (next.flowMotion !== settings.flowMotion) player.setFlowMotion(next.flowMotion);
+        if (next.redLetters !== settings.redLetters) {
+          settings = { ...settings, redLetters: next.redLetters };
+          setRedLetters(next.redLetters);
+          if (save) saveSettings(settings);
+        }
       } finally {
         saving = true;
       }
@@ -254,6 +273,7 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     speech.setVoice(next.tts.voiceURI);
     // The stage's width follows the mode: set it first and take the new mode's fit before building, so there is one rebuild.
     reader.dataset.readingMode = next.readingMode;
+    setRedLetters(next.redLetters);
     if (modeChanged && probe) fit = currentFit();
     rebuild();
     if (save) saveSettings(next);
@@ -326,7 +346,6 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
   let fitObserver: ResizeObserver | null = null;
   if (probe) {
     updateFit();
-    const Observer = (win as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ?? globalThis.ResizeObserver;
     fitObserver = Observer ? new Observer(() => updateFit()) : null;
     fitObserver?.observe(stage);
   }
@@ -349,10 +368,16 @@ export function mountReader(root: Element | ShadowRoot, doc: Doc, options: Mount
     },
     freeBand() {
       if (push) return push.freeBand();
-      const dock = main.getBoundingClientRect();
-      const top = reader.getBoundingClientRect().top;
+      const bottom = reader.getBoundingClientRect().bottom;
       const card = support?.getBoundingClientRect();
-      return { top, bottom: card?.height ? card.top : dock.top, below: dock.bottom };
+      return { top: card?.height ? card.bottom : main.getBoundingClientRect().bottom, bottom, below: bottom };
+    },
+    onBandChange(fn) {
+      if (!Observer || destroyed) return () => {};
+      const observer = new Observer(() => fn());
+      observer.observe(main);
+      if (support) observer.observe(support);
+      return () => observer.disconnect();
     },
     setStatusNote(text) {
       if (destroyed) return;

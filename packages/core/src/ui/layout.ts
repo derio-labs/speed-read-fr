@@ -63,7 +63,11 @@ function contentHeight(stage: HTMLElement): number {
   return bottom - top + pad;
 }
 
-/** The unobstructed band above the stage, and the stage's bottom, in viewport px. */
+/**
+ * The unobstructed band in viewport px, `top` to `bottom`, plus the edge below the reader's cards.
+ * The push layouts have the stage at the bottom (band above it); the top-stage dock has it below
+ * its cards (see ReaderHandle.freeBand).
+ */
 export interface FreeBand {
   top: number;
   bottom: number;

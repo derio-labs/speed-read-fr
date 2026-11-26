@@ -1,0 +1,297 @@
+<!-- fr:journal-schema=4 -->
+# Journal: 2026-11-26-word-default-red-toggle-top-dock
+
+<!-- fr:journal kind=discovery scope=plan id=p1-d1 created=2026-11-26T11:27:08+00:00 phase=1 -->
+### p1-d1 · discovery · A fresh worktree has no node_modules (phase 1)
+
+npm ci was needed in the workspace before typecheck/test could run.
+
+<!-- fr:journal kind=discovery scope=plan id=p1-d2 created=2026-11-26T11:27:08+00:00 phase=1 -->
+### p1-d2 · discovery · handle.applySettings never saves (phase 1)
+
+ReaderHandle.applySettings applies with save=false (host-driven); the panel's path saves. The redLetters live branch saves only when save is true, so the mount test asserts the store save through the panel.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r1 created=2026-11-26T11:31:17+00:00 phase=1 state=open review_scope=in -->
+### p1-r1 · finding [open] (reviewer: in scope) · Red letters hint says 'first letter of each word' but in chunk mode it controls the pivot (phase 1)
+
+settings-panel.ts:91; the field shows in both modes.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r2 created=2026-11-26T11:31:17+00:00 phase=1 state=open review_scope=in -->
+### p1-r2 · finding [open] (reviewer: in scope) · No test covers the save=false host path for a redLetters change (phase 1)
+
+mount.test.ts:253-272 only exercises the panel save path.
+
+<!-- fr:journal kind=review scope=plan id=p1-review created=2026-11-26T11:31:17+00:00 phase=1 -->
+### p1-review · review · phase 1 review: 2 in-scope findings, both fixed (phase 1)
+
+Independent reviewer checked migrations, the live redLetters path, gated CSS (computed colours in Chromium), panel and manifest against spec R1-R3, and drove the UI for the reader-red-letters-toggle row. Findings p1-r1 and p1-r2 fixed with tests in the follow-up commit.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r1-resolved created=2026-11-26T11:31:17+00:00 phase=1 state=fixed resolves=p1-r1 -->
+### p1-r1-resolved · finding [fixed] · resolves p1-r1: Red letters hint says 'first letter of each word' but in chunk mode it controls the pivot (phase 1)
+
+Hint is now 'first letters and pivot'; settings-panel test asserts it.
+
+<!-- fr:journal kind=finding scope=plan id=p1-r2-resolved created=2026-11-26T11:31:17+00:00 phase=1 state=fixed resolves=p1-r2 -->
+### p1-r2-resolved · finding [fixed] · resolves p1-r2: No test covers the save=false host path for a redLetters change (phase 1)
+
+New mount test: handle.applySettings (save=false) flips data-red-letters and does not save.
+
+<!-- fr:journal kind=discovery scope=plan id=p2-d1 created=2026-11-26T11:55:49+00:00 phase=2 -->
+### p2-d1 · discovery · fr isolation exec cannot run npm here: node_modules is darwin (phase 2)
+
+The container is linux-arm64 but the worktree's node_modules was installed on the host (rollup-darwin-arm64), so vitest/playwright were run on the host from the worktree cwd instead of through fr isolation exec.
+
+<!-- fr:journal kind=discovery scope=plan id=p2-d2 created=2026-11-26T11:55:49+00:00 phase=2 -->
+### p2-d2 · discovery · The page cannot scroll up, so a block above the band at the page top stays under the cards (phase 2)
+
+The follow aims at bandTop + 8, but a block whose natural top is above that and whose scroller is already at 0 cannot move down. The window (outline) is clipped to the band, so it is empty there. The packaged-build e2e therefore moves to a deeper section (n x3) before asserting the follow.
+
+<!-- fr:journal kind=finding scope=plan id=p2-f1 created=2026-11-26T11:55:49+00:00 phase=2 state=open review_scope=out -->
+### p2-f1 · finding [open] (reviewer: out of scope) · Pages with scroll-snap pull the block back under the cards (phase 2)
+
+On tests/fixtures/snap.html (proximity snap on blocks) the instant scroll to bandTop + 8 snaps back to a snap point, leaving the block under the cards and the outline (clipped to the band) empty. Before this change the aim (10 % of the viewport) was close to a snap point at the top. The p5a-r2 e2e now asserts the window height only for smooth.html. A fix would need the follow to accept the snapped position or lift the snap while following.
+
+<!-- fr:journal kind=finding scope=plan id=p2-f2 created=2026-11-26T11:55:49+00:00 phase=2 state=open review_scope=out -->
+### p2-f2 · finding [open] (reviewer: out of scope) · Title or stop card is squeezed to a strip when the exhibit list is tall (phase 2)
+
+The support is a flex column with a capped height; .sr-stage-details has flex 0 1 auto, so with two or more exhibits the chapter or stop card above them is clipped (visible in the 'title card and two exhibits' screenshot). The same shrink rule existed before the move; now that the card is the first thing under the stage it is more visible.
+
+<!-- fr:journal kind=discovery scope=plan id=p2-d3 created=2026-11-26T11:55:49+00:00 phase=2 -->
+### p2-d3 · discovery · VS Code webview e2e indexed exhibits in document order (phase 2)
+
+tests/e2e/webview.spec.ts picked the first and second math exhibit with nth(0) and nth(1); the dock lists the newest first, so the indices swap. The webview shares core's bottomStage dock, so it gets the new order too.
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p2-t1 created=2026-11-26T11:55:49+00:00 phase=2 -->
+### no-refactor-p2-t1 · discovery · no-refactor-because P2.T1 (phase 2)
+
+newestFirst is one conditional in add(); the two orderings share before() and sort the same way, nothing to extract
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p2-t2 created=2026-11-26T11:55:49+00:00 phase=2 -->
+### no-refactor-p2-t2 · discovery · no-refactor-because P2.T2 (phase 2)
+
+a DOM-order swap plus grid-area edits; no duplication introduced
+
+<!-- fr:journal kind=discovery scope=plan id=no-refactor-p2-t3 created=2026-11-26T11:55:49+00:00 phase=2 -->
+### no-refactor-p2-t3 · discovery · no-refactor-because P2.T3 (phase 2)
+
+setBandBottom became setBandTop and place/tick read one bandTop(); no leftover code from the old clip
+
+<!-- fr:journal kind=finding scope=plan id=p2-r1 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r1 · finding [open] (reviewer: in scope) · Floating outline card sits on the page band and covers the followed block (phase 2)
+
+styles.ts:554-556 put the outline at band top + 8.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r2 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r2 · finding [open] (reviewer: in scope) · On proximity-snap pages the follow ends with the block under the stage; the snap assertion was dropped (covers p2-f1) (phase 2)
+
+tests/e2e/extension.spec.ts:861-866.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r3 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r3 · finding [open] (reviewer: in scope) · The current stop/dwell card, first under the stage, is squeezed whenever an exhibit shows (covers p2-f2) (phase 2)
+
+styles.ts:524 flex 0 1 auto inside the capped support.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r4 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r4 · finding [open] (reviewer: in scope) · Fixed-toolbar e2e no longer exercises the chrome floor; belowChrome scan capped at 0.6 of the viewport (phase 2)
+
+extension.spec.ts:672; reader-entry.ts:249-270.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r5 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r5 · finding [open] (reviewer: in scope) · Stop-card re-follow e2e passes by construction (phase 2)
+
+extension.spec.ts:904-920 asserted w.top >= bandTop, which place() guarantees.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r6 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r6 · finding [open] (reviewer: in scope) · Packaged-build test lost its follow checks (phase 2)
+
+extension.spec.ts:507-528.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r7 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=in -->
+### p2-r7 · finding [open] (reviewer: in scope) · Teardown unsubscribe from onBandChange untested (phase 2)
+
+reader-entry.ts:616.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r8 created=2026-11-26T13:36:37+00:00 phase=2 state=open review_scope=out -->
+### p2-r8 · finding [open] (reviewer: out of scope) · Short windows leave a tiny page band (phase 2)
+
+The calc(100vh - 245px) support reservation (styles.ts:549) predates this change.
+
+<!-- fr:journal kind=review scope=plan id=p2-review created=2026-11-26T13:36:37+00:00 phase=2 -->
+### p2-review · review · phase 2 review: 7 in-scope findings (incl. p2-f1, p2-f2 reclassified), all fixed; 1 out of scope (phase 2)
+
+Independent reviewer checked newest-first insert, dock DOM/grid, freeBand/onBandChange, follow aim/refollow/teardown and the e2e rewrites against R4-R6, and drove the extension fixture. p2-r2 = p2-f1 and p2-r3 = p2-f2, reclassified in scope by the reviewer; the operator approved fixing both. Fixes: 154b78b, e9324a1, bd8e18a; full suite green after them.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r1-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r1 -->
+### p2-r1-resolved · finding [fixed] · resolves p2-r1: Floating outline card sits on the page band and covers the followed block (phase 2)
+
+Outline align-self end at the bottom of row 3; e2e asserts the outline does not intersect the followed block.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r2-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r2 -->
+### p2-r2-resolved · finding [fixed] · resolves p2-r2: On proximity-snap pages the follow ends with the block under the stage; the snap assertion was dropped (covers p2-f1) (phase 2)
+
+Same defect as p2-f1; fixed by e9324a1 (scroll-padding-top) with the snap.html assertion restored in bd8e18a.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r3-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r3 -->
+### p2-r3-resolved · finding [fixed] · resolves p2-r3: The current stop/dwell card, first under the stage, is squeezed whenever an exhibit shows (covers p2-f2) (phase 2)
+
+Same defect as p2-f2; fixed by 154b78b (details flex 0 0 auto) with the whole-card e2e in bd8e18a.
+
+<!-- fr:journal kind=finding scope=plan id=p2-f1-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-f1 answered_by=operator -->
+### p2-f1-resolved · finding [fixed] · resolves p2-f1: Pages with scroll-snap pull the block back under the cards (phase 2)
+
+Reclassified in scope by the reviewer (p2-r2); operator approved. scroll-padding-top = bandTop + 8 on the scroller, restored on close; snap.html height assertion restored; unit test for set/update/restore.
+
+<!-- fr:journal kind=finding scope=plan id=p2-f2-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-f2 answered_by=operator -->
+### p2-f2-resolved · finding [fixed] · resolves p2-f2: Title or stop card is squeezed to a strip when the exhibit list is tall (phase 2)
+
+Reclassified in scope by the reviewer (p2-r3); operator approved. Details card flex 0 0 auto, exhibits flex 0 1 auto with the list scrolling; e2e asserts the card is whole in Overlay and Side panel.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r4-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r4 -->
+### p2-r4-resolved · finding [fixed] · resolves p2-r4: Fixed-toolbar e2e no longer exercises the chrome floor; belowChrome scan capped at 0.6 of the viewport (phase 2)
+
+Scan limit relative to its start; e2e runs header 128 and 320 px and asserts aim = header bottom + 8 at 320.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r5-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r5 -->
+### p2-r5-resolved · finding [fixed] · resolves p2-r5: Stop-card re-follow e2e passes by construction (phase 2)
+
+Asserts the block sits 8 px under the band top within 1 px after the card appears.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r6-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r6 -->
+### p2-r6-resolved · finding [fixed] · resolves p2-r6: Packaged-build test lost its follow checks (phase 2)
+
+Restored reached-block position and paragraph-gap checks.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r7-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=fixed resolves=p2-r7 -->
+### p2-r7-resolved · finding [fixed] · resolves p2-r7: Teardown unsubscribe from onBandChange untested (phase 2)
+
+Unit test: closing the reader disconnects every ResizeObserver; fails without offBand().
+
+<!-- fr:journal kind=finding scope=plan id=p2-r8-resolved created=2026-11-26T13:36:37+00:00 phase=2 state=open resolves=p2-r8 out_of_scope=true -->
+### p2-r8-resolved · finding [out-of-scope] · resolves p2-r8: Short windows leave a tiny page band (phase 2)
+
+The support's max-height reservation predates this change; the band size in short windows is unchanged by moving the stage.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r1 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-simplicity-r1 · finding [open] (reviewer: in scope) · exhibits.ts:96-99 duplicates the filter/sort chain for newestFirst
+
+Collapse to one chain with a direction-aware predicate.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r2 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-simplicity-r2 · finding [open] (reviewer: in scope) · newestFirst actually means latest by document position; document it
+
+exhibits.ts:35-36.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r3 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-simplicity-r3 · finding [open] (reviewer: in scope) · mount.ts repeats the ResizeObserver lookup
+
+mount.ts:348 and :376.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r4 created=2026-11-26T13:48:43+00:00 state=open review_scope=out -->
+### l-simplicity-r4 · finding [open] (reviewer: out of scope) · FreeBand.below is never read anywhere
+
+Unread before and after this change (layout.ts:74, :118; mount.ts:373).
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r5 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-simplicity-r5 · finding [open] (reviewer: in scope) · Shape file omits the overlay's place(), the belowChrome limit change and the layout.ts edit
+
+reader-entry.ts:253, :463-467; layout.ts:66-70.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r6 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-simplicity-r6 · finding [open] (reviewer: in scope) · e2e helper bandPoint moves the mouse; rename
+
+extension.spec.ts:115.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-tests-r1 · finding [open] (reviewer: in scope) · No test asserts the pivot or first letter is red with Red letters on
+
+core.spec.ts:1360-1382 checks only the off state.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-tests-r2 · finding [open] (reviewer: in scope) · snap.html case asserts nothing about blocks snapping below the cards
+
+extension.spec.ts:878-891; the unit test restates pad().
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-tests-r3 · finding [open] (reviewer: in scope) · p5a-r8 narrow-window assertion is guaranteed by place()'s band-top clip
+
+extension.spec.ts:952-956.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4 created=2026-11-26T13:48:43+00:00 state=open review_scope=in -->
+### l-tests-r4 · finding [open] (reviewer: in scope) · Shape file says the outline is out of the page band and omits layout.ts and place()/belowChrome changes
+
+styles.ts row 3 align-self end is inside the free band.
+
+<!-- fr:journal kind=discovery scope=plan id=lens-d1 created=2026-11-26T13:48:43+00:00 -->
+### lens-d1 · discovery · Eased follow fights proximity scroll-snap after ~20 wheel notches
+
+Even with scroll-padding-top set, a long scrub on a proximity-snap page (tests/fixtures/snap.html) lets the snap pull back against the eased follow; predates this change. The e2e scrubs 16 notches.
+
+<!-- fr:journal kind=review scope=plan id=lens-review created=2026-11-26T13:48:43+00:00 -->
+### lens-review · review · lens review: simplicity 5 in / 1 out, tests 4 in; all in-scope fixed
+
+Fixes 261797d, 3aad100, 90efb50, c6cc4d0, de357fd, 2ee28ce and the shape file; each new test assertion shown to fail with the behaviour removed. Full suite green after the last commit.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r1-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-simplicity-r1 -->
+### l-simplicity-r1-resolved · finding [fixed] · resolves l-simplicity-r1: exhibits.ts:96-99 duplicates the filter/sort chain for newestFirst
+
+261797d: one chain with precedes = newestFirst ? (a,b) => before(b,a) : before.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r2-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-simplicity-r2 -->
+### l-simplicity-r2-resolved · finding [fixed] · resolves l-simplicity-r2: newestFirst actually means latest by document position; document it
+
+3aad100: doc comment says it orders by document position.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r3-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-simplicity-r3 -->
+### l-simplicity-r3-resolved · finding [fixed] · resolves l-simplicity-r3: mount.ts repeats the ResizeObserver lookup
+
+90efb50: one Observer lookup at the top of mountReader.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r4-resolved created=2026-11-26T13:48:43+00:00 state=open resolves=l-simplicity-r4 out_of_scope=true -->
+### l-simplicity-r4-resolved · finding [out-of-scope] · resolves l-simplicity-r4: FreeBand.below is never read anywhere
+
+FreeBand.below was unread before this change; removing a field from a public handle type is its own change.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r5-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-simplicity-r5 -->
+### l-simplicity-r5-resolved · finding [fixed] · resolves l-simplicity-r5: Shape file omits the overlay's place(), the belowChrome limit change and the layout.ts edit
+
+Shape file lists place(), the place() clip change, the belowChrome limit and layout.ts.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r6-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-simplicity-r6 -->
+### l-simplicity-r6-resolved · finding [fixed] · resolves l-simplicity-r6: e2e helper bandPoint moves the mouse; rename
+
+c6cc4d0: renamed to hoverBand.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r1-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-tests-r1 -->
+### l-tests-r1-resolved · finding [fixed] · resolves l-tests-r1: No test asserts the pivot or first letter is red with Red letters on
+
+de357fd: asserts accent colour with the toggle on for pivot and first letter; fails with the gated pivot rule deleted.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r2-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-tests-r2 -->
+### l-tests-r2-resolved · finding [fixed] · resolves l-tests-r2: snap.html case asserts nothing about blocks snapping below the cards
+
+2ee28ce: snap.html scrubs, asserts scrollY > 0 and the block's own top at or below the band top; fails without scroll-padding.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r3-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-tests-r3 -->
+### l-tests-r3-resolved · finding [fixed] · resolves l-tests-r3: p5a-r8 narrow-window assertion is guaranteed by place()'s band-top clip
+
+2ee28ce: asserts the code block's own top is within 3 px of bandTop + 8.
+
+<!-- fr:journal kind=finding scope=plan id=l-tests-r4-resolved created=2026-11-26T13:48:43+00:00 state=fixed resolves=l-tests-r4 -->
+### l-tests-r4-resolved · finding [fixed] · resolves l-tests-r4: Shape file says the outline is out of the page band and omits layout.ts and place()/belowChrome changes
+
+Shape file: outline is row 3 bottom-left inside the band, below the followed block; missing entries added.
+
+<!-- fr:journal kind=finding scope=plan id=p2-r8-resolved-2 created=2026-11-26T13:50:18+00:00 phase=2 state=open resolves=p2-r8 tracked_by=https://github.com/derio-labs/speed-read-fr/issues/25 -->
+### p2-r8-resolved-2 · finding [deferred → https://github.com/derio-labs/speed-read-fr/issues/25] · resolves p2-r8: Short windows leave a tiny page band (phase 2)
+
+Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/25.
+
+<!-- fr:journal kind=finding scope=plan id=l-simplicity-r4-resolved-2 created=2026-11-26T13:50:23+00:00 state=open resolves=l-simplicity-r4 tracked_by=https://github.com/derio-labs/speed-read-fr/issues/26 -->
+### l-simplicity-r4-resolved-2 · finding [deferred → https://github.com/derio-labs/speed-read-fr/issues/26] · resolves l-simplicity-r4: FreeBand.below is never read anywhere
+
+Filed at deliver as https://github.com/derio-labs/speed-read-fr/issues/26.
+
+<!-- fr:journal kind=finding scope=plan id=d-r1 created=2026-11-26T14:15:21+00:00 state=fixed review_scope=in -->
+### d-r1 · finding [fixed] (reviewer: in scope) · With cards showing, the wide Overlay's Contents card covered the left of the followed block
+
+Found in the deliver screenshots: with cards the band top drops to ~y=580 and the bottom-left Contents card overlapped the block; the p2-r1 e2e only covered the no-cards case. Operator chose Contents top-left beside the reading box. Fixed in 763184f: its own grid column spanning the reading box and card rows (contain: size), ending above the page band; e2e asserts it ends above the band top with a stop card showing (fails without the CSS change).

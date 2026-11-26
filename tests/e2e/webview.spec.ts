@@ -273,9 +273,10 @@ test.describe('exhibits wider or taller than the pane', () => {
       };
     });
 
+  // The pane lists the newest exhibit first, so the second equation of the document is index 0.
   test('a wide display equation is scaled down to fit the pane', async ({ page }) => {
     await openWide(page);
-    const f = await fit(page, 0);
+    const f = await fit(page, 1);
     expect(f.zoom).toBeLessThan(1);
     expect(f.zoom).toBeGreaterThanOrEqual(0.6);
     expect(f.fits).toBe(true);
@@ -285,14 +286,14 @@ test.describe('exhibits wider or taller than the pane', () => {
 
   test('a wider one stops at 0.6, scrolls, and fades the clipped side', async ({ page }) => {
     await openWide(page);
-    let f = await fit(page, 1);
+    let f = await fit(page, 0);
     expect(f.zoom).toBeCloseTo(0.6, 2);
     expect(f.scrolls).toBe(true);
     expect(f.clip).toBe('right');
     expect(f.mask).toContain('gradient');
-    const display = page.locator('.sr-exhibits .sr-exhibit[data-kind="math"] .katex-display').nth(1);
+    const display = page.locator('.sr-exhibits .sr-exhibit[data-kind="math"] .katex-display').nth(0);
     await display.evaluate((el) => (el.scrollLeft = el.scrollWidth));
-    await expect.poll(async () => (await fit(page, 1)).clip).toBe('left');
+    await expect.poll(async () => (await fit(page, 0)).clip).toBe('left');
   });
 
   test('a 20-node flowchart is not shrunk below half size: it scrolls and the header says E to expand', async ({ page }) => {

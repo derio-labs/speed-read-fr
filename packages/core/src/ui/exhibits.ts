@@ -32,6 +32,11 @@ export interface ExhibitElements {
   pane: HTMLElement;
   /** The reader's layout root; the expanded view covers it (spec section 13, p3-r18). */
   root: HTMLElement;
+  /**
+   * List the exhibit latest by document position first (the browser dock, under the stage). The order is
+   * by position, not by when it was revealed: one revealed after a jump back sits below the later ones.
+   */
+  newestFirst?: boolean;
 }
 
 export interface ExhibitZone extends Zone {
@@ -48,7 +53,7 @@ interface Shown {
 }
 
 /** The exhibit pane (revealed non-prose blocks of the current section) and the expanded view (E). */
-export function createExhibits(ctx: ReaderContext, { pane, root }: ExhibitElements): ExhibitZone {
+export function createExhibits(ctx: ReaderContext, { pane, root, newestFirst = false }: ExhibitElements): ExhibitZone {
   const { h, host, player } = ctx;
   const list = h('div', { class: 'sr-exhibit-list' });
   const empty = h('p', { class: 'sr-exhibits-empty' }, 'Code, tables, formulas and images in this section appear here as you reach them.');
@@ -91,7 +96,9 @@ export function createExhibits(ctx: ReaderContext, { pane, root }: ExhibitElemen
       h('div', { class: 'sr-exhibit-body' }, node),
     );
     const at = position(exhibit);
-    const next = [...shown.values()].filter((o) => before(at, o.at)).sort((a, b) => (before(a.at, b.at) ? -1 : 1))[0];
+    // Insert before the first listed item that the new one precedes in list order.
+    const precedes = newestFirst ? (a: [number, number], b: [number, number]) => before(b, a) : before;
+    const next = [...shown.values()].filter((o) => precedes(at, o.at)).sort((a, b) => (precedes(a.at, b.at) ? -1 : 1))[0];
     list.insertBefore(item, next ? next.item : null);
     shown.set(key, { item, node, hosted, at });
   }

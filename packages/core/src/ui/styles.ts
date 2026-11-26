@@ -209,7 +209,7 @@ export const READER_CSS = `
 .sr-ribbon-row[data-position="top"] { grid-row: 1; --sr-shift: calc(var(--sr-w, 0) * 1.5px); }
 .sr-ribbon-row[data-position="middle"] { grid-row: 2; color: var(--sr-text); --sr-shift: calc(var(--sr-w, 0) * 0.5px); }
 .sr-ribbon-row[data-position="bottom"] { grid-row: 3; --sr-shift: calc(var(--sr-w, 0) * -0.5px); }
-.sr-ribbon-row[data-position="middle"] .sr-w[data-in] .sr-w-first { color: var(--sr-accent); }
+.sr-reader:not([data-red-letters="off"]) .sr-ribbon-row[data-position="middle"] .sr-w[data-in] .sr-w-first { color: var(--sr-accent); }
 .sr-ribbon-line {
   flex: none; white-space: nowrap; will-change: transform;
   transform: translateX(calc(var(--sr-x, 0) * -1px + var(--sr-shift, 0px))); transition: transform var(--sr-glide) ease-out;
@@ -238,7 +238,8 @@ export const READER_CSS = `
 .sr-display[data-wrap] { height: auto; min-height: 150px; display: flex; align-items: center; }
 .sr-display[data-wrap] .sr-axis { display: none; }
 .sr-display[data-wrap] .sr-chunk { position: static; margin: 0; width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; line-height: 1.25; }
-.sr-pivot { color: var(--sr-accent); font-weight: 700; }
+.sr-pivot { font-weight: 700; }
+.sr-reader:not([data-red-letters="off"]) .sr-pivot { color: var(--sr-accent); }
 .sr-atom { font-family: var(--sr-mono); font-size: .86em; padding: 0 .14em; border-radius: 4px; background: var(--sr-surface-2); }
 .sr-pivot.sr-atom, .sr-pivot .sr-atom { background: transparent; }
 .sr-item-counter {
@@ -520,14 +521,14 @@ export const READER_CSS = `
 .sr-reader[data-bottom-stage] .sr-dial-row { margin-top: 4px; }
 .sr-reader[data-bottom-stage] .sr-dial { height: 28px; }
 .sr-reader[data-bottom-stage] .sr-stage-support { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 8px; }
-.sr-reader[data-bottom-stage] .sr-stage-details { flex: 0 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.sr-reader[data-bottom-stage] .sr-stage-details { flex: 0 0 auto; overflow: auto; overscroll-behavior: contain; }
 .sr-reader[data-bottom-stage] .sr-stage-details .sr-card { margin: 0; width: 100%; }
 .sr-reader[data-bottom-stage] .sr-stage-details :is(.sr-card-stop, .sr-card-dwell) { padding: 8px 14px; }
 .sr-reader[data-bottom-stage] .sr-stage-details :is(.sr-card-stop, .sr-card-dwell) .sr-card-title { margin: 0; font-size: 18px; }
 .sr-reader[data-bottom-stage] .sr-stage-details :is(.sr-card-stop, .sr-card-dwell) .sr-card-hint { margin-top: 4px; }
 .sr-reader[data-bottom-stage] .sr-stage-details .sr-card-title-step { padding: 12px 18px; }
 .sr-reader[data-bottom-stage] .sr-exhibits {
-  position: static; width: auto; height: auto; max-height: none; transform: none; visibility: visible;
+  position: static; width: auto; height: auto; max-height: none; transform: none; visibility: visible; flex: 0 1 auto; min-height: 0;
   border: 1px solid var(--sr-border); border-radius: 12px; overflow: hidden;
 }
 .sr-reader[data-bottom-stage] .sr-exhibits[data-empty] { display: none; }
@@ -537,30 +538,32 @@ export const READER_CSS = `
 .sr-reader[data-bottom-stage][data-layout="panel"] .sr-main { grid-area: main; }
 .sr-reader[data-bottom-stage][data-layout="panel"] .sr-outline { position: absolute; inset: 0 auto 0 0; }
 .sr-reader[data-bottom-stage][data-layout="panel"] .sr-stage-support { flex: 1; padding: 10px 12px; overflow: hidden; margin-left: var(--sr-flow-inset, 0px); }
+/* The Contents card has a column of its own, as tall as the reading box and the cards beside it,
+   so it never reaches into the page band below them where the follow lands the block. */
 .sr-reader[data-bottom-stage][data-layout="floating"] .sr-layout {
-  display: grid; grid-template: minmax(0, 1fr) auto auto / minmax(0, 1fr); padding: 8px 8px 12px;
+  display: grid; grid-template: auto auto minmax(0, 1fr) / auto minmax(0, 1fr); column-gap: 12px; padding: 12px 8px 8px;
 }
 .sr-reader[data-bottom-stage][data-layout="floating"] .sr-main {
-  grid-area: 3 / 1; position: relative; inset: auto; transform: none; width: min(420px, 100%); max-height: none;
-  justify-self: center;
+  grid-area: 1 / 2; position: relative; inset: auto; transform: none; width: min(420px, 100%); max-height: none;
+  justify-self: center; align-self: start;
 }
 .sr-reader[data-bottom-stage][data-layout="floating"][data-reading-mode="flow"] .sr-main { width: min(1200px, calc(100% - 64px)); }
 .sr-reader[data-bottom-stage][data-layout="floating"] .sr-stage-support {
-  grid-area: 2 / 1; justify-self: center; width: min(880px, 100%); max-height: min(48vh, max(0px, calc(100vh - 245px)));
+  grid-area: 2 / 2; align-self: start; justify-self: center; width: min(880px, 100%); max-height: min(48vh, max(0px, calc(100vh - 245px)));
 }
-.sr-reader[data-bottom-stage][data-layout="floating"] .sr-stage-support:not(:has(> [hidden] + [data-empty])) { margin-bottom: 8px; }
+.sr-reader[data-bottom-stage][data-layout="floating"] .sr-stage-support:not(:has(> [hidden] + [data-empty])) { margin-top: 8px; }
 .sr-reader[data-bottom-stage][data-layout="floating"] .sr-stage-details { width: min(540px, 100%); align-self: center; }
 .sr-reader[data-bottom-stage][data-layout="floating"] .sr-outline {
-  grid-area: 1 / 1; position: relative; inset: auto; align-self: end; justify-self: start;
-  margin-bottom: 8px; transform: none; max-height: min(100%, 42vh);
+  grid-area: 1 / 1 / 3 / 2; position: relative; inset: auto; align-self: stretch; justify-self: start;
+  transform: none; max-height: none; contain: size;
 }
 .sr-reader[data-bottom-stage] .sr-layout[data-outline="none"] .sr-outline { display: none; }
 .sr-reader[data-bottom-stage][data-layout="floating"] .sr-layout[data-mode="reading"] .sr-main {
-  grid-area: 1 / 1 / -1; top: auto; height: 100%; width: min(760px, 100%);
+  grid-area: 1 / 1 / -1 / -1; top: auto; height: 100%; width: min(760px, 100%);
 }
 @container sr-reader (max-width: 1179px) {
   .sr-reader[data-bottom-stage][data-layout="floating"] .sr-layout[data-drawer="open"] .sr-outline {
-    grid-area: 1 / 1 / 3; position: absolute; inset: auto auto 8px 8px; margin: 0; max-height: min(100%, 55vh);
+    grid-area: 2 / 1 / 4 / -1; position: absolute; inset: 8px auto auto 8px; contain: none; margin: 0; max-height: min(100%, 55vh);
   }
 }
 /* A scroller of the reader's own never hands its wheel on to the page behind (p5a-r3). */

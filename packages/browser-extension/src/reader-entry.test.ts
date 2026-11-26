@@ -498,7 +498,7 @@ describe('floating overlay over the faded page (R17, R29)', () => {
     expect((shadow().querySelector('.sr-window') as HTMLElement).style.boxShadow).toContain('rgba(255, 255, 255, 0.68)');
   });
 
-  it('the page is scrolled, eased, so the block being read settles at 10 % of the viewport height', async () => {
+  it('the page is scrolled, eased, so the block being read settles at 10 % of the viewport height when the reader has no cards above the page band', async () => {
     const { reader } = make();
     await reader.open('auto');
     await reader.current!.handle.ready;
@@ -517,6 +517,144 @@ describe('floating overlay over the faded page (R17, R29)', () => {
     // Settled: no frame is pending until the position moves again (p5a-r1).
     expect(frames.pending).toBe(0);
     scroller.scrollTop = 0;
+  });
+
+  it('the followed block settles a gap below the top of the free band, under the reader\'s cards', async () => {
+    const { reader } = make();
+    await reader.open('auto');
+    const handle = reader.current!.handle;
+    await handle.ready;
+    vi.spyOn(handle, 'freeBand').mockReturnValue({ top: 300, bottom: 700, below: 768 });
+    const scroller = document.documentElement;
+    scroller.scrollTop = 0;
+    const p3 = document.getElementById('p3')!;
+    boxOf(p3, () => ({ top: 900 - scroller.scrollTop, left: 0, width: 400, height: 40 }));
+    handle.player.jumpToBlock({ element: p3 });
+    frames.run(300);
+    expect(Math.abs(scroller.scrollTop - (900 - 308))).toBeLessThanOrEqual(1);
+    expect(frames.pending).toBe(0);
+    scroller.scrollTop = 0;
+  });
+
+  it('a nested scroller whose top is below the band keeps the scrollport floor', async () => {
+    const { reader } = make();
+    await reader.open('auto');
+    const handle = reader.current!.handle;
+    await handle.ready;
+    vi.spyOn(handle, 'freeBand').mockReturnValue({ top: 300, bottom: 700, below: 768 });
+    const p3 = document.getElementById('p3')!;
+    const box = document.createElement('div');
+    box.style.overflowY = 'auto';
+    p3.replaceWith(box);
+    box.append(p3);
+    Object.defineProperty(box, 'scrollHeight', { value: 2000 });
+    Object.defineProperty(box, 'clientHeight', { value: 400 });
+    boxOf(box, () => ({ top: 500, left: 0, width: 400, height: 400 }));
+    box.scrollTop = 0;
+    boxOf(p3, () => ({ top: 1200 - box.scrollTop, left: 0, width: 400, height: 40 }));
+    handle.player.jumpToBlock({ element: p3 });
+    frames.run(300);
+    expect(Math.abs(box.scrollTop - (1200 - 508))).toBeLessThanOrEqual(1);
+  });
+
+  it('re-follows the block when the band top moves (a card appeared above it)', async () => {
+    const observers: (() => void)[] = [];
+    class FakeResize {
+      constructor(cb: () => void) {
+        observers.push(cb);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', FakeResize);
+    (window as unknown as { ResizeObserver: unknown }).ResizeObserver = FakeResize;
+    try {
+      const { reader } = make();
+      await reader.open('auto');
+      const handle = reader.current!.handle;
+      await handle.ready;
+      let top = 300;
+      vi.spyOn(handle, 'freeBand').mockImplementation(() => ({ top, bottom: 700, below: 768 }));
+      const scroller = document.documentElement;
+      scroller.scrollTop = 0;
+      const p3 = document.getElementById('p3')!;
+      boxOf(p3, () => ({ top: 900 - scroller.scrollTop, left: 0, width: 400, height: 40 }));
+      handle.player.jumpToBlock({ element: p3 });
+      frames.run(300);
+      expect(Math.abs(scroller.scrollTop - (900 - 308))).toBeLessThanOrEqual(1);
+      expect(frames.pending).toBe(0);
+      top = 420;
+      for (const cb of observers) cb();
+      frames.run(300);
+      expect(Math.abs(scroller.scrollTop - (900 - 428))).toBeLessThanOrEqual(1);
+      scroller.scrollTop = 0;
+    } finally {
+      vi.unstubAllGlobals();
+      delete (window as unknown as { ResizeObserver?: unknown }).ResizeObserver;
+    }
+  });
+
+  it('sets scroll-padding-top on the scroller to the band top plus the gap, follows the band, and restores it on close', async () => {
+    const observers: (() => void)[] = [];
+    class FakeResize {
+      constructor(cb: () => void) {
+        observers.push(cb);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    (window as unknown as { ResizeObserver: unknown }).ResizeObserver = FakeResize;
+    const root = document.documentElement;
+    root.style.setProperty('scroll-padding-top', '5px');
+    try {
+      const { reader } = make();
+      await reader.open('auto');
+      const handle = reader.current!.handle;
+      await handle.ready;
+      let top = 300;
+      vi.spyOn(handle, 'freeBand').mockImplementation(() => ({ top, bottom: 700, below: 768 }));
+      const p3 = document.getElementById('p3')!;
+      boxOf(p3, () => ({ top: 900 - root.scrollTop, left: 0, width: 400, height: 40 }));
+      handle.player.jumpToBlock({ element: p3 });
+      frames.run(5);
+      expect(root.style.getPropertyValue('scroll-padding-top')).toBe('308px');
+      top = 420;
+      for (const cb of observers) cb();
+      expect(root.style.getPropertyValue('scroll-padding-top')).toBe('428px');
+      reader.close();
+      expect(root.style.getPropertyValue('scroll-padding-top')).toBe('5px');
+    } finally {
+      delete (window as unknown as { ResizeObserver?: unknown }).ResizeObserver;
+      root.style.removeProperty('scroll-padding-top');
+      root.scrollTop = 0;
+    }
+  });
+
+  it('closing the reader disconnects the observers of the band', async () => {
+    const live = new Set<object>();
+    class FakeResize {
+      constructor() {
+        live.add(this);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {
+        live.delete(this);
+      }
+    }
+    (window as unknown as { ResizeObserver: unknown }).ResizeObserver = FakeResize;
+    try {
+      const { reader } = make();
+      await reader.open('auto');
+      await reader.current!.handle.ready;
+      expect(live.size).toBeGreaterThan(0);
+      reader.close();
+      expect([...live]).toEqual([]);
+    } finally {
+      delete (window as unknown as { ResizeObserver?: unknown }).ResizeObserver;
+    }
   });
 
   it('followStep eases exponentially and stops within a pixel', () => {
