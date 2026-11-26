@@ -93,10 +93,9 @@ export function createExhibits(ctx: ReaderContext, { pane, root, newestFirst = f
       h('div', { class: 'sr-exhibit-body' }, node),
     );
     const at = position(exhibit);
-    // Ascending: before the first item that comes later. Newest first: before the first item that comes earlier.
-    const next = newestFirst
-      ? [...shown.values()].filter((o) => before(o.at, at)).sort((a, b) => (before(a.at, b.at) ? 1 : -1))[0]
-      : [...shown.values()].filter((o) => before(at, o.at)).sort((a, b) => (before(a.at, b.at) ? -1 : 1))[0];
+    // Insert before the first listed item that the new one precedes in list order.
+    const precedes = newestFirst ? (a: [number, number], b: [number, number]) => before(b, a) : before;
+    const next = [...shown.values()].filter((o) => precedes(at, o.at)).sort((a, b) => (precedes(a.at, b.at) ? -1 : 1))[0];
     list.insertBefore(item, next ? next.item : null);
     shown.set(key, { item, node, hosted, at });
   }
