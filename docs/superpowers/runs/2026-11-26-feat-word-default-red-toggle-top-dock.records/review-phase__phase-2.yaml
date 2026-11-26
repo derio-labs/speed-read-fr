@@ -4,6 +4,8 @@ step: review-phase
 outcome: done
 journal:
   - {kind: finding, id: p2-r1, phase: 2, review_scope: in, title: "Floating outline card sits on the page band and covers the followed block", body: "styles.ts:554-556 put the outline at band top + 8."}
+  - {kind: finding, id: p2-r2, phase: 2, review_scope: in, title: "On proximity-snap pages the follow ends with the block under the stage; the snap assertion was dropped (covers p2-f1)", body: "tests/e2e/extension.spec.ts:861-866."}
+  - {kind: finding, id: p2-r3, phase: 2, review_scope: in, title: "The current stop/dwell card, first under the stage, is squeezed whenever an exhibit shows (covers p2-f2)", body: "styles.ts:524 flex 0 1 auto inside the capped support."}
   - {kind: finding, id: p2-r4, phase: 2, review_scope: in, title: "Fixed-toolbar e2e no longer exercises the chrome floor; belowChrome scan capped at 0.6 of the viewport", body: "extension.spec.ts:672; reader-entry.ts:249-270."}
   - {kind: finding, id: p2-r5, phase: 2, review_scope: in, title: "Stop-card re-follow e2e passes by construction", body: "extension.spec.ts:904-920 asserted w.top >= bandTop, which place() guarantees."}
   - {kind: finding, id: p2-r6, phase: 2, review_scope: in, title: "Packaged-build test lost its follow checks", body: "extension.spec.ts:507-528."}
@@ -12,6 +14,8 @@ journal:
   - {kind: review, id: p2-review, phase: 2, title: "phase 2 review: 7 in-scope findings (incl. p2-f1, p2-f2 reclassified), all fixed; 1 out of scope", body: "Independent reviewer checked newest-first insert, dock DOM/grid, freeBand/onBandChange, follow aim/refollow/teardown and the e2e rewrites against R4-R6, and drove the extension fixture. p2-r2 = p2-f1 and p2-r3 = p2-f2, reclassified in scope by the reviewer; the operator approved fixing both. Fixes: 154b78b, e9324a1, bd8e18a; full suite green after them."}
 resolves:
   - {id: p2-r1, state: fixed, body: "Outline align-self end at the bottom of row 3; e2e asserts the outline does not intersect the followed block."}
+  - {id: p2-r2, state: fixed, body: "Same defect as p2-f1; fixed by e9324a1 (scroll-padding-top) with the snap.html assertion restored in bd8e18a."}
+  - {id: p2-r3, state: fixed, body: "Same defect as p2-f2; fixed by 154b78b (details flex 0 0 auto) with the whole-card e2e in bd8e18a."}
   - {id: p2-f1, state: fixed, answered_by: operator, body: "Reclassified in scope by the reviewer (p2-r2); operator approved. scroll-padding-top = bandTop + 8 on the scroller, restored on close; snap.html height assertion restored; unit test for set/update/restore."}
   - {id: p2-f2, state: fixed, answered_by: operator, body: "Reclassified in scope by the reviewer (p2-r3); operator approved. Details card flex 0 0 auto, exhibits flex 0 1 auto with the list scrolling; e2e asserts the card is whole in Overlay and Side panel."}
   - {id: p2-r4, state: fixed, body: "Scan limit relative to its start; e2e runs header 128 and 320 px and asserts aim = header bottom + 8 at 320."}
