@@ -47,7 +47,28 @@ describe('extension settings persistence', () => {
       const loaded = await extensionStore(area).load();
       expect(loaded).toMatchObject({ readingMode: 'flow', wpm: 400 });
       expect(state.stored[SETTINGS_KEY]).toMatchObject({ readingMode: 'flow', wpm: 400 });
-      expect(state.stored[MIGRATIONS_KEY]).toEqual(['flow-default']);
+      expect(state.stored[MIGRATIONS_KEY]).toEqual(['flow-default', 'word-motion-default']);
+    });
+
+    it('moves stored flowing to word once, when flow-default is already recorded', async () => {
+      const { state, area } = fakeArea({ [SETTINGS_KEY]: { readingMode: 'flow', flowMotion: 'flowing' }, [MIGRATIONS_KEY]: ['flow-default'] });
+      const store = extensionStore(area);
+      expect(await store.load()).toMatchObject({ readingMode: 'flow', flowMotion: 'word' });
+      expect(state.stored[MIGRATIONS_KEY]).toEqual(['flow-default', 'word-motion-default']);
+    });
+
+    it('keeps flowing once both ids are recorded', async () => {
+      const { area } = fakeArea({ [SETTINGS_KEY]: { readingMode: 'flow', flowMotion: 'flowing' }, [MIGRATIONS_KEY]: ['flow-default', 'word-motion-default'] });
+      expect((await extensionStore(area).load()).flowMotion).toBe('flowing');
+    });
+
+    it('applies both migrations in one write to chunk plus flowing settings', async () => {
+      const { state, area } = fakeArea({ [SETTINGS_KEY]: { readingMode: 'chunk', flowMotion: 'flowing' } });
+      let sets = 0;
+      const counting = { get: (area as never as { get: (k: string) => Promise<unknown> }).get, set: async (v: Record<string, unknown>) => { sets++; await (area as never as { set: (v: Record<string, unknown>) => Promise<void> }).set(v); } } as never;
+      expect(await extensionStore(counting).load()).toMatchObject({ readingMode: 'flow', flowMotion: 'word' });
+      expect(sets).toBe(1);
+      expect(state.stored[MIGRATIONS_KEY]).toEqual(['flow-default', 'word-motion-default']);
     });
 
     it('keeps a later choice of chunk', async () => {
@@ -56,14 +77,14 @@ describe('extension settings persistence', () => {
       await store.load();
       await store.save({ ...DEFAULT_SETTINGS, readingMode: 'chunk' });
       expect((await store.load()).readingMode).toBe('chunk');
-      expect(state.stored[MIGRATIONS_KEY]).toEqual(['flow-default']);
+      expect(state.stored[MIGRATIONS_KEY]).toEqual(['flow-default', 'word-motion-default']);
     });
 
     it('with no stored settings only records the id', async () => {
       const { state, area } = fakeArea({});
       expect(await extensionStore(area).load()).toEqual({});
       expect(state.stored[SETTINGS_KEY]).toBeUndefined();
-      expect(state.stored[MIGRATIONS_KEY]).toEqual(['flow-default']);
+      expect(state.stored[MIGRATIONS_KEY]).toEqual(['flow-default', 'word-motion-default']);
     });
 
     it('leaves the id unrecorded when the write fails, and migrates on the next load', async () => {
@@ -73,7 +94,7 @@ describe('extension settings persistence', () => {
       expect(state.stored[MIGRATIONS_KEY]).toBeUndefined();
       expect((await store.load()).readingMode).toBe('flow');
       expect(state.stored[SETTINGS_KEY]).toMatchObject({ readingMode: 'flow' });
-      expect(state.stored[MIGRATIONS_KEY]).toEqual(['flow-default']);
+      expect(state.stored[MIGRATIONS_KEY]).toEqual(['flow-default', 'word-motion-default']);
     });
 
     it('records the id when saving, so a chosen chunk survives a failed migration write (p1-r5)', async () => {
@@ -81,7 +102,7 @@ describe('extension settings persistence', () => {
       const store = extensionStore(area);
       await store.load(); // the write fails: the id stays unrecorded
       await store.save({ ...DEFAULT_SETTINGS, readingMode: 'chunk' });
-      expect(state.stored[MIGRATIONS_KEY]).toEqual(['other', 'flow-default']);
+      expect(state.stored[MIGRATIONS_KEY]).toEqual(['other', 'flow-default', 'word-motion-default']);
       expect((await store.load()).readingMode).toBe('chunk');
     });
 

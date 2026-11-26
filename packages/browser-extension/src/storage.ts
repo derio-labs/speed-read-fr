@@ -4,7 +4,17 @@ import type { ExtApi } from './ext';
 export const SETTINGS_KEY = 'settings';
 /** Ids of the one-time settings migrations already applied; it lives beside the settings, outside `Settings`. */
 export const MIGRATIONS_KEY = 'migrations';
-const FLOW_DEFAULT = 'flow-default';
+
+/**
+ * The one-time settings migrations, in order. 'flow-default' (spec 2026-11-22-flow-default-ux R2) moves stored
+ * settings to flow; 'word-motion-default' (spec 2026-11-26-word-default-red-toggle-top-dock R2) moves a stored
+ * Flowing motion to Word by word.
+ */
+const MIGRATIONS: { id: string; apply(stored: Partial<Settings>): Partial<Settings> }[] = [
+  { id: 'flow-default', apply: (stored) => ({ ...stored, readingMode: 'flow' }) },
+  { id: 'word-motion-default', apply: (stored) => (stored.flowMotion === 'flowing' ? { ...stored, flowMotion: 'word' } : stored) },
+];
+const ALL_IDS = MIGRATIONS.map((m) => m.id);
 
 /** Reader settings in `storage.local` (spec section 7 Storage). */
 export function extensionStore(area: ExtApi['storage']['local']): SettingsStore {
@@ -17,15 +27,16 @@ export function extensionStore(area: ExtApi['storage']['local']): SettingsStore 
       return null;
     }
   }
-  /** The flow-default migration (spec 2026-11-22-flow-default-ux R2): once, stored settings move to flow. */
+  /** Applies every migration not yet recorded, writing settings and record together; both ids land in one write. */
   async function migrate(stored: Partial<Settings> | null): Promise<Partial<Settings>> {
     const ids = await appliedIds();
     if (ids === null) return stored ?? {}; // The record is unreadable: keep the settings as stored.
-    if (ids.includes(FLOW_DEFAULT)) return stored ?? {};
-    const migrated = stored ? { ...stored, readingMode: 'flow' as const } : null;
+    const pending = MIGRATIONS.filter((m) => !ids.includes(m.id));
+    if (pending.length === 0) return stored ?? {};
+    const migrated = stored ? pending.reduce((settings, m) => m.apply(settings), stored) : null;
     try {
-      // A failed write leaves the id unrecorded, so the next load tries again.
-      await area.set({ ...(migrated ? { [SETTINGS_KEY]: migrated } : {}), [MIGRATIONS_KEY]: [...ids, FLOW_DEFAULT] });
+      // A failed write leaves the ids unrecorded, so the next load tries again.
+      await area.set({ ...(migrated ? { [SETTINGS_KEY]: migrated } : {}), [MIGRATIONS_KEY]: [...ids, ...pending.map((m) => m.id)] });
     } catch {
       // The migrated settings still apply to this load.
     }
@@ -41,10 +52,10 @@ export function extensionStore(area: ExtApi['storage']['local']): SettingsStore 
       }
     },
     async save(settings) {
-      // Saving is the user's own choice: it also records the migration, so a failed migration write cannot
-      // force flow again over a chunk they picked afterwards.
+      // Saving is the user's own choice: it also records every migration, so a failed migration write cannot
+      // force flow or word by word again over a choice they made afterwards.
       const ids = (await appliedIds()) ?? [];
-      await area.set({ [SETTINGS_KEY]: settings, [MIGRATIONS_KEY]: ids.includes(FLOW_DEFAULT) ? ids : [...ids, FLOW_DEFAULT] });
+      await area.set({ [SETTINGS_KEY]: settings, [MIGRATIONS_KEY]: [...ids, ...ALL_IDS.filter((id) => !ids.includes(id))] });
     },
   };
 }
