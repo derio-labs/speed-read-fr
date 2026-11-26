@@ -1,0 +1,151 @@
+schema_version: 2
+phase:
+  number: 1
+  title: Word-by-word default, the one-time migration, and the Red letters setting
+  tag: agentic
+  depends_on: []
+  tracking_issue: null
+  acceptance:
+  - reader-word-motion-default
+  - reader-red-letters-toggle
+  - reader-flowing-motion
+  skeleton: true
+  tier: standard
+  files:
+  - packages/core/src/settings.ts
+  - packages/core/src/settings.test.ts
+  - packages/core/src/ui/mount.ts
+  - packages/core/src/ui/mount.test.ts
+  - packages/core/src/ui/settings-panel.ts
+  - packages/core/src/ui/settings-panel.test.ts
+  - packages/core/src/ui/styles.ts
+  - packages/browser-extension/src/storage.ts
+  - packages/browser-extension/src/storage.test.ts
+  - packages/vscode-extension/package.json
+  - packages/vscode-extension/src/manifest.test.ts
+  - tests/e2e/core.spec.ts
+  - tests/demo/**
+  - README.md
+  estimate_lines: 350
+tasks:
+- number: 1
+  title: Smoke - the suite is green before any change
+  steps:
+  - id: P1.T1.S1
+    text: |-
+      Run `npm run typecheck && npm test` in the workspace (through `fr isolation exec --`) and confirm that both pass on the unchanged tree. If either fails, stop and report the failure. It predates this change.
+- number: 2
+  title: Word by word is the default (R1)
+  steps:
+  - id: P1.T2.S1
+    text: |-
+      Red: in packages/core/src/settings.test.ts:
+      - replace the 'flowing' expectations at :21-29 with 'word';
+      - add a case where `normalizeSettings({})` gives `flowMotion: 'word'` and an explicit 'flowing' stays 'flowing'.
+      In packages/vscode-extension/src/manifest.test.ts:80, expect 'word'.
+      Run `npx vitest run packages/core/src/settings.test.ts packages/vscode-extension/src/manifest.test.ts` and see them fail.
+  - id: P1.T2.S2
+    text: |-
+      Green: set `DEFAULT_SETTINGS.flowMotion = 'word'` (settings.ts:50) and update the FlowMotion doc comment. Change the `"default"` of `speedRead.flowMotion` to `"word"` (packages/vscode-extension/package.json:65). If README.md or the demo calls Flowing the default, update the wording there too. Re-run the two files green.
+  - id: P1.T2.S3
+    text: |-
+      Refactor: `grep -rn "'flowing'" packages tests` for tests that relied on the old default without setting it. Pin `flowMotion: 'flowing'` explicitly where a test exercises Flowing. Re-run `npm test`.
+- number: 3
+  title: One-time browser migration flowing to word (R2)
+  steps:
+  - id: P1.T3.S1
+    text: |-
+      Red: in packages/browser-extension/src/storage.test.ts, update the expectations that the migrations record equals ['flow-default'] (:50, :59, :66, :76, :84) to ['flow-default', 'word-motion-default']. Add these cases:
+      - stored {readingMode:'flow', flowMotion:'flowing'} with record ['flow-default'] loads as 'word', and the record gains 'word-motion-default';
+      - with both ids already recorded, stored 'flowing' stays 'flowing';
+      - stored {readingMode:'chunk', flowMotion:'flowing'} with no record loads as flow + word in one write, recording both ids;
+      - an unreadable record (area.get throws for MIGRATIONS_KEY) keeps the stored settings as they are;
+      - `save` records both ids.
+      Run `npx vitest run packages/browser-extension/src/storage.test.ts` and see the new cases fail.
+  - id: P1.T3.S2
+    text: |-
+      Green: in storage.ts, replace the single FLOW_DEFAULT migration with an ordered list `MIGRATIONS: {id, apply(stored)}[]`:
+      - 'flow-default' sets readingMode 'flow';
+      - 'word-motion-default' maps flowMotion 'flowing' to 'word'.
+      `migrate` applies every id that is not yet recorded, writes the settings (when any were stored) and the record in ONE `area.set`, and keeps today's failure handling. `save` records every known id. Re-run green.
+  - id: P1.T3.S3
+    text: |-
+      Refactor: keep the doc comments citing both specs (2026-11-22-flow-default-ux R2, 2026-11-26-word-default-red-toggle-top-dock R2). Remove any FLOW_DEFAULT constant that is now dead. Re-run the file's tests.
+- number: 4
+  title: Red letters setting (R3)
+  steps:
+  - id: P1.T4.S1
+    text: |-
+      Red: add failing tests:
+      - settings.test.ts: `redLetters` defaults to true, and a non-boolean normalises to true.
+      - settings-panel.test.ts: a "Red letters" checkbox in the Display fieldset, after Flow motion, reflects `redLetters` and submits it, and it shows in both reading modes.
+      - mount.test.ts: `data-red-letters` is 'on' at mount. After applySettings with redLetters false, it is 'off', the store saved `redLetters: false`, and the timeline was NOT rebuilt (same `handle.timeline` object, or the rebuild spy not called).
+      - manifest.test.ts: the existing "a property for every setting" check fails until the manifest gains `speedRead.redLetters`.
+      Run them and see them fail.
+  - id: P1.T4.S2
+    text: |-
+      Green:
+      - Add `redLetters: boolean` to Settings, DEFAULT_SETTINGS (true) and normalizeSettings (boolean or default).
+      - mount.ts: neutralise redLetters in `sameExceptLive` (:116-117). In applySettings's live branch (:240-250), when `next.redLetters !== settings.redLetters`, set `settings = { ...settings, redLetters: next.redLetters }`, set `reader.dataset.redLetters`, and `saveSettings(settings)` when `save`. Set the attribute at mount, next to `reader.dataset.readingMode` (:179).
+      - settings-panel.ts: add the checkbox field and read it in the submit/collect path.
+      - Add a boolean `speedRead.redLetters` (default true) to packages/vscode-extension/package.json.
+      Re-run green.
+  - id: P1.T4.S3
+    text: |-
+      Green, CSS:
+      - In styles.ts:212, prefix the first-letter accent rule with `.sr-reader:not([data-red-letters="off"])`.
+      - Split styles.ts:241 into `.sr-pivot { font-weight: 700; }` and `.sr-reader:not([data-red-letters="off"]) .sr-pivot { color: var(--sr-accent); }`.
+      Then in tests/e2e/core.spec.ts, next to expectRedFirstLetters (:389), add a case: with redLetters false, the computed colour of `.sr-w[data-in] .sr-w-first` (flow) and of `.sr-pivot` (chunk) equals the ribbon/chunk text colour, not the accent. Run `npm run test:e2e -- tests/e2e/core.spec.ts` and see it pass.
+  - id: P1.T4.S4
+    text: |-
+      Refactor and full suite: tidy any duplicated dataset-setting into one small helper in mount.ts if it is used twice. Then run `npm run typecheck && npm test && npm run test:e2e` after the last code commit, into a host-visible log outside docs/superpowers/runs/*.records/.
+state:
+  steps:
+    P1.T1.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T2.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T3.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P1.T4.S4:
+      state: ' '
+      ticked_at: null
+      note: null
+  completion:
+    at: null
+    note: null
+    observed_prs: []

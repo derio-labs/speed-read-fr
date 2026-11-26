@@ -204,3 +204,9 @@ gate: developer
 
 Fixing Flowing's smoothness at 30 Hz; the non-dock layouts (core demo panel/floating without
 `bottomStage`); other accent colours; new keyboard shortcuts.
+
+## Implementation Plans
+
+| Plan | Repo | File | Depends on |
+|------|------|------|------------|
+| 2026-11-26-word-default-red-toggle-top-dock | `derio-labs/speed-read-fr` | `2026-11-26-word-default-red-toggle-top-dock` | — |

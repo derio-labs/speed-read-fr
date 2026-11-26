@@ -1,0 +1,6 @@
+schema_version: 2
+plan: 2026-11-26-word-default-red-toggle-top-dock
+spec: 2026-11-26-word-default-red-toggle-top-dock-design.md
+target_repo: derio-labs/speed-read-fr
+fr_version: '>=4.20.0,<10.0.0'
+created: '2026-11-26'

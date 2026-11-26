@@ -1,0 +1,153 @@
+schema_version: 2
+phase:
+  number: 2
+  title: Reading box at the top of the dock, newest content first, page follow below
+    the cards
+  tag: agentic
+  depends_on:
+  - 1
+  tracking_issue: null
+  acceptance:
+  - browser-dock-stage-top
+  - browser-floating-overlay
+  - vscode-fixed-chunk-box
+  tier: standard
+  files:
+  - packages/core/src/ui/mount.ts
+  - packages/core/src/ui/mount.test.ts
+  - packages/core/src/ui/exhibits.ts
+  - packages/core/src/ui/exhibits.test.ts
+  - packages/core/src/ui/layout.ts
+  - packages/core/src/ui/styles.ts
+  - packages/browser-extension/src/reader-entry.ts
+  - packages/browser-extension/src/reader-entry.test.ts
+  - tests/e2e/extension.spec.ts
+  - tests/e2e/core.spec.ts
+  - tests/demo/**
+  - tests/fixtures/**
+  estimate_lines: 600
+tasks:
+- number: 1
+  title: Newest-first exhibits in the dock (R5)
+  steps:
+  - id: P2.T1.S1
+    text: |-
+      Red: in exhibits.test.ts, add cases:
+      - with `newestFirst: true`, revealing exhibits A, B, C (document order) lists C, B, A;
+      - after a section re-entry (clear, then sync re-adds all), the order is still C, B, A;
+      - after a sync that adds A late (B and C shown first), the order is still C, B, A;
+      - without the option, the order stays A, B, C.
+      Run `npx vitest run packages/core/src/ui/exhibits.test.ts` and see them fail.
+  - id: P2.T1.S2
+    text: |-
+      Green: add a `newestFirst?: boolean` option to createExhibits's elements/options. In `add` (exhibits.ts:84-97), when it is set, insert before the first shown item whose position is EARLIER (the reverse of `before(at, o.at)`, sorted latest first). In mount.ts:204, pass `newestFirst: !!support`. Re-run green.
+- number: 2
+  title: Stage on top in both dock layouts (R4)
+  steps:
+  - id: P2.T2.S1
+    text: |-
+      Red: in mount.test.ts, with `bottomStage: true`:
+      - panel layout: `.sr-stage-support` follows `.sr-stage` inside `.sr-main`;
+      - floating layout: the `.sr-layout` children are `.sr-outline`, `.sr-main`, `.sr-stage-support` in DOM order, or the grid areas put main in row 1 and the support in row 2, whichever the implementation uses; assert the one chosen.
+      See them fail.
+  - id: P2.T2.S2
+    text: |-
+      Green:
+      - mount.ts:173: `stage.after(support)` replaces `stage.before(support)`.
+      - mount.ts:170: append the floating layout as outline, main, support (DOM order only matters for focus order; the grid places them).
+      - styles.ts floating dock (:540-564):
+        - grid template `auto auto minmax(0, 1fr)`;
+        - `.sr-main` grid-area 1 / 1, `align-self: start`;
+        - the support grid-area 2 / 1;
+        - the outline grid-area 3 / 1, `align-self: start; margin-top: 8px` (no margin-bottom);
+        - the support `margin-bottom` rule (:551) becomes `margin-top`;
+        - the narrow drawer rule (:562-563) becomes `grid-area: 2 / 1 / 4; inset: 8px auto auto 8px`.
+      - Panel dock: the stage stays the top row, and the support keeps `flex: 1` below it.
+      Re-run green.
+- number: 3
+  title: Overlay band below the cards and re-follow when they change (R6)
+  steps:
+  - id: P2.T3.S1
+    text: |-
+      Red: in reader-entry.test.ts:
+      - Rewrite :501-520 so the follow target is the band top plus BAND_GAP_PX, with a stubbed `freeBand()` whose top is 300. Keep the 10 % floor when the band is degenerate (top === bottom === 0).
+      - Add a case: with the block already followed, firing the handle's band-change callback with a new top of 420 re-places the window and re-follows the block to 420 + gap.
+      - Add a case: a nested scroller whose top is below the band keeps the scrollport floor.
+      See them fail.
+  - id: P2.T3.S2
+    text: |-
+      Green, core:
+      - mount.ts `freeBand()` (:350-356): for the dock, return `top` = support bottom when the support has height, else `.sr-main` bottom; `bottom` = reader bottom; `below` = reader bottom.
+      - Add `onBandChange(fn): () => void` to ReaderHandle, driven by a ResizeObserver on `.sr-main` and the support. A no-op without ResizeObserver.
+      - Update the FreeBand (layout.ts:66-71) and ReaderHandle.freeBand (mount.ts:56-58) doc comments.
+  - id: P2.T3.S3
+    text: |-
+      Green, overlay (reader-entry.ts):
+      - Rename setBandBottom to setBandTop and keep `bandTop` (default 0).
+      - `place` uses `top = max(bandTop(), port?.top ?? -PAD, clamp(box.top - PAD, vh))` and `bottom = min(port?.bottom ?? vh + PAD, clamp(box.bottom + PAD, vh))`.
+      - `tick` aims at `max(bandTop() + BAND_GAP_PX, (port?.top ?? -BAND_GAP_PX) + BAND_GAP_PX, innerHeight * FOLLOW_AT)`, then chromeFloor as today.
+      - Add `refollow()`: if a block is held, `following = true; last = null; lastTop = NaN; stuck = 0`, and request a tick.
+      - At :572-575, wire `overlay.setBandTop(() => { const b = handle.freeBand(); return b.bottom > b.top ? b.top : 0; })`, plus `handle.onBandChange(() => { overlay.place(); if (moved > 1) overlay.refollow(); })`, tracking the last band top. Unsubscribe on teardown.
+      Re-run reader-entry tests green.
+- number: 4
+  title: Rewrite the e2e geometry for the top stage
+  steps:
+  - id: P2.T4.S1
+    text: |-
+      Rewrite tests/e2e/extension.spec.ts:
+      - :582-621 (Overlay and Side panel): the stage's top is within 24 px of the reader/viewport top and unchanged through prose, a chapter and an exhibit. The chapter card and exhibits sit below the stage. With two exhibits revealed, the later one is above the earlier one.
+      - :707-726: the followed block's top is at the band top (support bottom) plus about 8 px, not 10 % of the viewport.
+      - :624-641: recompute the expected mark/top positions under the fixed header from the band top.
+      Run `npm run test:e2e -- tests/e2e/extension.spec.ts` and iterate until green.
+  - id: P2.T4.S2
+    text: |-
+      Fix the "wheel over the faded page" tests (:715, :739, :745, :764, :808). Move the mouse to a point inside the free band (for example the viewport's horizontal centre, 40 px above its bottom) instead of (640, 40), which is now over the reader. Add one case where a stop/dwell card appearing pushes the followed block down below the grown support. Run the e2e suite green.
+  - id: P2.T4.S3
+    text: |-
+      Refactor and full suite: share a `bandPoint(page)` helper for the wheel tests if three or more use it. Then run `npm run typecheck && npm test && npm run test:e2e && npm run build` after the last code commit, into a host-visible log outside docs/superpowers/runs/*.records/.
+state:
+  steps:
+    P2.T1.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T1.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T2.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T2.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T3.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T3.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T3.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T4.S1:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T4.S2:
+      state: ' '
+      ticked_at: null
+      note: null
+    P2.T4.S3:
+      state: ' '
+      ticked_at: null
+      note: null
+  completion:
+    at: null
+    note: null
+    observed_prs: []
