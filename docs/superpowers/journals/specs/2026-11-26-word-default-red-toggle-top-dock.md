@@ -147,3 +147,11 @@ run_kind: none
 
 <!-- fr:journal kind=decision scope=spec id=phase-split-2026-11-26-word-default-red-toggle-top-dock-p2 created=2026-11-26T11:11:00+00:00 -->
 ### phase-split-2026-11-26-word-default-red-toggle-top-dock-p2 · decision · ask: the top dock layout and page follow (R4-R6) is its own reviewable ask, separate from the settings (R1-R3)
+
+<!-- fr:journal kind=owed scope=spec id=test-plan-step-1 created=2026-11-27T08:52:21+00:00 -->
+### test-plan-step-1 · owed · Test Plan step 1 owed
+
+what: Walk the VS Code panel in the Extension Host: reading box at the top, cards and exhibits below, newest first (row `vscode-fixed-chunk-box`, `walk-owed`).
+why: Walked the built VS Code webview in Chromium via scripts/webview-harness.mjs (2026-11-27), not the real Extension Host: box at the top and exhibits newest first PASS (pre-merge 0f327b4 showed box at bottom, document order); R4 fixed size FAILED (180/128px) and is fixed in PR #27 with an e2e test. The walk in a real Extension Host is still owed.
+how: fr journal resolve --scope spec --slug 2026-11-26-word-default-red-toggle-top-dock --id test-plan-step-1 --state fixed --note "<evidence>"
+owed_key: spec:2026-11-26-word-default-red-toggle-top-dock#step1
