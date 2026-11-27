@@ -112,3 +112,24 @@ amendments:
       newest first.'
     why: The reading box moves to the top in every dock host (spec 2026-11-26-word-default-red-toggle-top-dock
       R4, R5).
+  - row: vscode-fixed-chunk-box
+    op: set-status
+    base: 1
+    status: walk-owed
+    notes: webview.spec.ts "the reading box keeps one height through titles, dwell cards
+      and prose" pins the fixed box (R4) in the built webview, flow and chunk; a harness
+      walk of the webview (2026-11-27) showed the box at the top and exhibits newest
+      first. The real Extension Host walk is still owed.
+    why: webview.spec.ts "the reading box keeps one height through titles, dwell cards
+      and prose" pins the fixed box (R4) in the built webview, flow and chunk; a harness
+      walk of the webview (2026-11-27) showed the box at the top and exhibits newest
+      first. The real Extension Host walk is still owed.
+  - row: vscode-fixed-chunk-box
+    op: add-level
+    base: 2
+    level: ui
+    ref: speed-read-fr:tests/e2e/webview.spec.ts
+    why: webview.spec.ts "the reading box keeps one height through titles, dwell cards
+      and prose" pins the fixed box (R4) in the built webview, flow and chunk; a harness
+      walk of the webview (2026-11-27) showed the box at the top and exhibits newest
+      first. The real Extension Host walk is still owed.

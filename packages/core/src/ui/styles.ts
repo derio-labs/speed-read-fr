@@ -489,7 +489,8 @@ export const READER_CSS = `
   justify-content: flex-start; overflow: hidden;
 }
 .sr-reader[data-bottom-stage] .sr-stage .sr-display { height: 80px; min-height: 80px; }
-.sr-reader[data-bottom-stage] .sr-stage .sr-display[data-kind="flow"] { --sr-row-h: 44px; --sr-ribbon-font: 22px; height: calc(var(--sr-row-h) * 3); min-height: calc(var(--sr-row-h) * 3); }
+/* Sized by the reading mode, not by what the display shows now: a title or dwell card in flow mode keeps the ribbon's height (R4). */
+.sr-reader[data-bottom-stage][data-reading-mode="flow"] .sr-stage .sr-display { --sr-row-h: 44px; --sr-ribbon-font: 22px; height: calc(var(--sr-row-h) * 3); min-height: calc(var(--sr-row-h) * 3); }
 /* Flow mode reads a wide ribbon: the overlay's window and the docked stage widen (chunk mode keeps its width). */
 .sr-reader[data-bottom-stage][data-reading-mode="flow"] .sr-stage { width: 100%; }
 /* Docked panel: the contents sidebar overlays the left edge, so the flow stage starts at its right edge. */
