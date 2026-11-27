@@ -155,3 +155,8 @@ what: Walk the VS Code panel in the Extension Host: reading box at the top, card
 why: Walked the built VS Code webview in Chromium via scripts/webview-harness.mjs (2026-11-27), not the real Extension Host: box at the top and exhibits newest first PASS (pre-merge 0f327b4 showed box at bottom, document order); R4 fixed size FAILED (180/128px) and is fixed in PR #27 with an e2e test. The walk in a real Extension Host is still owed.
 how: fr journal resolve --scope spec --slug 2026-11-26-word-default-red-toggle-top-dock --id test-plan-step-1 --state fixed --note "<evidence>"
 owed_key: spec:2026-11-26-word-default-red-toggle-top-dock#step1
+
+<!-- fr:journal kind=finding scope=spec id=test-plan-step-1-resolved created=2026-11-27T08:52:36+00:00 state=open resolves=test-plan-step-1 filed_as=derio-labs/speed-read-fr#28 -->
+### test-plan-step-1-resolved · finding [filed → derio-labs/speed-read-fr#28] · resolves test-plan-step-1: Test Plan step 1 owed
+
+Filed at archive as derio-labs/speed-read-fr#28; still owed until discharged.
