@@ -95,6 +95,37 @@ test('flow mode in the webview reads a three-row ribbon across the panel with th
   expect(await page.locator('.sr-flow-axis').count()).toBe(0);
 });
 
+// R4 of 2026-11-26-word-default-red-toggle-top-dock: the dock's reading box keeps its size through
+// prose, chapter titles and exhibit dwell cards, so the cards and exhibits below it never jump.
+for (const readingMode of ['flow', 'chunk'] as const) {
+  test(`the reading box keeps one height through titles, dwell cards and prose (${readingMode}, R4)`, async ({ page }) => {
+    await open(page, { ...FAST, readingMode, wpm: 900 });
+    await page.evaluate(() => {
+      const w = window as unknown as { __stage: Set<string>; __kinds: Set<string> };
+      w.__stage = new Set();
+      w.__kinds = new Set();
+      const sample = () => {
+        const stage = document.querySelector('.sr-stage')!.getBoundingClientRect();
+        const support = document.querySelector('.sr-stage-support')!.getBoundingClientRect();
+        w.__stage.add(`${Math.round(stage.height)}/${Math.round(support.top)}`);
+        w.__kinds.add(document.querySelector<HTMLElement>('.sr-display')!.dataset.kind ?? '');
+        requestAnimationFrame(sample);
+      };
+      sample();
+    });
+    await page.keyboard.press('Space');
+    await expect(page.locator('.sr-exhibit[data-kind="math"]')).toHaveCount(2, { timeout: 20_000 });
+    const seen = await page.evaluate(() => {
+      const w = window as unknown as { __stage: Set<string>; __kinds: Set<string> };
+      return { stage: [...w.__stage], kinds: [...w.__kinds] };
+    });
+    // The walk crossed a chapter title, a dwell card and prose …
+    expect(seen.kinds).toEqual(expect.arrayContaining(['title', readingMode === 'flow' ? 'flow' : 'chunk']));
+    // … and the box height and the cards' top edge never changed.
+    expect(seen.stage).toHaveLength(1);
+  });
+}
+
 test('math and the diagram appear as exhibits with real rendered size', async ({ page }) => {
   await open(page);
   await page.keyboard.press('Space');
