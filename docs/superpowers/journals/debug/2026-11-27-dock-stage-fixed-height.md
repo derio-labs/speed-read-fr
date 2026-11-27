@@ -10,3 +10,8 @@ Found walking Test Plan step 1 of 2026-11-26-word-default-red-toggle-top-dock (r
 ### ff6830cbd2c3 · root-cause · .sr-display height keyed to its momentary data-kind, not the reading mode
 
 packages/core/src/ui/styles.ts: `[data-bottom-stage] .sr-display` is 80px; `.sr-display[data-kind="flow"]` is 3 × 44px = 132px. stage.ts sets display.dataset.kind per step (ready → title → flow → title …) while `.sr-reader[data-reading-mode]` stays "flow" throughout. So the box shrinks to 80px each time a card replaces the ribbon. Measured `.sr-display` 80 ↔ 132 with every other stage child constant.
+
+<!-- fr:journal kind=finding scope=debug id=8658a47975ac created=2026-11-27T08:46:51+00:00 state=fixed -->
+### 8658a47975ac · finding [fixed] · Flow height keyed to data-reading-mode; e2e test pins one box height
+
+styles.ts: `.sr-reader[data-bottom-stage][data-reading-mode="flow"] .sr-stage .sr-display` replaces `.sr-display[data-kind="flow"]`. Failing test first: tests/e2e/webview.spec.ts "the reading box keeps one height through titles, dwell cards and prose (flow, R4)" failed with ["128/176","180/228"]; passes after the fix, chunk-mode control passes before and after. Full suite: vitest 834 passed, playwright 127 passed, tsc clean.
