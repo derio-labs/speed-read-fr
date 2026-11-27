@@ -5,3 +5,8 @@
 ### 56b31dfd1076 · repro · Dock reading box changes height between cards and prose (R4)
 
 Found walking Test Plan step 1 of 2026-11-26-word-default-red-toggle-top-dock (row vscode-fixed-chunk-box) in the built VS Code webview (scripts/webview-harness.mjs, tests/fixtures/sample.md, defaults: readingMode flow). Sampling every 250 ms: `.sr-stage` is 180px while prose plays and 128px while a title/dwell card shows; `.sr-stage-support` below it moves 52px at every switch. Spec R4: "The reading box keeps its fixed size and position through prose, chapters and exhibits." Pre-existing (same 128/180 on 0f327b4), made visible by PR #24 moving the stage to the top of the dock.
+
+<!-- fr:journal kind=root-cause scope=debug id=ff6830cbd2c3 created=2026-11-27T08:34:28+00:00 -->
+### ff6830cbd2c3 · root-cause · .sr-display height keyed to its momentary data-kind, not the reading mode
+
+packages/core/src/ui/styles.ts: `[data-bottom-stage] .sr-display` is 80px; `.sr-display[data-kind="flow"]` is 3 × 44px = 132px. stage.ts sets display.dataset.kind per step (ready → title → flow → title …) while `.sr-reader[data-reading-mode]` stays "flow" throughout. So the box shrinks to 80px each time a card replaces the ribbon. Measured `.sr-display` 80 ↔ 132 with every other stage child constant.
