@@ -15,3 +15,8 @@ packages/core/src/ui/styles.ts: `[data-bottom-stage] .sr-display` is 80px; `.sr-
 ### 8658a47975ac · finding [fixed] · Flow height keyed to data-reading-mode; e2e test pins one box height
 
 styles.ts: `.sr-reader[data-bottom-stage][data-reading-mode="flow"] .sr-stage .sr-display` replaces `.sr-display[data-kind="flow"]`. Failing test first: tests/e2e/webview.spec.ts "the reading box keeps one height through titles, dwell cards and prose (flow, R4)" failed with ["128/176","180/228"]; passes after the fix, chunk-mode control passes before and after. Full suite: vitest 834 passed, playwright 127 passed, tsc clean.
+
+<!-- fr:journal kind=review scope=debug id=010cc13632ec created=2026-11-27T08:46:58+00:00 -->
+### 010cc13632ec · review · Self-review: no findings
+
+Checked: live flow<->chunk switch still resizes (a real mode change); --sr-row-h/--sr-ribbon-font set during cards only feed the ribbon; the Overlay band (setBandTop/place) now sees a steady card edge. No .fr/docs.yaml in this repo, so no docs check owed.
